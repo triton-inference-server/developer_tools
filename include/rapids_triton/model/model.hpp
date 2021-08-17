@@ -28,28 +28,16 @@ namespace triton { namespace backend { namespace rapids {
   struct SharedModelState {
     virtual void load() {
     }
+    virtual void unload() {
+    }
   };
 
   template<typename Input, typename Output, typename SharedState=SharedModelState>
   struct Model {
 
-    virtual void predict(std::vector<NamedTensor<Input>>&& inputs, std::vector<NamedTensor<Output>>&& outputs);
-
-    void predict() {
-      predict(get_inputs(), get_outputs());
-    }
+    virtual void predict();
 
     private:
       std::shared_ptr<SharedState> shared_state;
-
-      auto get_inputs() {
-        // TODO(wphicks)
-        return std::vector<NamedTensor<Input>>();
-      }
-
-      auto get_outputs() {
-        // TODO(wphicks)
-        return std::vector<NamedTensor<Output>>();
-      }
   };
 }}}  // namespace triton::backend::rapids

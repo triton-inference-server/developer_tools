@@ -23,8 +23,6 @@ namespace triton { namespace backend { namespace rapids {
 auto constexpr IS_GPU_BUILD = true;
 #else
 auto constexpr IS_GPU_BUILD = false;
-using cudaStream_t = void*;
-inline void cudaStreamSynchronize(void *){}
 #endif
 
 }}}  // namespace triton::backend::rapids

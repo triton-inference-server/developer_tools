@@ -27,8 +27,10 @@ struct ModelState : public BackendModel {
       TRITONBACKEND_Model* triton_model, const char* name,
       const uint64_t version);
 
+  auto get_shared_state() { return state_; }
+
  private:
-  RapidsModel model;
+  std::shared_ptr<RapidsSharedState> state_;
 };
 
 }}}  // namespace triton::backend::NAMESPACE

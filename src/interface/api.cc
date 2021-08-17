@@ -14,29 +14,35 @@
  * limitations under the License.
  */
 
-#include "triton/backend/backend_common.h"
-#include "triton/backend/backend_model.h"
-#include "triton/backend/backend_model_instance.h"
+#include <impl/names.h>
+#include <triton/backend/backend_common.h>
+#include <triton/backend/backend_model.h>
+#include <triton/backend/backend_model_instance.h>
+#include <rapids_triton/triton/backend.hpp>
+#include <rapids_triton/triton/logging.hpp>
 
-namespace triton { namespace backend { namespace rapids_identity {
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
 extern "C" {
 
+/** Confirm that backend is compatible with Triton's backend API version
+ */
 TRITONSERVER_Error*
 TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
 {
-  // TODO (wphicks): Move helpers
   try {
-    std::string name = get_backend_name(*backend);
+    auto name = rapids::get_backend_name(*backend);
 
-    log_info(
+    rapids::log_info(
         __FILE__, __LINE__,
         (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
 
-    if (!check_backend_version(*backend)) {
-      return TRITONSERVER_ErrorNew(
-          TRITONSERVER_ERROR_UNSUPPORTED,
-          "triton backend API version does not support this backend");
+    if (!rapids::check_backend_version(*backend)) {
+      throw rapids::TritonException{
+          rapids::Error::Unsupported,
+          "triton backend API version does not support this backend"};
     }
   }
   catch (TritonException& err) {
@@ -49,7 +55,7 @@ TRITONSERVER_Error*
 TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
 {
   try {
-    std::string name = get_model_name(*model);
+    auto name = get_model_name(*model);
 
     auto version = get_model_version(*model);
 
@@ -59,7 +65,6 @@ TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
          std::to_string(version) + ")")
             .c_str());
 
-    // TODO (wphicks): Replace
     set_model_state(*model, ModelState::Create(*model));
   }
   catch (TritonException& err) {
@@ -75,14 +80,12 @@ TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
   try {
     auto model_state = get_model_state<ModelState>(*model);
     if (model_state != nullptr) {
-      // TODO (wphicks): Replace
-      model_state->UnloadModel();
+      model_state->get_shared_state()->unload();
     }
 
     log_info(
         __FILE__, __LINE__, "TRITONBACKEND_ModelFinalize: delete model state");
 
-    // TODO (wphicks) Necessary?
     delete model_state;
   }
   catch (TritonException& err) {
@@ -153,9 +156,14 @@ TRITONBACKEND_ModelInstanceExecute(
     const uint32_t request_count)
 {
   // TODO (wphicks)
-  // model.predict();
+  // auto model = ...;
+  // auto batch_input = ...;
+  // auto batch_output = ...;
+  // model.predict(batch_input, batch_output);
 }
 
 }  // extern "C"
 
-}}}  // namespace triton::backend::rapids_identity
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton

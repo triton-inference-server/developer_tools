@@ -52,25 +52,24 @@ struct TritonException : std::exception {
   {
   }
 
-  TritonException(ErrorCode code, const std::string& msg)
+  TritonException(ErrorCode code, std::string const & msg)
       : error_(TRITONSERVER_ErrorNew(code, msg.c_str()))
   {
   }
 
-  TritonException(ErrorCode code, const char* msg)
+  TritonException(ErrorCode code, char const* msg)
       : error_{TRITONSERVER_ErrorNew(code, msg)}
   {
   }
 
-  // Exists only for triton_check; should not be used elsewhere
   TritonException(TRITONSERVER_Error* prev_error) : error_(prev_error) {}
 
-  const char* what() const noexcept
+  auto* what() const noexcept
   {
     return TRITONSERVER_ErrorMessage(error_);
   }
 
-  TRITONSERVER_Error* error() { return error_; }
+  auto* error() { return error_; }
 
  private:
   TRITONSERVER_Error* error_;
