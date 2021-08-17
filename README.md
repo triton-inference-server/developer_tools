@@ -29,3 +29,8 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 # The RAPIDS-Triton Library
+
+This project is designed to make it easy to integrate any C++-based algorithm
+into the NVIDIA Triton Inference Server. Originally developed to assist with
+the integration of RAPIDS algorithms, this library can be used by anyone to
+quickly get up and running with a custom backend for Triton.
