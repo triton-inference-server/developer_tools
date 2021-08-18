@@ -15,8 +15,10 @@
  */
 
 #pragma once
+#include <algorithm>
 #include <iterator>
 #include <vector>
+#include <rapids_triton/exceptions.hpp>
 #include <triton/core/tritonbackend.h>
 
 namespace triton { namespace backend { namespace rapids {
@@ -27,7 +29,7 @@ auto construct_responses(Iter requests_begin, Iter requests_end)
   auto responses = std::vector<TRITONBACKEND_Response*>{};
 
   auto requests_size = std::distance(requests_begin, requests_end);
-  if (!requests > 0) {
+  if (!requests_size > 0) {
     throw TritonException(Error::Internal,
         "Invalid iterators for requests when constructing responses");
   }
