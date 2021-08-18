@@ -15,9 +15,11 @@
  */
 
 #include <impl/names.h>
+#include <stdint.h>
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
+
 #include <rapids_triton/triton/backend.hpp>
 #include <rapids_triton/triton/logging.hpp>
 
@@ -29,12 +31,12 @@ extern "C" {
 
 /** Confirm that backend is compatible with Triton's backend API version
  */
-TRITONSERVER_Error*
-TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
-{
+auto* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
+  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
   try {
     auto name = rapids::get_backend_name(*backend);
 
+    // TODO (wphicks)
     rapids::log_info(
         __FILE__, __LINE__,
         (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
@@ -44,117 +46,103 @@ TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend)
           rapids::Error::Unsupported,
           "triton backend API version does not support this backend"};
     }
+  } catch (rapids::TritonException& err) {
+    result = err.error();
   }
-  catch (TritonException& err) {
-    return err.error();
-  }
-  return nullptr;  // success
+  return result;
 }
 
-TRITONSERVER_Error*
-TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model)
-{
+auto* TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model) {
+  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
   try {
-    auto name = get_model_name(*model);
+    auto name = rapids::get_model_name(*model);
 
-    auto version = get_model_version(*model);
+    auto version = rapids::get_model_version(*model);
 
-    log_info(
-        __FILE__, __LINE__,
-        (std::string("TRITONBACKEND_ModelInitialize: ") + name + " (version " +
-         std::to_string(version) + ")")
-            .c_str());
+    // TODO (wphicks)
+    rapids::log_info(__FILE__, __LINE__,
+                     (std::string("TRITONBACKEND_ModelInitialize: ") + name +
+                      " (version " + std::to_string(version) + ")")
+                         .c_str());
 
-    set_model_state(*model, ModelState::Create(*model));
+    rapids::set_model_state(*model, ModelState::Create(*model));
+  } catch (rapids::TritonException& err) {
+    result = err.error();
   }
-  catch (TritonException& err) {
-    return err.error();
-  }
 
-  return nullptr;  // success
+  return result;
 }
 
-TRITONSERVER_Error*
-TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model)
-{
+auto* TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model) {
+  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
   try {
-    auto model_state = get_model_state<ModelState>(*model);
+    auto model_state = rapids::get_model_state<ModelState>(*model);
     if (model_state != nullptr) {
       model_state->get_shared_state()->unload();
     }
 
-    log_info(
-        __FILE__, __LINE__, "TRITONBACKEND_ModelFinalize: delete model state");
+    rapids::log_info(__FILE__, __LINE__,
+                     "TRITONBACKEND_ModelFinalize: delete model state");
 
     delete model_state;
-  }
-  catch (TritonException& err) {
-    return err.error();
+  } catch (rapids::TritonException& err) {
+    result = err.error();
   }
 
-  return nullptr;  // success
+  return result;
 }
 
-TRITONSERVER_Error*
-TRITONBACKEND_ModelInstanceInitialize(TRITONBACKEND_ModelInstance* instance)
-{
-  // TODO (wphicks): Replace
+auto* TRITONBACKEND_ModelInstanceInitialize(
+    TRITONBACKEND_ModelInstance* instance) {
+  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
   try {
-    std::string name = get_model_instance_name(*instance);
-    int32_t device_id = get_device_id(*instance);
-    TRITONSERVER_InstanceGroupKind kind = get_instance_kind(*instance);
+    auto name = rapids::get_model_instance_name(*instance);
+    auto device_id = rapids::get_device_id(*instance);
+    auto deployment_type = rapids::get_deployment_type(*instance);
 
-    log_info(
-        __FILE__, __LINE__,
-        (std::string("TRITONBACKEND_ModelInstanceInitialize: ") + name + " (" +
-         TRITONSERVER_InstanceGroupKindString(kind) + " device " +
-         std::to_string(device_id) + ")")
-            .c_str());
+    // TODO (wphicks)
+    // TODO (wphicks): Replace InstanceGroupKindString call
+    rapids::log_info(__FILE__, __LINE__,
+                     (std::string("TRITONBACKEND_ModelInstanceInitialize: ") +
+                      name + " (" + TRITONSERVER_InstanceGroupKindString(kind) +
+                      " device " + std::to_string(device_id) + ")")
+                         .c_str());
 
-    ModelState* model_state = get_model_state<ModelState>(*instance);
+    auto* model_state = rapids::get_model_state<ModelState>(*instance);
 
-    // WH
-    set_instance_state<ModelInstanceState>(
+    rapids::set_instance_state(
         *instance, ModelInstanceState::Create(model_state, instance));
+  } catch (rapids::TritonException& err) {
+    result = err.error();
   }
-  catch (TritonException& err) {
-    return err.error();
-  }
-  return nullptr;  // success
+  return result;
 }
 
-TRITONSERVER_Error*
-TRITONBACKEND_ModelInstanceFinalize(TRITONBACKEND_ModelInstance* instance)
-{
+auto* TRITONBACKEND_ModelInstanceFinalize(
+    TRITONBACKEND_ModelInstance* instance) {
+  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
   try {
-    void* vstate;
-    triton_check(TRITONBACKEND_ModelInstanceState(instance, &vstate));
-    ModelInstanceState* instance_state =
-        reinterpret_cast<ModelInstanceState*>(vstate);
-
+    auto* instance_state =
+        rapids::get_instance_state<ModelInstanceState>(*instance);
     if (instance_state != nullptr) {
-      // WH
-      instance_state->UnloadFILModel();
+      instance_state->get_model().unload();
 
-      log_info(
+      rapids::log_info(
           __FILE__, __LINE__,
           "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
 
       delete instance_state;
     }
-  }
-  catch (TritonException& err) {
-    return err.error();
+  } catch (rapids::TritonException& err) {
+    result = err.error();
   }
 
-  return nullptr;  // success
+  return result;
 }
 
-TRITONSERVER_Error*
-TRITONBACKEND_ModelInstanceExecute(
-    TRITONBACKEND_ModelInstance* instance, TRITONBACKEND_Request** raw_requests,
-    const uint32_t request_count)
-{
+auto* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstance* instance,
+                                         TRITONBACKEND_Request** raw_requests,
+                                         uint32_t const request_count) {
   // TODO (wphicks)
   // auto model = ...;
   // auto batch_input = ...;

@@ -90,4 +90,17 @@ set_model_state(
       &model, reinterpret_cast<void*>(model_state.release())));
 }
 
+/** Given a model, return its associated ModelState object */
+template <typename ModelStateType>
+auto*
+get_model_state(TRITONBACKEND_Model& model)
+{
+  auto vstate = static_cast<void*>(nullptr);
+  triton_check(TRITONBACKEND_ModelState(&model, &vstate));
+
+  auto* model_state = reinterpret_cast<ModelStateType*>(vstate);
+
+  return model_state;
+}
+
 }}}  // namespace triton::backend::rapids

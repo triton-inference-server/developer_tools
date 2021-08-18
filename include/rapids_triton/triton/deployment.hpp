@@ -15,32 +15,13 @@
  */
 
 #pragma once
-#include <cstddef>
-#include <string>
-#include <vector>
-#include <rapids_triton/tensor/tensor.hpp>
-#include <rapids_triton/utils/narrow.hpp>
+#include <triton/core/tritonserver.h>
 
 namespace triton { namespace backend { namespace rapids {
-  /**
-   * @brief Stores shared state for multiple instances of the same model
-   */
-  struct SharedModelState {
-    virtual void load() {
-    }
-    virtual void unload() {
-    }
-  };
-
-  template<typename SharedState=SharedModelState>
-  struct Model {
-
-    /* virtual void predict(Batch batch) {
-     *   Fetch tensors in order and feed them to predict overload
-     * };
-     */
-
-    private:
-      std::shared_ptr<SharedState> shared_state;
-  };
-}}}  // namespace triton::backend::rapids
+  using DeploymentType = TRITONSERVER_InstanceGroupKind;
+  using GPUDeployment = TRITONSERVER_INSTANCEGROUPKIND_GPU;
+  using CPUDeployment = TRITONSERVER_INSTANCEGROUPKIND_CPU;
+  // Note (wphicks): We currently are not including "Auto" or "Model" because I
+  // am not sure exactly how those would be used in context. If there is a
+  // demand, they can be added.
+}}}

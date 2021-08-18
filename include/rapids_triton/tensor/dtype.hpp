@@ -17,9 +17,13 @@
 #pragma once
 #include <triton/core/tritonserver.h>
 
+namespace triton { namespace backend { namespace rapids {
+
 using DType = TRITONSERVER_DataType;
 using DTypeBool = TRITONSERVER_TYPE_BOOL;
 using DTypeUint8 = TRITONSERVER_TYPE_UINT8;
+using DTypeChar = DTypeUint8;
+using DTypeByte = DTypeUint8;
 using DTypeUint16 = TRITONSERVER_TYPE_UINT16;
 using DTypeUint32 = TRITONSERVER_TYPE_UINT32;
 using DTypeUint64 = TRITONSERVER_TYPE_UINT64;
@@ -148,5 +152,7 @@ template <>
 struct TritonDtype<double> {
   static constexpr DType value = DTypeFloat64;
 };
+
+}}}
 
 // TODO(whicks): Correctly handle const versions of types
