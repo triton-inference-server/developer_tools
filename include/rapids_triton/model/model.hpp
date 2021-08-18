@@ -16,9 +16,12 @@
 
 #pragma once
 #include <cstddef>
+#include <cuda_runtime_api.h>
 #include <string>
 #include <vector>
+#include <rapids_triton/batch/batch.hpp>
 #include <rapids_triton/tensor/tensor.hpp>
+#include <rapids_triton/triton/deployment.hpp>
 #include <rapids_triton/utils/narrow.hpp>
 
 namespace triton { namespace backend { namespace rapids {
@@ -35,12 +38,47 @@ namespace triton { namespace backend { namespace rapids {
   template<typename SharedState=SharedModelState>
   struct Model {
 
-    /* virtual void predict(Batch batch) {
+    /* virtual void predict(Batch& batch) {
      *   Fetch tensors in order and feed them to predict overload
      * };
      */
 
+    /**
+     * @brief Return the preferred memory type in which to store data for this
+     * batch or std::nullopt to accept whatever Triton returns
+     *
+     * The base implementation of this method will require data on-host if the
+     * model itself is deployed on the host OR if this backend has not been
+     * compiled with GPU support. Otherwise, models deployed on device will
+     * receive memory on device. Overriding this method will allow derived
+     * model classes to select a preferred memory location based on properties
+     * of the batch or to simply return std::nullopt if device memory or host
+     * memory will do equally well.
+     */
+    virtual std::optional<MemoryType> preferred_mem_type(Batch& batch) const {
+      return (IS_GPU_BUILD && deployment_type_ == GPUDeployment) ? DeviceMemory : HostMemory;
+    }
+
+    /**
+     * @brief Get input tensor of a particular named input for an entire batch
+     */
+    template<typename T>
+    auto get_input(Batch& batch, std::string const& name, std::optional<MemoryType>> const& mem_type, cudaStream_t stream) const {
+      return batch.get_input<T>(name, mem_type, device_id_, stream);
+    }
+    template<typename T>
+    auto get_input(Batch& batch, std::string const& name, std::optional<MemoryType> const& mem_type) const {
+      return get_input<T>(name, mem_type, device_id_, default_stream_);
+    }
+    template<typename T>
+    auto get_input(Batch& batch, std::string const& name) const {
+      return get_input<T>(name, preferred_mem_type(batch), device_id_, default_stream_);
+    }
+
     private:
-      std::shared_ptr<SharedState> shared_state;
+      std::shared_ptr<SharedState> shared_state_;
+      device_id_t device_id_;
+      cudaStream_t default_stream_;
+      DeploymentType deployment_type_;
   };
 }}}  // namespace triton::backend::rapids

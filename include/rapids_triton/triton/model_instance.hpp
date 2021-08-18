@@ -28,6 +28,7 @@
 #include <string>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/deployment.hpp>
+#include <rapids_triton/triton/device.hpp>
 
 namespace triton { namespace backend { namespace rapids {
   /** Get the name of a Triton model instance from the instance itself */
@@ -44,10 +45,9 @@ namespace triton { namespace backend { namespace rapids {
    * If this instance is loaded on the host, 0 will be returned. Otherwise the
    * GPU device id will be returned.*/
   inline auto
-  inline auto
   get_device_id(TRITONBACKEND_ModelInstance& instance)
   {
-    auto device_id = std::int32_t{};
+    auto device_id = device_id_t{};
     triton_check(TRITONBACKEND_ModelInstanceDeviceId(&instance, &device_id));
     return device_id;
   }
