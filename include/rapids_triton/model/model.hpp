@@ -60,6 +60,13 @@ namespace triton { namespace backend { namespace rapids {
     }
 
     /**
+     * @brief Whether or not pinned memory should be used for I/O with this model
+     */
+    virtual bool enable_pinned() const {
+      return false;
+    }
+
+    /**
      * @brief Get input tensor of a particular named input for an entire batch
      */
     template<typename T>

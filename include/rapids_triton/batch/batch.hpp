@@ -49,7 +49,12 @@ namespace triton { namespace backend { namespace rapids {
 
     template<typename T>
     auto get_input(std::string const& name, MemoryType memory_type, device_id_t device_id, cudaStream_t stream) {
-      // TODO(wphicks)
+      collector_.ProcessTensor(
+        name.c_str(),
+        nullptr // Return data without copy if possible
+        // TODO
+      );
+
     }
 
     template<typename T>
@@ -62,6 +67,9 @@ namespace triton { namespace backend { namespace rapids {
       std::vector<TRITONBACKEND_Response*> responses_;
       BackendInputCollector collector_;
       BackendOutputResponder responder_;
-  }
+
+      auto get_shape() {
+      }
+  };
 }}}  // namespace triton::backend::rapids
 
