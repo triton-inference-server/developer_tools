@@ -16,4 +16,14 @@
 
 #pragma once
 
+/* Triton expects certain definitions within its backend libraries to follow
+ * specific naming conventions. Specifically, for a backend named
+ * "rapids_identity," most definitions should appear within a namespace called
+ * triton::backend::rapids_identity.
+ *
+ * In order to facilitate this with minimal effort on the part of backend
+ * developers, we ask that you put the name of your backend here. This macro is
+ * then used to propagate the correct namespace name wherever it is needed in
+ * the impl and interface code. */
+
 #define NAMESPACE rapids_identity

@@ -26,23 +26,25 @@
 
 namespace triton { namespace backend { namespace rapids {
   struct Batch {
-    Batch(TRITONBACKEND_Request** raw_requests, request_size_t count, ModelState const& model_state, cudaStream_t stream) :
+    using size_type = std::size_t;
+
+    Batch(TRITONBACKEND_Request** raw_requests, request_size_t count, TRITONBACKEND_MemoryManager& triton_mem_manager, bool use_pinned_input, bool use_pinned_output, size_type max_batch_size, cudaStream_t stream) :
       requests_(raw_requests, count),
       responses_(construct_responses(requests_.begin(), requests_.end())),
       collector_{
         raw_requests,
         count,
         &responses_,
-        model_state.TritonMemoryManager(),
-        model_state.EnablePinnedInput(),
+        &triton_mem_manager,
+        use_pinned_input,
         stream
       },
       responder_{
         raw_requests,
         count,
         &responses_,
-        model_state.MaxBatchSize(),
-        model_state.EnablePinnedInput(),
+        max_batch_size,
+        use_pinned_output,
         stream
       } {}
 

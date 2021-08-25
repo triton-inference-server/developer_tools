@@ -17,22 +17,18 @@
 #pragma once
 
 #include <impl/names.h>
-#include <triton/backend/backend_model.h>
 
-namespace triton { namespace backend { namespace NAMESPACE {
-struct ModelState : public BackendModel {
+#include <rapids_triton/model/shared_state.hpp>
 
-  ModelState(TRITONBACKEND_Model& triton_model)
-      : state_{std::make_shared<RapidsSharedState>(
-            get_model_config(triton_model))} {}
+namespace triton {
+namespace backend {
+namespace NAMESPACE {
 
-  void load() { state_->load(); }
-  void unload() { state_->unload(); }
-
-  auto get_shared_state() { return state_; }
-
- private:
-  std::shared_ptr<RapidsSharedState> state_;
+struct RapidsSharedState : rapids::SharedState {
+  void load() {}
+  void unload() {}
 };
 
-}}}  // namespace triton::backend::NAMESPACE
+}  // namespace NAMESPACE
+}  // namespace backend
+}  // namespace triton

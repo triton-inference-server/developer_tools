@@ -20,28 +20,17 @@
 #include <string>
 #include <vector>
 #include <rapids_triton/batch/batch.hpp>
+#include <rapids_triton/model/shared_state.hpp>
 #include <rapids_triton/tensor/tensor.hpp>
 #include <rapids_triton/triton/deployment.hpp>
+#include <rapids_triton/triton/device.hpp>
 #include <rapids_triton/utils/narrow.hpp>
 
 namespace triton { namespace backend { namespace rapids {
-  /**
-   * @brief Stores shared state for multiple instances of the same model
-   */
-  struct SharedModelState {
-    virtual void load() {
-    }
-    virtual void unload() {
-    }
-  };
-
   template<typename SharedState=SharedModelState>
   struct Model {
 
-    /* virtual void predict(Batch& batch) {
-     *   Fetch tensors in order and feed them to predict overload
-     * };
-     */
+    virtual void predict(Batch& batch) = 0;
 
     /**
      * @brief Return the preferred memory type in which to store data for this
@@ -57,6 +46,12 @@ namespace triton { namespace backend { namespace rapids {
      */
     virtual std::optional<MemoryType> preferred_mem_type(Batch& batch) const {
       return (IS_GPU_BUILD && deployment_type_ == GPUDeployment) ? DeviceMemory : HostMemory;
+    }
+    virtual std::optional<MemoryType> preferred_mem_type_in(Batch& batch) const {
+      return preferred_mem_type(batch);
+    }
+    virtual std::optional<MemoryType> preferred_mem_type_out(Batch& batch) const {
+      return preferred_mem_type(batch);
     }
 
     /**
@@ -81,6 +76,21 @@ namespace triton { namespace backend { namespace rapids {
     auto get_input(Batch& batch, std::string const& name) const {
       return get_input<T>(name, preferred_mem_type(batch), device_id_, default_stream_);
     }
+
+    /**
+     * @brief Retrieve value of configuration parameter
+     */
+    template <typename T>
+    auto get_config_param(std::string const& name) {
+      return shared_state_->get_config_param<T>(name);
+    }
+    template <typename T>
+    auto get_config_param(std::string const& name, T default_value) {
+      return shared_state_->get_config_param<T>(name, default_value);
+    }
+
+    Model(std::shared_ptr<SharedState> shared_state, device_id_t device_id, cudaStream_t default_stream, DeploymentType deployment_type) :
+      shared_state_{shared_state}, device_id_{device_id}, default_stream_{default_stream}, deployment_type_{deployment_type} {}
 
     private:
       std::shared_ptr<SharedState> shared_state_;

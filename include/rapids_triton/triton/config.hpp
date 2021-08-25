@@ -16,23 +16,17 @@
 
 #pragma once
 
-#include <impl/names.h>
-#include <triton/backend/backend_model.h>
+#include <stdint.h>
+#include <cstddef>
 
-namespace triton { namespace backend { namespace NAMESPACE {
-struct ModelState : public BackendModel {
+#include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/utils/narrow.hpp>
+#include <triton/common/triton_json.h>
 
-  ModelState(TRITONBACKEND_Model& triton_model)
-      : state_{std::make_shared<RapidsSharedState>(
-            get_model_config(triton_model))} {}
-
-  void load() { state_->load(); }
-  void unload() { state_->unload(); }
-
-  auto get_shared_state() { return state_; }
-
- private:
-  std::shared_ptr<RapidsSharedState> state_;
-};
-
-}}}  // namespace triton::backend::NAMESPACE
+namespace triton { namespace backend { namespace rapids {
+  inline auto get_max_batch_size(common::TritonJSON::Value& config) {
+    auto reported = int64_t{};
+    triton_check(config.MemberAsInt("max_batch_size", &reported));
+    return narrow<std::size_t>(reported);
+  }
+}}}  // namespace triton::backend::rapids

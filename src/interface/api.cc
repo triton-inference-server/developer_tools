@@ -65,7 +65,10 @@ auto* TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model) {
                       " (version " + std::to_string(version) + ")")
                          .c_str());
 
-    rapids::set_model_state(*model, ModelState::Create(*model));
+    auto rapids_model_state = std::make_unique<ModelState>(*model);
+    rapids_model_state->load();
+
+    rapids::set_model_state(*model, std::move(rapids_model_state));
   } catch (rapids::TritonException& err) {
     result = err.error();
   }
@@ -110,8 +113,10 @@ auto* TRITONBACKEND_ModelInstanceInitialize(
 
     auto* model_state = rapids::get_model_state<ModelState>(*instance);
 
-    rapids::set_instance_state(
-        *instance, ModelInstanceState::Create(model_state, instance));
+    auto rapids_model =
+        std::make_unique<ModelInstanceState>(model_state, instance)
+
+            rapids::set_instance_state(*instance, std::move(rapids_model));
   } catch (rapids::TritonException& err) {
     result = err.error();
   }
@@ -125,7 +130,7 @@ auto* TRITONBACKEND_ModelInstanceFinalize(
     auto* instance_state =
         rapids::get_instance_state<ModelInstanceState>(*instance);
     if (instance_state != nullptr) {
-      instance_state->get_model().unload();
+      instance_state->unload();
 
       rapids::log_info(
           __FILE__, __LINE__,
@@ -143,11 +148,20 @@ auto* TRITONBACKEND_ModelInstanceFinalize(
 auto* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstance* instance,
                                          TRITONBACKEND_Request** raw_requests,
                                          uint32_t const request_count) {
-  // TODO (wphicks)
-  // auto model = ...;
-  // auto batch_input = ...;
-  // auto batch_output = ...;
-  // model.predict(batch_input, batch_output);
+  auto* model_state = rapids::get_model_state<ModelState>(*instance);
+  auto* instance_state =
+      rapids::get_instance_state<ModelInstanceState>(*instance);
+  auto& model = instance_state->get_model();
+  auto max_batch_size = model.get_config_param("max_batch_size");
+  auto batch = Batch{raw_requests,
+                     request_count,
+                     model_state->TritonMemoryManager(),
+                     model_state->EnablePinnedInput(),
+                     model_state->EnablePinnedOutput(),
+                     max_batch_size,
+                     model.get_default_stream()};
+
+  model.predict(batch);
 }
 
 }  // extern "C"

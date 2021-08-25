@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cuda_runtime_api.h>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,6 +26,7 @@
 #include <triton/common/triton_json.h>
 #include <rapids_triton/batch/batch.hpp>
 #include <rapids_triton/tensor/tensor.hpp>
+#include <rapids_triton/triton/config.hpp>
 #include <rapids_triton/triton/deployment.hpp>
 #include <rapids_triton/utils/narrow.hpp>
 
@@ -33,13 +35,13 @@ namespace triton { namespace backend { namespace rapids {
    * @brief Stores shared state for multiple instances of the same model
    */
   struct SharedModelState {
-    // TODO(wphicks): 
-    virtual void load() {
-    }
-    virtual void unload() {
-    }
 
-    explicit SharedModelState(common::TritonJSON::Value&& config) : config_{std::move(config)} {}
+    virtual void load() {}
+    virtual void unload() {}
+
+    explicit SharedModelState(
+      common::TritonJSON::Value config) : config_{config},
+             max_batch_size_(get_max_batch_size(config)) {}
 
     template <typename T>
     auto get_config_param(std::string const& name) {
@@ -53,10 +55,15 @@ namespace triton { namespace backend { namespace rapids {
 
     private:
       common::TritonJSON::Value config_;
+      Batch::size_type max_batch_size_;
 
       template <typename T>
       auto get_config_param(std::string const& name, std::optional<T> const& default_value) {
         auto result = T{};
+        if (name == std::string("max_batch_size")) {
+          result = max_batch_size_;
+          return result;
+        }
         auto json_value = common::TritonJson::Value{};
         if (config_.Find(name.c_str(), &json_value) {
           auto string_repr = std::string{};
