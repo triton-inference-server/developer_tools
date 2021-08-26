@@ -47,6 +47,8 @@ option(CUDA_STATIC_RUNTIME "Statically link the CUDA runtime" OFF)
 option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies" ON)
 option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
 option(NVTX "Enable nvtx markers" OFF)
+option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
+option(TRITON_ENABLE_STATS "Enable statistics collection in Triton" ON)
 
 message(VERBOSE "RAPIDS_TRITON: Build RAPIDS_TRITON unit-tests: ${BUILD_TESTS}")
 message(VERBOSE "RAPIDS_TRITON: Enable detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")

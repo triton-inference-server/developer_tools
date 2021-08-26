@@ -1,0 +1,8 @@
+---
+name: rapids_triton_dev
+channels:
+  - nvidia
+  - conda-forge
+dependencies:
+  - cudatoolkit=11.4
+  - cmake=3.20.1
