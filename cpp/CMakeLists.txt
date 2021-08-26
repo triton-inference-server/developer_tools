@@ -49,6 +49,9 @@ option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
 option(NVTX "Enable nvtx markers" OFF)
 option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
 option(TRITON_ENABLE_STATS "Enable statistics collection in Triton" ON)
+set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
+set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
+set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
 
 message(VERBOSE "RAPIDS_TRITON: Build RAPIDS_TRITON unit-tests: ${BUILD_TESTS}")
 message(VERBOSE "RAPIDS_TRITON: Enable detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
@@ -96,6 +99,8 @@ rapids_cpm_init()
 include(cmake/thirdparty/get_thrust.cmake)
 include(cmake/thirdparty/get_rmm.cmake)
 include(cmake/thirdparty/get_raft.cmake)
+include(cmake/thirdparty/get_rapidjson.cmake)
+include(cmake/thirdparty/get_triton.cmake)
 
 if(BUILD_TESTS)
   include(cmake/thirdparty/get_gtest.cmake)
@@ -113,6 +118,8 @@ target_link_libraries(rapids_triton
 INTERFACE
   rmm::rmm
   raft::raft
+  triton-core-serverstub
+  triton-backend-utils
   )
 
 target_compile_features(rapids_triton INTERFACE cxx_std_17 $<BUILD_INTERFACE:cuda_std_17>)

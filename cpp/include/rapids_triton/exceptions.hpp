@@ -25,13 +25,13 @@ namespace triton { namespace backend { namespace rapids {
 using ErrorCode = TRITONSERVER_Error_Code;
 
 namespace Error {
-  using Unknown = ErrorCode::TRITONSERVER_ERROR_UNKNOWN;
-  using Internal = ErrorCode::TRITONSERVER_ERROR_INTERNAL;
-  using NotFound = ErrorCode::TRITONSERVER_ERROR_NOT_FOUND;
-  using InvalidArg = ErrorCode::TRITONSERVER_ERROR_INVALID_ARG;
-  using Unavailable = ErrorCode::TRITONSERVER_ERROR_UNAVAILABLE;
-  using Unsupported = ErrorCode::TRITONSERVER_ERROR_UNSUPPORTED;
-  using AlreadyExists = ErrorCode::TRITONSERVER_ERROR_ALREADY_EXISTS;
+  auto constexpr Unknown = ErrorCode::TRITONSERVER_ERROR_UNKNOWN;
+  auto constexpr Internal = ErrorCode::TRITONSERVER_ERROR_INTERNAL;
+  auto constexpr NotFound = ErrorCode::TRITONSERVER_ERROR_NOT_FOUND;
+  auto constexpr InvalidArg = ErrorCode::TRITONSERVER_ERROR_INVALID_ARG;
+  auto constexpr Unavailable = ErrorCode::TRITONSERVER_ERROR_UNAVAILABLE;
+  auto constexpr Unsupported = ErrorCode::TRITONSERVER_ERROR_UNSUPPORTED;
+  auto constexpr AlreadyExists = ErrorCode::TRITONSERVER_ERROR_ALREADY_EXISTS;
 }
 
 /**
@@ -65,7 +65,7 @@ struct TritonException : std::exception {
 
   TritonException(TRITONSERVER_Error* prev_error) : error_(prev_error) {}
 
-  auto* what() const noexcept
+  virtual char const* what() const noexcept
   {
     return TRITONSERVER_ErrorMessage(error_);
   }
