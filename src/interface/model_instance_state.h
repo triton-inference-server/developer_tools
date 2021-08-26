@@ -32,7 +32,9 @@ struct ModelInstanceState : public BackendModelInstance {
       : BackendModelInstance(&model_state, triton_model_instance),
         model_(model_state.get_shared_state(),
                rapids::get_device_id(*triton_model_instance), CudaStream(),
-               Kind()) {}
+               Kind(),
+               JoinPath({RepositoryPath(), std::to_string(Version()),
+                         ArtifactFilename()})) {}
 
   auto& get_model() const { return model_; }
 

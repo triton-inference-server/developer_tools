@@ -23,24 +23,29 @@
 
 #include <cuda_runtime_api.h>
 
+#include <rapids_triton/build_control.hpp>
+#include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/tensor/dtype.hpp>
 
 namespace triton { namespace backend { namespace rapids {
   template <typename T>
-  struct Tensor {
+  struct BaseTensor {
    using size_type = typename Buffer<T>::size_type;
 
-   Tensor() : shape_{}, buffer_{} {}
+   BaseTensor() : shape_{}, buffer_{} {}
+   BaseTensor(std::vector<size_type>&& shape, Buffer&& buffer) : shape_(std::move(shape)), buffer_{std::move(buffer)} {}
+
+   virtual ~BaseTensor() = 0;
 
    /**
-    * @brief Construct a Tensor from a collection of buffers
+    * @brief Construct a BaseTensor from a collection of buffers
     *
     * Given a collection of buffers, collate them all into one buffer stored in
-    * a new Tensor
+    * a new BaseTensor
     */
    template <typename Iter>
-   Tensor(std::vector<size_type> const& shape, Iter begin, Iter end, MemoryType mem_type, cudaStream_t stream=0) : 
+   BaseTensor(std::vector<size_type> const& shape, Iter begin, Iter end, MemoryType mem_type, cudaStream_t stream=0) : 
      shape_(shape),
      buffer_([&begin, &end, &mem_type, &stream] () {
        auto total_size = std::transform_reduce(
@@ -60,9 +65,18 @@ namespace triton { namespace backend { namespace rapids {
    auto data() { return buffer_.data(); }
    auto& buffer() { return buffer_; }
 
-   auto constexpr dtype() const { return TritonDtype<T>::value; }
+   auto dtype() constexpr { return TritonDtype<T>::value; }
    auto mem_type() const { return data.mem_type(); }
    auto stream() const { return data.stream(); }
+   auto device() const { return data.device(); }
+
+   void stream_synchronize() const {
+     if constexpr (IS_GPU_BUILD) {
+       if (mem_type() == DeviceMemory) {
+         cuda_check(cudaStreamSynchronize(stream());
+       }
+     }
+   }
 
    private:
      std::vector<size_type> shape_;
@@ -70,7 +84,7 @@ namespace triton { namespace backend { namespace rapids {
   };
 
   template<typename T>
-  void copy(Tensor<std::remove_const_t<T>> dst, Tensor<T> src) {
+  void copy(BaseTensor<std::remove_const_t<T>> dst, BaseTensor<T> src) {
     copy(dst.buffer(), src.buffer());
   }
 
@@ -82,7 +96,7 @@ namespace triton { namespace backend { namespace rapids {
    * of the data from the src Tensor
    */
   template<typename T, typename Iter>
-  copy(Iter begin, Iter end, Tensor<T> src) {
+  copy(Iter begin, Iter end, BaseTensor<T> src) {
     std::reduce(
       begin,
       end,
@@ -94,13 +108,44 @@ namespace triton { namespace backend { namespace rapids {
       }
   }
 
-  /**
-   * @brief A simple struct containing only a string used to name a Tensor and
-   * the Tensor itself
-   */
-  template <typename T>
-  struct NamedTensor {
-    std::string name;
-    Tensor<T> tensor;
+  template<typename T>
+  struct Tensor final : BaseTensor<T> {
+  };
+
+  template<typename T>
+  struct OutputTensor final : BaseTensor<T> {
+    OutputTensor(std::vector<size_type>&& shape, Buffer&& buffer,
+        std::string const& name, std::shared_pointer<BackendOutputResponder> responder) :
+    BaseTensor<T>(std::move(shape), std::move(buffer)), name_{name}, responder_{responder}
+    {}
+    /**
+     * @brief Prepare final output data from this tensor for responding to
+     * request
+     *
+     * This method *must* be called by rapids_triton backends on all of their
+     * output tensors before returning from their `predict` methods. Because we
+     * cannot known a priori what names backends might have for their tensors
+     * and what types will be stored in those tensors, the rapids_triton
+     * library cannot store references to those tensors that might otherwise be
+     * used to finalize them.
+     */
+    void finalize() {
+      // Must call the following because BackendOutputResponder does not expose
+      // its stream, so we cannot be certain that our data is not being
+      // processed on another stream.
+      stream_synchronize();
+      responder_->ProcessTensor(
+        name_.c_str(),
+        TritonDtype<T>::value,
+        shape(),
+        data(),
+        mem_type(),
+        device()
+      );
+    }
+
+    private:
+      std::shared_pointer<BackendOutputResponder> responder_;
+      std::string name_;
   };
 }}}  // namespace triton::backend::rapids

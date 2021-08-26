@@ -31,7 +31,10 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   void load() {}
   void unload() {}
   void predict(rapids::Batch& batch) {
-    // TODO(wphicks)
+    auto input = model.get_input<float>(batch, "input__0");
+    auto output = model.get_output<float>(batch, "output__0");
+    copy(output, input);
+    // TODO(wphicks): Read config and make this interesting
   }
 
   /***************************************************************************

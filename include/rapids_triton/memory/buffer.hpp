@@ -26,6 +26,7 @@
 #include <rapids_triton/memory/types.hpp>
 #include <rapids_triton/memory/detail/allocate.hpp>
 #include <rapids_triton/memory/detail/copy.hpp>
+#include <rapids_triton/triton/device.hpp>
 
 namespace triton { namespace backend { namespace rapids {
   template <typename T>
@@ -39,7 +40,7 @@ namespace triton { namespace backend { namespace rapids {
     using owned_d_ptr = std::unique_ptr<T, detail::dev_deallocater<T>{}>;
     using data_ptr = std::variant<h_ptr, d_ptr, owned_h_ptr, owned_d_ptr>;
 
-    Buffer() noexcept : data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {}
+    Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {}
 
     /**
      * @brief Construct buffer of given size in given memory location (either
@@ -47,9 +48,9 @@ namespace triton { namespace backend { namespace rapids {
      * A buffer constructed in this way is owning and will release allocated
      * resources on deletion
      */
-    Buffer(size_type size, MemoryType memory_type=DeviceMemory, cudaStream_t
+    Buffer(size_type size, MemoryType memory_type=DeviceMemory, device_id_t device=0, cudaStream_t
         stream=0) :
-      data_{allocate(size, memory_type)}, size_{size}, stream_{stream} {}
+      device_{device}, data_{allocate(size, memory_type)}, size_{size}, stream_{stream} {}
 
     /**
      * @brief Construct buffer from given source in given memory location (either
@@ -58,8 +59,8 @@ namespace triton { namespace backend { namespace rapids {
      * responsible for freeing any resources associated with the input pointer
      */
     Buffer(T* input_data, size_type size, MemoryType memory_type=DeviceMemory,
-        cudaStream_t stream=0) :
-      data_{allocate(size, memory_type)}, size_{size}, stream_{stream} {}
+        device_id_t device=0, cudaStream_t stream=0) :
+      device_{device}, data_{input_data}, size_{size}, stream_{stream} {}
 
     /**
      * @brief Construct one buffer from another in the given memory location
@@ -67,7 +68,7 @@ namespace triton { namespace backend { namespace rapids {
      * A buffer constructed in this way is owning and will copy the data from
      * the original location
      */
-    Buffer(Buffer<T> const& other, MemoryType memory_type) : data_([&other](){
+    Buffer(Buffer<T> const& other, MemoryType memory_type, device_id_t device=0) : device_{device}, data_([&other](){
         auto result = allocate(other.size_, memory_type);
         copy(result, other.data_, other.size_, other.stream_);
         return result;
@@ -77,9 +78,9 @@ namespace triton { namespace backend { namespace rapids {
      * @brief Create owning copy of existing buffer
      * The memory type of this new buffer will be the same as the original
      */
-    Buffer(Buffer<T> const& other) : Buffer(other, other.mem_type()) {}
+    Buffer(Buffer<T> const& other) : Buffer(other, other.mem_type(), other.device(), other.stream()) {}
 
-    Buffer(Buffer<T>&& other, MemoryType memory_type) : data_{[&other, memory_type](){
+    Buffer(Buffer<T>&& other, MemoryType memory_type) : device_{other.device()}, data_{[&other, memory_type](){
       data_ptr result;
       if(memory_type == other.mem_type()) {
         result = std::move(other.data_);
@@ -90,7 +91,7 @@ namespace triton { namespace backend { namespace rapids {
       return result;
     }()}, size_{other.size_}, stream{other.stream_} {}
 
-    Buffer(Buffer<T>&& other) noexcept : data_{std::move{other.data_}}, size_{other.size_},
+    Buffer(Buffer<T>&& other) noexcept : device_{other.device_}, data_{std::move{other.data_}}, size_{other.size_},
       stream_{other.stream_} {}
 
     ~Buffer() = default;
@@ -116,6 +117,10 @@ namespace triton { namespace backend { namespace rapids {
       return get_raw_ptr(data_);
     }
 
+    auto device() const noexcept {
+      return device_;
+    }
+
     /**
      * @brief Return CUDA stream associated with this buffer
      */
@@ -132,12 +137,13 @@ namespace triton { namespace backend { namespace rapids {
      */
     void set_stream(cudaStream_t new_stream) {
       if constexpr (IS_GPU_BUILD) {
-        cudaStreamSynchronize(stream_);
+        cuda_check(cudaStreamSynchronize(stream_));
       }
       stream_ = new_stream;
     }
 
    private:
+    device_id_t device_;
     data_ptr data_;
     size_type size_;
     cudaStream_t stream_;
@@ -169,6 +175,7 @@ namespace triton { namespace backend { namespace rapids {
       data_ptr result;
       if (memory_type == DeviceMemory) {
         if constexpr (IS_GPU_BUILD) {
+          cuda_check(cudaSetDevice(device_));
           result = data_ptr{owned_d_ptr{detail::dev_allocate<T>(size)}};
         } else {
           throw TritonException(

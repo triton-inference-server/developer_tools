@@ -16,6 +16,7 @@
 
 #pragma once
 #include <triton/core/tritonserver.h>
+#include <cuda_runtime_api.h>
 #include <exception>
 #include <string>
 
@@ -78,6 +79,12 @@ struct TritonException : std::exception {
 inline void triton_check(TRITONSERVER_Error* err) {
   if (err != nullptr) {
     throw TritonException(err);
+  }
+}
+
+inline void cuda_check(cudaError_t const& err) {
+  if (err != cudaSuccess) {
+    throw TritonException(Error::Internal, cudaGetErrorString(err));
   }
 }
 
