@@ -16,6 +16,7 @@
 
 # keep the files in alphabetical order!
 add_executable(test_rapids_triton
+    test/build_control.cpp
     test/test.cpp
 )
 
