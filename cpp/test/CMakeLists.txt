@@ -19,6 +19,7 @@ add_executable(test_rapids_triton
     test/build_control.cpp
     test/exceptions.cpp
     test/test.cpp
+    test/utils/narrow.cpp
 )
 
 set_target_properties(test_rapids_triton

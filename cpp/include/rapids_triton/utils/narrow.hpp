@@ -18,14 +18,17 @@
 #include <rapids_triton/exceptions.hpp>
 #include <type_traits>
 
-namespace triton { namespace backend { namespace fil {
+namespace triton { namespace backend { namespace rapids {
 
 template <typename T, typename F>
 auto
 narrow(F from)
 {
   auto to = static_cast<T>(from);
+
   if (static_cast<F>(to) != from ||
+      (std::is_signed<F>::value && !std::is_signed<T>::value && from < F{}) ||
+      (std::is_signed<T>::value && !std::is_signed<F>::value && to < T{}) ||
       (std::is_signed<T>::value == std::is_signed<F>::value &&
        ((to < T{}) != (from < F{})))) {
     throw TritonException(Error::Internal, "invalid narrowing");
