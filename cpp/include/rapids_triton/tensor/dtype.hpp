@@ -15,31 +15,32 @@
  */
 
 #pragma once
+#include <cstdint>
+#include <rapids_triton/utils/const_agnostic.hpp>
 #include <triton/core/tritonserver.h>
 
 namespace triton { namespace backend { namespace rapids {
 
 using DType = TRITONSERVER_DataType;
-using DTypeBool = TRITONSERVER_TYPE_BOOL;
-using DTypeUint8 = TRITONSERVER_TYPE_UINT8;
-using DTypeChar = DTypeUint8;
-using DTypeByte = DTypeUint8;
-using DTypeUint16 = TRITONSERVER_TYPE_UINT16;
-using DTypeUint32 = TRITONSERVER_TYPE_UINT32;
-using DTypeUint64 = TRITONSERVER_TYPE_UINT64;
-using DTypeInt8 = TRITONSERVER_TYPE_INT8;
-using DTypeInt16 = TRITONSERVER_TYPE_INT16;
-using DTypeInt32 = TRITONSERVER_TYPE_INT32;
-using DTypeInt64 = TRITONSERVER_TYPE_INT64;
-using DTypeFloat32 = TRITONSERVER_TYPE_FP32;
-using DTypeFloat64 = TRITONSERVER_TYPE_FP64;
-
+auto constexpr DTypeBool = TRITONSERVER_TYPE_BOOL;
+auto constexpr DTypeUint8 = TRITONSERVER_TYPE_UINT8;
+auto constexpr DTypeChar = DTypeUint8;
+auto constexpr DTypeByte = DTypeUint8;
+auto constexpr DTypeUint16 = TRITONSERVER_TYPE_UINT16;
+auto constexpr DTypeUint32 = TRITONSERVER_TYPE_UINT32;
+auto constexpr DTypeUint64 = TRITONSERVER_TYPE_UINT64;
+auto constexpr DTypeInt8 = TRITONSERVER_TYPE_INT8;
+auto constexpr DTypeInt16 = TRITONSERVER_TYPE_INT16;
+auto constexpr DTypeInt32 = TRITONSERVER_TYPE_INT32;
+auto constexpr DTypeInt64 = TRITONSERVER_TYPE_INT64;
+auto constexpr DTypeFloat32 = TRITONSERVER_TYPE_FP32;
+auto constexpr DTypeFloat64 = TRITONSERVER_TYPE_FP64;
 
 template <DType D>
 struct TritonType {
 };
 
-template <typename T>
+template <typename T, typename=void>
 struct TritonDtype {
 };
 
@@ -48,88 +49,88 @@ struct TritonType<DTypeBool> {
   typedef bool type;
 };
 
-template <>
-struct TritonDtype<bool> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, bool>> {
   static constexpr DType value = DTypeBool;
 };
 
 template <>
 struct TritonType<DTypeUint8> {
-  typedef uint8_t type;
+  typedef std::uint8_t type;
 };
 
-template <>
-struct TritonDtype<uint8_t> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, std::uint8_t>> {
   static constexpr DType value = DTypeUint8;
 };
 
 template <>
 struct TritonType<DTypeUint16> {
-  typedef uint16_t type;
+  typedef std::uint16_t type;
 };
 
-template <>
-struct TritonDtype<uint16_t> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, std::uint16_t>> {
   static constexpr DType value = DTypeUint16;
 };
 
 template <>
 struct TritonType<DTypeUint32> {
-  typedef uint32_t type;
+  typedef std::uint32_t type;
 };
 
-template <>
-struct TritonDtype<uint32_t> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, std::uint32_t>> {
   static constexpr DType value = DTypeUint32;
 };
 
 template <>
 struct TritonType<DTypeUint64> {
-  typedef uint64_t type;
+  typedef std::uint64_t type;
 };
 
-template <>
-struct TritonDtype<uint64_t> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, std::uint64_t>> {
   static constexpr DType value = DTypeUint64;
 };
 
 template <>
 struct TritonType<DTypeInt8> {
-  typedef int8_t type;
+  typedef std::int8_t type;
 };
 
-template <>
-struct TritonDtype<int8_t> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, std::int8_t>> {
   static constexpr DType value = DTypeInt8;
 };
 
 template <>
 struct TritonType<DTypeInt16> {
-  typedef int16_t type;
+  typedef std::int16_t type;
 };
 
-template <>
-struct TritonDtype<int16_t> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, std::int16_t>> {
   static constexpr DType value = DTypeInt16;
 };
 
 template <>
 struct TritonType<DTypeInt32> {
-  typedef int32_t type;
+  typedef std::int32_t type;
 };
 
-template <>
-struct TritonDtype<int32_t> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, std::int32_t>> {
   static constexpr DType value = DTypeInt32;
 };
 
 template <>
 struct TritonType<DTypeInt64> {
-  typedef int64_t type;
+  typedef std::int64_t type;
 };
 
-template <>
-struct TritonDtype<int64_t> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, std::int64_t>> {
   static constexpr DType value = DTypeInt64;
 };
 
@@ -138,8 +139,8 @@ struct TritonType<DTypeFloat32> {
   typedef float type;
 };
 
-template <>
-struct TritonDtype<float> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, float>> {
   static constexpr DType value = DTypeFloat32;
 };
 
@@ -148,8 +149,8 @@ struct TritonType<TRITONSERVER_TYPE_FP64> {
   typedef double type;
 };
 
-template <>
-struct TritonDtype<double> {
+template <typename T>
+struct TritonDtype<T, const_agnostic_same_t<T, double>> {
   static constexpr DType value = DTypeFloat64;
 };
 
