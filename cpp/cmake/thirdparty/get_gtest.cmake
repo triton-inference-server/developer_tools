@@ -21,7 +21,7 @@ function(find_and_configure_gtest VERSION)
     endif()
 
     rapids_cpm_find(GTest ${VERSION}
-        GLOBAL_TARGETS  gest gtest_main GTest::gtest GTest::gtest_main
+        GLOBAL_TARGETS  gtest gtest_main GTest::gtest GTest::gtest_main gmock gmock_main
         CPM_ARGS
             GIT_REPOSITORY  https://github.com/google/googletest.git
             GIT_TAG         release-${VERSION}

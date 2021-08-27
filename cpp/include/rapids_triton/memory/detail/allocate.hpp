@@ -21,23 +21,35 @@
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/logging.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 
 namespace triton { namespace backend { namespace rapids { namespace detail {
 template <typename T>
 struct dev_deallocater {
-  void operator(T* d_ptr) {
-    cudaFree(reinterpret_cast<void*>(d_ptr));
+  void operator()(T* d_ptr) {
+    if constexpr (IS_GPU_BUILD) {
+      cudaFree(reinterpret_cast<void*>(d_ptr));
+    } else {
+      log_error(
+        __FILE__,
+        __LINE__,
+        "ERROR: device deallocation cannot be performed in non-GPU build!"
+      );
+    }
   }
-}
+};
 
 /**
  * @brief Allocate given number of elements on GPU and return device pointer
  */
 template <typename T>
-T*
+[[nodiscard]] T*
 dev_allocate(std::size_t count, cudaStream_t stream)
 {
+  if constexpr (!IS_GPU_BUILD) {
+    throw TritonException(Error::Internal, "device allocation attempted in non-GPU build");
+  }
   auto* ptr_d =
       static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(
           sizeof(T) * count, stream));

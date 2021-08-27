@@ -18,6 +18,7 @@
 add_executable(test_rapids_triton
     test/build_control.cpp
     test/exceptions.cpp
+    test/memory/detail/allocate.cpp
     test/test.cpp
     test/utils/narrow.cpp
 )
@@ -56,6 +57,8 @@ PRIVATE
   raft::raft
   triton-core-serverstub
   triton-backend-utils
+  gmock
+  gmock_main
   GTest::gtest
   GTest::gtest_main
   "${TRITONSERVER_LIB}"
