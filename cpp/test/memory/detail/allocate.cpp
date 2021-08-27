@@ -18,6 +18,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/detail/allocate.hpp>
 #include <vector>
@@ -34,7 +35,8 @@ TEST(RapidsTriton, dev_allocate) {
                sizeof(int) * data.size(), cudaMemcpyHostToDevice);
     cudaMemcpy(static_cast<void*>(data_out.data()), static_cast<void*>(ptr_d),
                sizeof(int) * data.size(), cudaMemcpyDeviceToHost);
-    ASSERT_THAT(data_out, ::testing::ElementsAreArray(data));
+    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+    detail::dev_deallocater<int>{}(ptr_d);
   } else {
     EXPECT_THROW(
         [&data]() { return detail::dev_allocate<int>(data.size(), 0); }(),

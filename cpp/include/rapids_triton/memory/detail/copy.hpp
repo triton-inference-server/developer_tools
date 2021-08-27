@@ -16,6 +16,7 @@
 
 #pragma once
 #include <cstddef>
+#include <cstring>
 
 #include <cuda_runtime_api.h>
 
@@ -35,7 +36,7 @@ dev_copy(T* dst, T const* src, std::size_t len, cudaStream_t stream)
 {
   if constexpr (IS_GPU_BUILD) {
     try {
-      raft::copy(raw_dst, raw_src, len, stream);
+      raft::copy(dst, src, len, stream);
     } catch (const raft::cuda_error& err) {
       throw TritonException(Error::Internal, err.what());
     }
