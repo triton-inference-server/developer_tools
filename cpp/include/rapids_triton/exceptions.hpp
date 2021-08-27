@@ -70,7 +70,7 @@ struct TritonException : std::exception {
     return TRITONSERVER_ErrorMessage(error_);
   }
 
-  auto* error() { return error_; }
+  auto* error() const { return error_; }
 
  private:
   TRITONSERVER_Error* error_;

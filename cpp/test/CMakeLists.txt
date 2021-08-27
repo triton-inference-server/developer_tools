@@ -43,6 +43,12 @@ target_include_directories(test_rapids_triton
 )
 
 
+find_library(
+  TRITONSERVER_LIB
+  tritonserver
+  PATHS /opt/tritonserver/lib
+)
+
 target_link_libraries(test_rapids_triton
 PRIVATE
   rmm::rmm
@@ -51,5 +57,6 @@ PRIVATE
   triton-backend-utils
   GTest::gtest
   GTest::gtest_main
+  "${TRITONSERVER_LIB}"
   $<TARGET_NAME_IF_EXISTS:conda_env>
 )
