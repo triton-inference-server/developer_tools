@@ -84,6 +84,7 @@ inline void triton_check(TRITONSERVER_Error* err) {
 
 inline void cuda_check(cudaError_t const& err) {
   if (err != cudaSuccess) {
+    cudaGetLastError();
     throw TritonException(Error::Internal, cudaGetErrorString(err));
   }
 }

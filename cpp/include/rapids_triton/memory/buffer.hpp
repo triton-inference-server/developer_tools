@@ -37,7 +37,7 @@ namespace triton { namespace backend { namespace rapids {
     using h_ptr = T*;
     using d_ptr = T*;
     using owned_h_ptr = std::unique_ptr<T[]>;
-    using owned_d_ptr = std::unique_ptr<T, detail::dev_deallocater<T>{}>;
+    using owned_d_ptr = std::unique_ptr<T, detail::dev_deallocater<T>>;
     using data_ptr = std::variant<h_ptr, d_ptr, owned_h_ptr, owned_d_ptr>;
 
     Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {}
@@ -50,7 +50,7 @@ namespace triton { namespace backend { namespace rapids {
      */
     Buffer(size_type size, MemoryType memory_type=DeviceMemory, device_id_t device=0, cudaStream_t
         stream=0) :
-      device_{device}, data_{allocate(size, memory_type)}, size_{size}, stream_{stream} {}
+      device_{device}, data_{allocate(size, device, memory_type, stream)}, size_{size}, stream_{stream} {}
 
     /**
      * @brief Construct buffer from given source in given memory location (either
@@ -60,7 +60,17 @@ namespace triton { namespace backend { namespace rapids {
      */
     Buffer(T* input_data, size_type size, MemoryType memory_type=DeviceMemory,
         device_id_t device=0, cudaStream_t stream=0) :
-      device_{device}, data_{input_data}, size_{size}, stream_{stream} {}
+      device_{device}, data_{
+        [&memory_type, &input_data](){
+          auto result = data_ptr{};
+          if(memory_type == HostMemory) {
+            result = data_ptr{std::in_place_index<0>, input_data};
+          } else {
+            result = data_ptr{std::in_place_index<1>, input_data};
+          }
+          return result;
+        }()
+      }, size_{size}, stream_{stream} {}
 
     /**
      * @brief Construct one buffer from another in the given memory location
@@ -68,8 +78,8 @@ namespace triton { namespace backend { namespace rapids {
      * A buffer constructed in this way is owning and will copy the data from
      * the original location
      */
-    Buffer(Buffer<T> const& other, MemoryType memory_type, device_id_t device=0) : device_{device}, data_([&other](){
-        auto result = allocate(other.size_, memory_type);
+    Buffer(Buffer<T> const& other, MemoryType memory_type, device_id_t device=0) : device_{device}, data_([&other, &memory_type, &device](){
+        auto result = allocate(other.size_, device, memory_type, other.stream_);
         copy(result, other.data_, other.size_, other.stream_);
         return result;
       }()), size_{other.size_}, stream_{other.stream_} {}
@@ -78,20 +88,20 @@ namespace triton { namespace backend { namespace rapids {
      * @brief Create owning copy of existing buffer
      * The memory type of this new buffer will be the same as the original
      */
-    Buffer(Buffer<T> const& other) : Buffer(other, other.mem_type(), other.device(), other.stream()) {}
+    Buffer(Buffer<T> const& other) : Buffer(other, other.mem_type(), other.device()) {}
 
     Buffer(Buffer<T>&& other, MemoryType memory_type) : device_{other.device()}, data_{[&other, memory_type](){
       data_ptr result;
       if(memory_type == other.mem_type()) {
         result = std::move(other.data_);
       } else {
-        result = allocate(other.size_, memory_type);
+        result = allocate(other.size_, memory_type, other.device(), other.stream());
         copy(result, other.data_, other.size_, other.stream_);
       }
       return result;
-    }()}, size_{other.size_}, stream{other.stream_} {}
+    }()}, size_{other.size_}, stream_{other.stream_} {}
 
-    Buffer(Buffer<T>&& other) noexcept : device_{other.device_}, data_{std::move{other.data_}}, size_{other.size_},
+    Buffer(Buffer<T>&& other) noexcept : device_{other.device_}, data_{std::move(other.data_)}, size_{other.size_},
       stream_{other.stream_} {}
 
     ~Buffer() = default;
@@ -100,7 +110,7 @@ namespace triton { namespace backend { namespace rapids {
      * @brief Return where memory for this buffer is located (host or device)
      */
     auto mem_type() const noexcept {
-      return data_ptr.index() % 2 == 0 ? HostMemory, DeviceMemory;
+      return data_.index() % 2 == 0 ? HostMemory : DeviceMemory;
     }
 
     /**
@@ -149,10 +159,10 @@ namespace triton { namespace backend { namespace rapids {
     cudaStream_t stream_;
 
     // Helper function for accessing raw pointer to underlying data of data_ptr
-    static auto get_raw_ptr(data_ptr ptr) noexcept {
+    static auto* get_raw_ptr(data_ptr const& ptr) noexcept {
       /* Switch statement is an optimization relative to std::visit to avoid
        * vtable overhead for a small number of alternatives */
-      T* result;
+      auto* result = static_cast<T*>(nullptr);
       switch (ptr.index()) {
         case 0:
           result = std::get<0>(ptr);
@@ -171,12 +181,12 @@ namespace triton { namespace backend { namespace rapids {
     }
 
     // Helper function for allocating memory in constructors
-    static auto allocate(size_type size, MemoryType memory_type=DeviceMemory) {
-      data_ptr result;
+    static auto allocate(size_type size, device_id_t device=0, MemoryType memory_type=DeviceMemory, cudaStream_t stream=0) {
+      auto result = data_ptr{};
       if (memory_type == DeviceMemory) {
         if constexpr (IS_GPU_BUILD) {
-          cuda_check(cudaSetDevice(device_));
-          result = data_ptr{owned_d_ptr{detail::dev_allocate<T>(size)}};
+          cuda_check(cudaSetDevice(device));
+          result = data_ptr{owned_d_ptr{detail::dev_allocate<T>(size, stream)}};
         } else {
           throw TritonException(
             Error::Internal,
@@ -193,14 +203,14 @@ namespace triton { namespace backend { namespace rapids {
     // stronger guarantees on conditions that would otherwise need to be
     // checked
     static void copy(
-        data_ptr dst, data_ptr src, size_type len, cudaStream_t stream) {
+        data_ptr const& dst, data_ptr const& src, size_type len, cudaStream_t stream) {
       auto raw_dst = get_raw_ptr(dst);
       auto raw_src = get_raw_ptr(src);
 
       auto dst_mem_type = dst.index() % 2 == 0 ? HostMemory :  DeviceMemory;
       auto src_mem_type = src.index() % 2 == 0 ? HostMemory :  DeviceMemory;
 
-      detail::copy(raw_dst, raw_src, len, dst_mem_type, src_mem_type);
+      detail::copy(raw_dst, raw_src, len, stream, dst_mem_type, src_mem_type);
     }
 
   };
@@ -223,8 +233,8 @@ namespace triton { namespace backend { namespace rapids {
    * when those buffers may be modified on different host threads as well.
    */
   template<typename T, typename U>
-  copy(Buffer<T> dst&&, Buffer<U> src&&, Buffer<U>::size_type dst_begin,
-      Buffer<U>::size_type src_begin, Buffer<T>::size_type src_end) {
+  void copy(Buffer<T>&& dst, Buffer<U>&& src, typename Buffer<T>::size_type dst_begin,
+      typename Buffer<U>::size_type src_begin, typename Buffer<U>::size_type src_end) {
     if(dst.stream() != src.stream()) {
       dst.set_stream(src.stream());
     }
@@ -241,18 +251,18 @@ namespace triton { namespace backend { namespace rapids {
   }
 
   template<typename T, typename U>
-  void copy(Buffer<T> dst&&, Buffer<U> src&&) {
+  void copy(Buffer<T>&& dst, Buffer<U>&& src) {
     copy(dst, src, dst.begin(), src.begin(), src.begin() + src.size());
   }
 
   template<typename T, typename U>
-  void copy(Buffer<T> dst&&, Buffer<U> src&&, Buffer<U>::size_type dst_begin) {
+  void copy(Buffer<T>&& dst, Buffer<U>&& src, typename Buffer<T>::size_type dst_begin) {
     copy(dst, src, dst_begin, src.begin(), src.begin() + src.size());
   }
 
   template<typename T, typename U>
-  void copy(Buffer<T> dst&&, Buffer<U> src&&, Buffer<U>::size_type src_begin,
-      Buffer<T>::size_type src_end) {
-    copy(dst, src, dst_begin, src.begin(), src.begin() + src_end);
+  void copy(Buffer<T>&& dst, Buffer<U>&& src, typename Buffer<U>::size_type src_begin,
+      typename Buffer<U>::size_type src_end) {
+    copy(dst, src, dst.begin(), src.begin(), src.begin() + src_end);
   }
 }}}  // namespace triton::backend::rapids

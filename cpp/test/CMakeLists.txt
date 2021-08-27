@@ -18,8 +18,11 @@
 add_executable(test_rapids_triton
     test/build_control.cpp
     test/exceptions.cpp
+    test/memory/buffer.cpp
     test/memory/detail/allocate.cpp
     test/memory/detail/copy.cpp
+    test/memory/types.cpp
+    test/triton/device.cpp
     test/test.cpp
     test/utils/narrow.cpp
 )
