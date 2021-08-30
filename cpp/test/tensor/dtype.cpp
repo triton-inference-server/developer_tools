@@ -22,11 +22,13 @@
 namespace triton {
 namespace backend {
 namespace rapids {
+
 template <DType D>
 void check_dtype_conversion() {
   EXPECT_EQ(D, TritonDtype<typename TritonType<D>::type>::value);
   EXPECT_EQ(D, TritonDtype<typename TritonType<D>::type const>::value);
 }
+
 TEST(RapidsTriton, dtype) {
   check_dtype_conversion<DTypeBool>();
   check_dtype_conversion<DTypeUint8>();

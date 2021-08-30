@@ -29,6 +29,7 @@ add_executable(test_rapids_triton
     test/triton/deployment.cpp
     test/triton/device.cpp
     test/triton/input.cpp
+    test/triton/logging.cpp
     test/triton/model.cpp
     test/triton/model_instance.cpp
     test/triton/requests.cpp

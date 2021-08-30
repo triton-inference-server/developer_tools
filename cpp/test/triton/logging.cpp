@@ -14,4 +14,19 @@
  * limitations under the License.
  */
 
+#include <gtest/gtest.h>
+
 #include <rapids_triton/triton/logging.hpp>
+
+namespace triton {
+namespace backend {
+namespace rapids {
+TEST(RapidsTriton, logging) {
+  log_debug("Debug test message");
+  log_info("Info test message");
+  log_warn("Warn test message");
+  log_error("Error test message");
+}
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton
