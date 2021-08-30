@@ -18,6 +18,7 @@
 
 #include <cuda_runtime_api.h>
 #include <algorithm>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <numeric>
@@ -38,28 +39,34 @@ namespace triton { namespace backend { namespace rapids {
   struct Batch {
     using size_type = std::size_t;
 
-    Batch(ModelState* model_state, ModelInstanceState* instance_state, TRITONBACKEND_Request** raw_requests, request_size_t count, std::vector<std::size_t> const& output_shape, size_type max_batch_size, cudaStream_t stream) :
-      model_state_{model_state},
-      instance_state_{instance_state},
-      requests_(raw_requests, raw_requests + count),
-      responses_(construct_responses(requests_.begin(), requests_.end())),
-      collector_{
-        raw_requests,
-        count,
-        &responses_,
-        instance_state->TritonMemoryManager(),
-        instance_state->EnablePinnedInput(),
-        stream
-      },
-      responder_{std::make_shared<BackendOutputResponder>(
-        raw_requests,
-        count,
-        &responses_,
-        instance_state->get_model().get_config_param("max_batch_size"),
-        instance_state->EnablePinnedOutput(),
-        stream
-      )},
-      stream_{stream} {}
+    Batch(TRITONBACKEND_Request** raw_requests,
+          request_size_t count,
+          TRITONBACKEND_MemoryManager& triton_mem_manager,
+          std::function<std::vector<size_type>(std::string const&)> get_output_shape,
+          bool use_pinned_input,
+          bool use_pinned_output,
+          size_type max_batch_size,
+          cudaStream_t stream) :
+    requests_(raw_requests, raw_requests + count),
+    responses_(construct_responses(requests_.begin(), requests_.end())),
+    get_output_shape_{get_output_shape},
+    collector_{
+      raw_requests,
+      count,
+      &responses_,
+      triton_mem_manager,
+      use_pinned_input,
+      stream
+    },
+    responder_{std::make_shared<BackendOutputResponder>(
+      raw_requests,
+      count,
+      &responses_,
+      max_batch_size,
+      use_pinned_output,
+      stream
+    )},
+    stream_{stream} {}
 
 
     template<typename T>
@@ -99,7 +106,7 @@ namespace triton { namespace backend { namespace rapids {
 
     template<typename T>
     auto get_output(std::string const& name, MemoryType memory_type, device_id_t device_id) {
-      auto shape = get_output_shape(requests_.begin(), requests_.end(), name);
+      auto shape = get_output_shape_(name);
       auto buffer_size = std::reduce(
           shape.begin(), shape.end(), std::size_t{1}, std::multiplies<>());
       auto buffer = Buffer<T>(buffer_size, memory_type, device_id, stream_);
@@ -119,10 +126,9 @@ namespace triton { namespace backend { namespace rapids {
     }
 
     private:
-      ModelState* model_state_;
-      ModelInstanceState* instance_state_;
       std::vector<TRITONBACKEND_Request*> requests_;
       std::vector<TRITONBACKEND_Response*> responses_;
+      std::function<std::vector<size_type>(std::string const&)> get_output_shape_;
       BackendInputCollector collector_;
       std::shared_ptr<BackendOutputResponder> responder_;
       cudaStream_t stream_;
@@ -132,13 +138,6 @@ namespace triton { namespace backend { namespace rapids {
         if(!requests_.empty()) {
           result = get_triton_input_shape<size_type>(std::begin(requests_), std::end(requests_), name);
         }
-        return result;
-      }
-
-      auto get_output_shape(std::string const& name) {
-        auto result = std::vector<size_type>{};
-        auto& triton_result = model_state_->FindBatchOutput(name)->OutputShape();
-        std::transform(std::begin(triton_result), std::end(triton_result), std::back_inserter(result), [](auto& coord) { return narrow<std::size_t>(coord); });
         return result;
       }
   };

@@ -155,8 +155,27 @@ auto* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstance* instance,
     auto* instance_state =
         rapids::get_instance_state<ModelInstanceState>(*instance);
     auto& model = instance_state->get_model();
-    auto batch = Batch{model_state, instance_state, raw_requests, request_count,
-                       model.get_stream()};
+    auto max_batch_size = model.get_config_param("max_batch_size");
+    auto batch = Batch{raw_requests, request_count,
+                       model_state->TritonMemoryManager(),
+                       /* Note: It is safe to keep a copy of the model_state
+                        * pointer in this closure because both the batch and
+                        * the original model_state pointer go out of scope at
+                        * the end of this block. */
+                       [model_state](std::string const& name) {
+                         auto result = std::vector<size_type>{};
+                         auto& triton_result =
+                             model_state->FindBatchOutput(name)->OutputShape();
+                         std::transform(
+                             std::begin(triton_result), std::end(triton_result),
+                             std::back_inserter(result), [](auto& coord) {
+                               return narrow<std::size_t>(coord);
+                             });
+                         return result;
+                       },
+                       model_state->EnablePinnedInput(),
+                       model_state->EnablePinnedOutput(),
+                       max_batch_size model.get_stream()};
 
     model.predict(batch);
     batch.finalize();
