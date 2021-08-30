@@ -16,9 +16,11 @@
 
 #pragma once
 #include <algorithm>
+#include <memory>
 #include <numeric>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <cuda_runtime_api.h>
@@ -27,6 +29,8 @@
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/tensor/dtype.hpp>
+#include <rapids_triton/triton/device.hpp>
+#include <triton/backend/backend_output_responder.h>
 
 namespace triton { namespace backend { namespace rapids {
   template <typename T>
@@ -34,7 +38,7 @@ namespace triton { namespace backend { namespace rapids {
    using size_type = typename Buffer<T>::size_type;
 
    BaseTensor() : shape_{}, buffer_{} {}
-   BaseTensor(std::vector<size_type>&& shape, Buffer&& buffer) : shape_(std::move(shape)), buffer_{std::move(buffer)} {}
+   BaseTensor(std::vector<size_type> const& shape, Buffer<T>&& buffer) : shape_(shape), buffer_{std::move(buffer)} {}
 
    virtual ~BaseTensor() = 0;
 
@@ -45,16 +49,16 @@ namespace triton { namespace backend { namespace rapids {
     * a new BaseTensor
     */
    template <typename Iter>
-   BaseTensor(std::vector<size_type> const& shape, Iter begin, Iter end, MemoryType mem_type, cudaStream_t stream=0) : 
+   BaseTensor(std::vector<size_type> const& shape, Iter begin, Iter end, MemoryType mem_type, device_id_t device, cudaStream_t stream) : 
      shape_(shape),
-     buffer_([&begin, &end, &mem_type, &stream] () {
+     buffer_([&begin, &end, &mem_type, &device, &stream] () {
        auto total_size = std::transform_reduce(
-          begin, end, std::plus<>{}, [](auto&& buffer) { return buffer.size(); }
+          begin, end, size_type{}, std::plus<>{}, [](auto&& buffer) { return buffer.size(); }
        );
 
-       auto result = Buffer<T>(total_size, mem_type, stream);
+       auto result = Buffer<T>(total_size, mem_type, device, stream);
 
-       std::reduce(begin, end, size_type{0}, [&result](auto&& buffer, auto offset) {
+       std::accumulate(begin, end, size_type{}, [&result](auto offset, auto& buffer) {
          copy(result, buffer, offset);
          return offset + buffer.size();
        });
@@ -62,26 +66,32 @@ namespace triton { namespace backend { namespace rapids {
      }()) {}
 
    auto const& shape() const { return shape_; }
-   auto data() { return buffer_.data(); }
+   auto size() const { return buffer_.size(); }
+   auto data() const { return buffer_.data(); }
    auto& buffer() { return buffer_; }
 
-   auto dtype() constexpr { return TritonDtype<T>::value; }
-   auto mem_type() const { return data.mem_type(); }
-   auto stream() const { return data.stream(); }
-   auto device() const { return data.device(); }
+   auto constexpr dtype() { return TritonDtype<T>::value; }
+   auto mem_type() const { return buffer_.mem_type(); }
+   auto stream() const { return buffer_.stream(); }
+   auto device() const { return buffer_.device(); }
 
    void stream_synchronize() const {
-     if constexpr (IS_GPU_BUILD) {
-       if (mem_type() == DeviceMemory) {
-         cuda_check(cudaStreamSynchronize(stream());
-       }
+     if (mem_type() == DeviceMemory) {
+       buffer_.stream_synchronize();
      }
+   }
+
+   void set_stream(cudaStream_t new_stream) {
+     buffer_.set_stream(new_stream);
    }
 
    private:
      std::vector<size_type> shape_;
      Buffer<T> buffer_;
   };
+
+  template<typename T>
+  BaseTensor<T>::~BaseTensor() {}
 
   template<typename T>
   void copy(BaseTensor<std::remove_const_t<T>> dst, BaseTensor<T> src) {
@@ -96,26 +106,33 @@ namespace triton { namespace backend { namespace rapids {
    * of the data from the src Tensor
    */
   template<typename T, typename Iter>
-  copy(Iter begin, Iter end, BaseTensor<T> src) {
-    std::reduce(
+  void copy(Iter begin, Iter end, BaseTensor<T> src) {
+    std::accumulate(
       begin,
       end,
-      decltype(*begin)::size_type{0},
-      [&src] (auto&& buffer, auto offset) {
+      BaseTensor<T>::size_type(0),
+      [&src] (auto offset, auto& buffer) {
         auto end_offset = offset + buffer.size();
         copy(buffer, src.buffer(), offset, end_offset);
         return end_offset;
       }
+    );
   }
 
   template<typename T>
   struct Tensor final : BaseTensor<T> {
+    Tensor() : BaseTensor<T>{} {}
+    Tensor(std::vector<typename BaseTensor<T>::size_type> const& shape, Buffer<T>&& buffer) : BaseTensor<T>(shape, std::move(buffer)) {}
+
+   template <typename Iter>
+   Tensor(std::vector<typename BaseTensor<T>::size_type> const& shape, Iter begin, Iter end, MemoryType mem_type, device_id_t device, cudaStream_t stream) : BaseTensor<T>(shape, begin, end, mem_type, device, stream) {}
+
   };
 
   template<typename T>
   struct OutputTensor final : BaseTensor<T> {
-    OutputTensor(std::vector<size_type>&& shape, Buffer&& buffer,
-        std::string const& name, std::shared_pointer<BackendOutputResponder> responder) :
+    OutputTensor(std::vector<typename BaseTensor<T>::size_type>&& shape, Buffer<T>&& buffer,
+        std::string const& name, std::shared_ptr<BackendOutputResponder> responder) :
     BaseTensor<T>(std::move(shape), std::move(buffer)), name_{name}, responder_{responder}
     {}
     /**
@@ -133,19 +150,19 @@ namespace triton { namespace backend { namespace rapids {
       // Must call the following because BackendOutputResponder does not expose
       // its stream, so we cannot be certain that our data is not being
       // processed on another stream.
-      stream_synchronize();
+      BaseTensor<T>::stream_synchronize();
       responder_->ProcessTensor(
         name_.c_str(),
         TritonDtype<T>::value,
-        shape(),
-        data(),
-        mem_type(),
-        device()
+        BaseTensor<T>::shape(),
+        BaseTensor<T>::data(),
+        BaseTensor<T>::mem_type(),
+        BaseTensor<T>::device()
       );
     }
 
     private:
-      std::shared_pointer<BackendOutputResponder> responder_;
+      std::shared_ptr<BackendOutputResponder> responder_;
       std::string name_;
   };
 }}}  // namespace triton::backend::rapids

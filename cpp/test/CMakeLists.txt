@@ -23,6 +23,7 @@ add_executable(test_rapids_triton
     test/memory/detail/copy.cpp
     test/memory/types.cpp
     test/tensor/dtype.cpp
+    test/tensor/tensor.cpp
     test/triton/device.cpp
     test/test.cpp
     test/utils/const_agnostic.cpp

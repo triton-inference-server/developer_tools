@@ -123,7 +123,7 @@ namespace triton { namespace backend { namespace rapids {
     /**
      * @brief Return pointer to data stored in buffer
      */
-    auto* data() noexcept {
+    auto* data() const noexcept {
       return get_raw_ptr(data_);
     }
 
@@ -138,6 +138,12 @@ namespace triton { namespace backend { namespace rapids {
       return stream_;
     }
 
+   void stream_synchronize() const {
+     if constexpr (IS_GPU_BUILD) {
+       cuda_check(cudaStreamSynchronize(stream_));
+     }
+   }
+
     /**
      * @brief Set CUDA stream for this buffer to new value
      *
@@ -146,9 +152,7 @@ namespace triton { namespace backend { namespace rapids {
      * interactions between buffers on different streams where possible.
      */
     void set_stream(cudaStream_t new_stream) {
-      if constexpr (IS_GPU_BUILD) {
-        cuda_check(cudaStreamSynchronize(stream_));
-      }
+      stream_synchronize();
       stream_ = new_stream;
     }
 
@@ -233,7 +237,7 @@ namespace triton { namespace backend { namespace rapids {
    * when those buffers may be modified on different host threads as well.
    */
   template<typename T, typename U>
-  void copy(Buffer<T>&& dst, Buffer<U>&& src, typename Buffer<T>::size_type dst_begin,
+  void copy(Buffer<T>& dst, Buffer<U> const& src, typename Buffer<T>::size_type dst_begin,
       typename Buffer<U>::size_type src_begin, typename Buffer<U>::size_type src_end) {
     if(dst.stream() != src.stream()) {
       dst.set_stream(src.stream());
@@ -251,18 +255,18 @@ namespace triton { namespace backend { namespace rapids {
   }
 
   template<typename T, typename U>
-  void copy(Buffer<T>&& dst, Buffer<U>&& src) {
-    copy(dst, src, dst.begin(), src.begin(), src.begin() + src.size());
+  void copy(Buffer<T>& dst, Buffer<U> const& src) {
+    copy(dst, src, 0, 0, src.size());
   }
 
   template<typename T, typename U>
-  void copy(Buffer<T>&& dst, Buffer<U>&& src, typename Buffer<T>::size_type dst_begin) {
-    copy(dst, src, dst_begin, src.begin(), src.begin() + src.size());
+  void copy(Buffer<T>& dst, Buffer<U> const& src, typename Buffer<T>::size_type dst_begin) {
+    copy(dst, src, dst_begin, 0, src.size());
   }
 
   template<typename T, typename U>
-  void copy(Buffer<T>&& dst, Buffer<U>&& src, typename Buffer<U>::size_type src_begin,
+  void copy(Buffer<T>& dst, Buffer<U> const& src, typename Buffer<U>::size_type src_begin,
       typename Buffer<U>::size_type src_end) {
-    copy(dst, src, dst.begin(), src.begin(), src.begin() + src_end);
+    copy(dst, src, 0, 0, src.size());
   }
 }}}  // namespace triton::backend::rapids
