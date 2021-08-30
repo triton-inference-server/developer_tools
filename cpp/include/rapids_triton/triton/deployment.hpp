@@ -19,8 +19,8 @@
 
 namespace triton { namespace backend { namespace rapids {
   using DeploymentType = TRITONSERVER_InstanceGroupKind;
-  using GPUDeployment = TRITONSERVER_INSTANCEGROUPKIND_GPU;
-  using CPUDeployment = TRITONSERVER_INSTANCEGROUPKIND_CPU;
+  auto constexpr GPUDeployment = TRITONSERVER_INSTANCEGROUPKIND_GPU;
+  auto constexpr CPUDeployment = TRITONSERVER_INSTANCEGROUPKIND_CPU;
   // Note (wphicks): We currently are not including "Auto" or "Model" because I
   // am not sure exactly how those would be used in context. If there is a
   // demand, they can be added.

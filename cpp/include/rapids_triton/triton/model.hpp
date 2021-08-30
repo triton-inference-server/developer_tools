@@ -27,8 +27,11 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <rapids_triton/exceptions.hpp>
+#include <triton/core/tritonbackend.h>
+#include <triton/backend/backend_common.h>
 
 namespace triton { namespace backend { namespace rapids {
 

@@ -25,10 +25,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
+#include <memory>
 #include <string>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/deployment.hpp>
 #include <rapids_triton/triton/device.hpp>
+#include <triton/backend/backend_model_instance.h>
 
 namespace triton { namespace backend { namespace rapids {
   /** Get the name of a Triton model instance from the instance itself */

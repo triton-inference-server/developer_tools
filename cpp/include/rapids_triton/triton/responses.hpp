@@ -29,7 +29,7 @@ auto construct_responses(Iter requests_begin, Iter requests_end)
   auto responses = std::vector<TRITONBACKEND_Response*>{};
 
   auto requests_size = std::distance(requests_begin, requests_end);
-  if (!requests_size > 0) {
+  if (!(requests_size > 0)) {
     throw TritonException(Error::Internal,
         "Invalid iterators for requests when constructing responses");
   }

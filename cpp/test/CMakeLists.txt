@@ -24,7 +24,15 @@ add_executable(test_rapids_triton
     test/memory/types.cpp
     test/tensor/dtype.cpp
     test/tensor/tensor.cpp
+    test/triton/backend.cpp
+    test/triton/config.cpp
+    test/triton/deployment.cpp
     test/triton/device.cpp
+    test/triton/input.cpp
+    test/triton/model.cpp
+    test/triton/model_instance.cpp
+    test/triton/requests.cpp
+    test/triton/responses.cpp
     test/test.cpp
     test/utils/const_agnostic.cpp
     test/utils/narrow.cpp

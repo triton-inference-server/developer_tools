@@ -18,11 +18,13 @@
 
 #include <stdint.h>
 #include <algorithm>
+#include <numeric>
 #include <string>
 #include <vector>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/tensor/dtype.hpp>
 #include <rapids_triton/utils/narrow.hpp>
+#include <triton/core/tritonbackend.h>
 
 namespace triton { namespace backend { namespace rapids {
   inline auto* get_triton_input(TRITONBACKEND_Request* request, std::string const& name) {
