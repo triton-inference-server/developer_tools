@@ -18,6 +18,7 @@
 add_executable(test_rapids_triton
     test/build_control.cpp
     test/exceptions.cpp
+    test/batch/batch.cpp
     test/memory/buffer.cpp
     test/memory/detail/allocate.cpp
     test/memory/detail/copy.cpp

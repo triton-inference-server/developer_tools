@@ -155,13 +155,7 @@ auto* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstance* instance,
     auto* instance_state =
         rapids::get_instance_state<ModelInstanceState>(*instance);
     auto& model = instance_state->get_model();
-    auto max_batch_size = model.get_config_param("max_batch_size");
-    auto batch = Batch{raw_requests,
-                       request_count,
-                       model_state->TritonMemoryManager(),
-                       model_state->EnablePinnedInput(),
-                       model_state->EnablePinnedOutput(),
-                       max_batch_size,
+    auto batch = Batch{model_state, instance_state, raw_requests, request_count,
                        model.get_stream()};
 
     model.predict(batch);

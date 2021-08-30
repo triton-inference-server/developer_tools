@@ -16,14 +16,7 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <algorithm>
-#include <numeric>
-#include <string>
-#include <vector>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/tensor/dtype.hpp>
-#include <rapids_triton/utils/narrow.hpp>
 #include <triton/core/tritonbackend.h>
 
 namespace triton { namespace backend { namespace rapids {
@@ -35,18 +28,18 @@ namespace triton { namespace backend { namespace rapids {
   }
 
   template<typename T, typename Iter>
-  auto get_triton_input_shape(Iter requests_begin, Iter requests_end, std::string const& name) {
+  auto get_triton_output_shape(Iter requests_begin, Iter requests_end, std::string const& name) {
     auto result = std::vector<std::size_t>{};
 
     auto reported_dtype = DType{};
     auto const* input_shape = static_cast<int64_t*>(nullptr);
     auto input_dims = uint32_t{};
 
-    auto batch_dim = std::accumulate(
+    auto batch_dim = std::reduce(
       requests_begin,
       requests_end,
       int64_t{},
-      [&reported_dtype, &input_shape, &input_dims, &name](auto total, auto& request) {
+      [&reported_dtype, &input_shape, &input_dims, &name](auto& request, auto total) {
         auto* input = get_triton_input(request, name);
         triton_check(
           TRITONBACKEND_InputProperties(
