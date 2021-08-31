@@ -31,6 +31,7 @@
 #include <rapids_triton/triton/input.hpp>
 #include <rapids_triton/triton/requests.hpp>
 #include <rapids_triton/triton/responses.hpp>
+#include <rapids_triton/triton/statistics.hpp>
 #include <rapids_triton/utils/narrow.hpp>
 #include <triton/backend/backend_input_collector.h>
 #include <triton/backend/backend_output_responder.h>
@@ -165,7 +166,7 @@ namespace triton { namespace backend { namespace rapids {
       std::for_each(
         std::begin(requests_),
         std::end(requests_),
-        [&report_statistics_, &start_time_, &compute_start_time_, &compute_end_time](
+        [this, &compute_end_time](
             auto& request) {
           report_statistics_(request, true, start_time_, compute_start_time_, compute_end_time);
         }

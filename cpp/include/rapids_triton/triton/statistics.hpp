@@ -69,7 +69,6 @@ namespace triton { namespace backend { namespace rapids {
     triton_check(TRITONBACKEND_ModelInstanceReportBatchStatistics(
           &instance,
           request_count,
-          true,
           start_time.time_since_epoch().count(),
           compute_start_time.time_since_epoch().count(),
           compute_end_time.time_since_epoch().count(),
