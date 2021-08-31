@@ -21,182 +21,47 @@
 #include <triton/backend/backend_model_instance.h>
 
 #include <chrono>
-#include <rapids_triton/triton/backend.hpp>
-#include <rapids_triton/triton/logging.hpp>
+#include <rapids_triton/triton/api/initialize.hpp>
 
 namespace triton {
 namespace backend {
 namespace NAMESPACE {
+
+using ModelState = TritonModelState<RapidsSharedState>;
+using ModelInstanceState = TritonModelState<RapidsModel, RapidsSharedState>;
 
 extern "C" {
 
 /** Confirm that backend is compatible with Triton's backend API version
  */
 auto* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
-  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-  try {
-    auto name = rapids::get_backend_name(*backend);
-
-    // TODO (wphicks)
-    rapids::log_info(
-        __FILE__, __LINE__,
-        (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
-
-    if (!rapids::check_backend_version(*backend)) {
-      throw rapids::TritonException{
-          rapids::Error::Unsupported,
-          "triton backend API version does not support this backend"};
-    }
-  } catch (rapids::TritonException& err) {
-    result = err.error();
-  }
-  return result;
+  return rapids::triton_api::initialize(backend);
 }
 
 auto* TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model) {
-  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-  try {
-    auto name = rapids::get_model_name(*model);
-
-    auto version = rapids::get_model_version(*model);
-
-    // TODO (wphicks)
-    rapids::log_info(__FILE__, __LINE__,
-                     (std::string("TRITONBACKEND_ModelInitialize: ") + name +
-                      " (version " + std::to_string(version) + ")")
-                         .c_str());
-
-    auto rapids_model_state = std::make_unique<ModelState>(*model);
-    rapids_model_state->load();
-
-    rapids::set_model_state(*model, std::move(rapids_model_state));
-  } catch (rapids::TritonException& err) {
-    result = err.error();
-  }
-
-  return result;
+  return rapids::triton_api::model_initialize<ModelState>(model);
 }
 
 auto* TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model) {
-  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-  try {
-    auto model_state = rapids::get_model_state<ModelState>(*model);
-    if (model_state != nullptr) {
-      model_state->get_shared_state()->unload();
-    }
-
-    rapids::log_info(__FILE__, __LINE__,
-                     "TRITONBACKEND_ModelFinalize: delete model state");
-
-    delete model_state;
-  } catch (rapids::TritonException& err) {
-    result = err.error();
-  }
-
-  return result;
+  return rapids::triton_api::model_finalize<ModelState>(model);
 }
 
 auto* TRITONBACKEND_ModelInstanceInitialize(
     TRITONBACKEND_ModelInstance* instance) {
-  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-  try {
-    auto name = rapids::get_model_instance_name(*instance);
-    auto device_id = rapids::get_device_id(*instance);
-    auto deployment_type = rapids::get_deployment_type(*instance);
-
-    // TODO (wphicks): Replace InstanceGroupKindString call
-    rapids::log_info(__FILE__, __LINE__,
-                     (std::string("TRITONBACKEND_ModelInstanceInitialize: ") +
-                      name + " (" + TRITONSERVER_InstanceGroupKindString(kind) +
-                      " device " + std::to_string(device_id) + ")")
-                         .c_str());
-
-    auto* model_state = rapids::get_model_state<ModelState>(*instance);
-
-    auto rapids_model =
-        std::make_unique<ModelInstanceState>(model_state, instance)
-
-            rapids::set_instance_state(*instance, std::move(rapids_model));
-  } catch (rapids::TritonException& err) {
-    result = err.error();
-  }
-  return result;
+  return rapids::triton_api::instance_initialize<ModelState,
+                                                 ModelInstanceState>(instance);
 }
 
 auto* TRITONBACKEND_ModelInstanceFinalize(
     TRITONBACKEND_ModelInstance* instance) {
-  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-  try {
-    auto* instance_state =
-        rapids::get_instance_state<ModelInstanceState>(*instance);
-    if (instance_state != nullptr) {
-      instance_state->unload();
-
-      rapids::log_info(
-          __FILE__, __LINE__,
-          "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
-
-      delete instance_state;
-    }
-  } catch (rapids::TritonException& err) {
-    result = err.error();
-  }
-
-  return result;
+  return rapids::triton_api::instance_finalize<ModelInstanceState>(instance);
 }
 
 auto* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstance* instance,
                                          TRITONBACKEND_Request** raw_requests,
                                          uint32_t const request_count) {
-  auto start_time = std::chrono::steady_clock::now();
-
-  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-
-  try {
-    auto* model_state = rapids::get_model_state<ModelState>(*instance);
-    auto* instance_state =
-        rapids::get_instance_state<ModelInstanceState>(*instance);
-    auto& model = instance_state->get_model();
-    auto max_batch_size = model.get_config_param("max_batch_size");
-    auto batch = Batch{
-        raw_requests, request_count, model_state->TritonMemoryManager(),
-        /* Note: It is safe to keep a copy of the model_state
-         * pointer in this closure and the instance pointer in the next because
-         * the batch goes out of scope at the end of this block and Triton
-         * guarantees that the liftimes of both the instance and model states
-         * extend beyond this function call. */
-        [model_state](std::string const& name) {
-          auto result = std::vector<size_type>{};
-          auto& triton_result =
-              model_state->FindBatchOutput(name)->OutputShape();
-          std::transform(std::begin(triton_result), std::end(triton_result),
-                         std::back_inserter(result), [](auto& coord) {
-                           return narrow<std::size_t>(coord);
-                         });
-          return result;
-        },
-        [instance](TRITONBACKEND_Request* request, time_point req_start,
-                   time_point req_comp_start, time_point req_comp_end,
-                   time_point req_end) {
-          report_statistics(*instance, request, req_start, req_comp_start,
-                            req_comp_end, req_end);
-        },
-        model_state->EnablePinnedInput(), model_state->EnablePinnedOutput(),
-        max_batch_size model.get_stream()};
-
-    model.predict(batch);
-    auto& compute_start_time = batch.compute_start_time();
-    auto compute_end_time = std::chrono::steady_clock::now();
-    batch.finalize();
-    auto end_time = std::chrono::steady_clock::now();
-
-    report_statistics(*instance, request_count, start_time, compute_start_time,
-                      compute_end_time, end_time);
-  } catch (rapids::TritonException& err) {
-    result = err.error();
-  }
-
-  return result;
+  return rapids::triton_api::execute<ModelState, ModelInstanceState>(
+      instance, raw_requests, static_cast<std::size_t>(request_count));
 }
 
 }  // extern "C"

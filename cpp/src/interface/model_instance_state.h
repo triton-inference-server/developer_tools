@@ -18,33 +18,11 @@
 
 #include <impl/names.h>
 #include <interface/model_state.h>
-#include <triton/backend/backend_model_instance.h>
-
-#include <cstdint>
-#include <rapids_triton/triton/model_instance.hpp>
 
 namespace triton {
 namespace backend {
 namespace NAMESPACE {
-struct ModelInstanceState : public BackendModelInstance {
-  ModelInstanceState(ModelState& model_state,
-                     TRITONBACKEND_ModelInstance* triton_model_instance)
-      : BackendModelInstance(&model_state, triton_model_instance),
-        model_(model_state.get_shared_state(),
-               rapids::get_device_id(*triton_model_instance), CudaStream(),
-               Kind(),
-               JoinPath({RepositoryPath(), std::to_string(Version()),
-                         ArtifactFilename()})) {}
-
-  auto& get_model() const { return model_; }
-
-  void load() { model_->load(); }
-  void unload() { model_->unload(); }
-
- private:
-  RapidsModel model_;
-};
-
+using ModelInstanceState = TritonModelInstanceState<RapidsModel>;
 }  // namespace NAMESPACE
 }  // namespace backend
 }  // namespace triton
