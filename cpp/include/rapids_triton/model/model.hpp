@@ -75,10 +75,9 @@ namespace triton { namespace backend { namespace rapids {
     /**
      * @brief Get input tensor of a particular named input for an entire batch
      */
-    //TODO(wphicks): Handle const for input type
     template<typename T>
     auto get_input(Batch& batch, std::string const& name, std::optional<MemoryType>> const& mem_type, cudaStream_t stream) const {
-      return batch.get_input<T>(name, mem_type, device_id_, stream);
+      return batch.get_input<T const>(name, mem_type, device_id_, stream);
     }
     template<typename T>
     auto get_input(Batch& batch, std::string const& name, std::optional<MemoryType> const& mem_type) const {

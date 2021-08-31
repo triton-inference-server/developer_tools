@@ -155,5 +155,3 @@ struct TritonDtype<T, const_agnostic_same_t<T, double>> {
 };
 
 }}}
-
-// TODO(whicks): Correctly handle const versions of types
