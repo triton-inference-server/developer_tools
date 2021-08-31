@@ -20,6 +20,7 @@
 #include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
 
+#include <chrono>
 #include <rapids_triton/triton/backend.hpp>
 #include <rapids_triton/triton/logging.hpp>
 
@@ -103,7 +104,6 @@ auto* TRITONBACKEND_ModelInstanceInitialize(
     auto device_id = rapids::get_device_id(*instance);
     auto deployment_type = rapids::get_deployment_type(*instance);
 
-    // TODO (wphicks)
     // TODO (wphicks): Replace InstanceGroupKindString call
     rapids::log_info(__FILE__, __LINE__,
                      (std::string("TRITONBACKEND_ModelInstanceInitialize: ") +
@@ -148,6 +148,8 @@ auto* TRITONBACKEND_ModelInstanceFinalize(
 auto* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstance* instance,
                                          TRITONBACKEND_Request** raw_requests,
                                          uint32_t const request_count) {
+  auto start_time = std::chrono::steady_clock::now();
+
   auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
 
   try {
@@ -156,29 +158,40 @@ auto* TRITONBACKEND_ModelInstanceExecute(TRITONBACKEND_ModelInstance* instance,
         rapids::get_instance_state<ModelInstanceState>(*instance);
     auto& model = instance_state->get_model();
     auto max_batch_size = model.get_config_param("max_batch_size");
-    auto batch = Batch{raw_requests, request_count,
-                       model_state->TritonMemoryManager(),
-                       /* Note: It is safe to keep a copy of the model_state
-                        * pointer in this closure because both the batch and
-                        * the original model_state pointer go out of scope at
-                        * the end of this block. */
-                       [model_state](std::string const& name) {
-                         auto result = std::vector<size_type>{};
-                         auto& triton_result =
-                             model_state->FindBatchOutput(name)->OutputShape();
-                         std::transform(
-                             std::begin(triton_result), std::end(triton_result),
-                             std::back_inserter(result), [](auto& coord) {
-                               return narrow<std::size_t>(coord);
-                             });
-                         return result;
-                       },
-                       model_state->EnablePinnedInput(),
-                       model_state->EnablePinnedOutput(),
-                       max_batch_size model.get_stream()};
+    auto batch = Batch{
+        raw_requests, request_count, model_state->TritonMemoryManager(),
+        /* Note: It is safe to keep a copy of the model_state
+         * pointer in this closure and the instance pointer in the next because
+         * the batch goes out of scope at the end of this block and Triton
+         * guarantees that the liftimes of both the instance and model states
+         * extend beyond this function call. */
+        [model_state](std::string const& name) {
+          auto result = std::vector<size_type>{};
+          auto& triton_result =
+              model_state->FindBatchOutput(name)->OutputShape();
+          std::transform(std::begin(triton_result), std::end(triton_result),
+                         std::back_inserter(result), [](auto& coord) {
+                           return narrow<std::size_t>(coord);
+                         });
+          return result;
+        },
+        [instance](TRITONBACKEND_Request* request, time_point req_start,
+                   time_point req_comp_start, time_point req_comp_end,
+                   time_point req_end) {
+          report_statistics(*instance, request, req_start, req_comp_start,
+                            req_comp_end, req_end);
+        },
+        model_state->EnablePinnedInput(), model_state->EnablePinnedOutput(),
+        max_batch_size model.get_stream()};
 
     model.predict(batch);
+    auto& compute_start_time = batch.compute_start_time();
+    auto compute_end_time = std::chrono::steady_clock::now();
     batch.finalize();
+    auto end_time = std::chrono::steady_clock::now();
+
+    report_statistics(*instance, request_count, start_time, compute_start_time,
+                      compute_end_time, end_time);
   } catch (rapids::TritonException& err) {
     result = err.error();
   }

@@ -18,6 +18,7 @@
 
 #include <cuda_runtime_api.h>
 #include <algorithm>
+#include <chrono>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -35,6 +36,29 @@
 #include <triton/backend/backend_output_responder.h>
 
 namespace triton { namespace backend { namespace rapids {
+  /**
+   * @brief A representation of all data about a single batch of inference
+   * requests
+   *
+   * Batch objects are the primary interface point between rapids_triton Models
+   * and the Triton server itself. By calling the `get_input` and `get_output`
+   * methods of a batch, Model implementations can retrieve the input Tensors
+   * necessary for prediction and the output Tensors where results can be
+   * stored.
+   *
+   * Batch objects also handle a variety of other tasks necessary for
+   * processing a batch in the Triton model. This includes reporting statistics
+   * on how long it took to process requests and sending responses to the
+   * client via the Triton server once processing is complete.
+   *
+   * It is not recommended that developers of rapids_triton backends try to
+   * construct Batch objects directly. Instead, you should base your backend
+   * repository on the rapids_triton_template repo. This template repo includes
+   * all of the code necessary to construct a Batch and feed it to a Model
+   * implementation. Model implementers need only retrieve the input/output
+   * Tensors they require from the Batch and then call `finalize` on the output
+   * Tensors. The code provided in the template repo takes care of the rest.
+   */
   template<typename ModelState, typename ModelInstanceState>
   struct Batch {
     using size_type = std::size_t;
@@ -43,6 +67,13 @@ namespace triton { namespace backend { namespace rapids {
           request_size_t count,
           TRITONBACKEND_MemoryManager& triton_mem_manager,
           std::function<std::vector<size_type>(std::string const&)> get_output_shape,
+          std::function<
+            void(
+              TRITONBACKEND_Request*,
+              time_point const&,
+              time_point const&,
+              time_point const&,
+              time_point const&)> report_request_statistics,
           bool use_pinned_input,
           bool use_pinned_output,
           size_type max_batch_size,
@@ -66,7 +97,9 @@ namespace triton { namespace backend { namespace rapids {
       use_pinned_output,
       stream
     )},
-    stream_{stream} {}
+    stream_{stream},
+    start_time_{std::chrono::steady_clock::now()},
+    compute_start_time_{std::chrono::steady_clock::now()} {}
 
 
     template<typename T>
@@ -101,6 +134,9 @@ namespace triton { namespace backend { namespace rapids {
         throw TritonException(Error::Internal, "data collected in wrong location");
       }
 
+      // Set start time of batch to time latest input tensor was retrieved
+      compute_start_time_ = std::chrono::steady_clock::now();
+
       return Tensor(std::move(shape), std::move(buffer));
     }
 
@@ -113,15 +149,27 @@ namespace triton { namespace backend { namespace rapids {
       return OutputTensor(std::move(shape), std::move(buffer), responder_, name);
     }
 
+    auto const& start_time() const {
+      return compute_start_time_;
+    }
+
     auto stream() const {
       return stream_;
     }
 
     void finalize() {
-      // TODO(wphicks): report statistics
+      auto compute_end_time = std::chrono::steady_clock::now();
       if (responder_->Finalize()) {
         cuda_check(cudaStreamSynchronize(stream_));
       }
+      std::for_each(
+        std::begin(requests_),
+        std::end(requests_),
+        [&report_statistics_, &start_time_, &compute_start_time_, &compute_end_time](
+            auto& request) {
+          report_statistics_(request, true, start_time_, compute_start_time_, compute_end_time);
+        }
+      );
       //TODO(wphicks): Send responses
     }
 
@@ -132,6 +180,8 @@ namespace triton { namespace backend { namespace rapids {
       BackendInputCollector collector_;
       std::shared_ptr<BackendOutputResponder> responder_;
       cudaStream_t stream_;
+      std::chrono::time_point<std::chrono::steady_clock> start_time_;
+      std::chrono::time_point<std::chrono::steady_clock> compute_start_time_;
 
       auto get_input_shape(std::string const& name) {
         auto result = std::vector<size_type>{};
