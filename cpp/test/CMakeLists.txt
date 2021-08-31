@@ -26,7 +26,7 @@ add_executable(test_rapids_triton
     test/tensor/dtype.cpp
     test/tensor/tensor.cpp
     test/test.cpp
-    # test/triton/api/execute.cpp
+    test/triton/api/execute.cpp
     test/triton/api/initialize.cpp
     test/triton/api/instance_finalize.cpp
     test/triton/api/instance_initialize.cpp

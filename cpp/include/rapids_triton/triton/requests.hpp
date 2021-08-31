@@ -31,7 +31,7 @@ namespace triton { namespace backend { namespace rapids {
       try {
         triton_check(TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL));
       } catch (TritonException& err) {
-        log_error(err.what());
+        log_error(__FILE__, __LINE__, err.what());
       }
     });
   }

@@ -147,7 +147,7 @@ namespace triton { namespace backend { namespace rapids {
       return OutputTensor(std::move(shape), std::move(buffer), responder_, name);
     }
 
-    auto const& start_time() const {
+    auto const& compute_start_time() const {
       return compute_start_time_;
     }
 

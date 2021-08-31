@@ -17,6 +17,7 @@
 #pragma once
 #include <chrono>
 #include <cstdint>
+#include <vector>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/batch/batch.hpp>
 #include <rapids_triton/triton/model.hpp>
@@ -61,7 +62,8 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
                               req_comp_end, req_end);
           },
           model_state->EnablePinnedInput(), model_state->EnablePinnedOutput(),
-          max_batch_size model.get_stream()};
+          max_batch_size,
+          model.get_stream()};
 
       auto predict_err = static_cast<TRITONSERVER_Error*>(nullptr);
       try {
