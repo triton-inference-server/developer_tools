@@ -15,19 +15,23 @@
  */
 
 #pragma once
+#include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/logging.hpp>
+#include <rapids_triton/triton/model.hpp>
 #include <triton/backend/backend_common.h>
+#include <triton/backend/backend_model.h>
 
 namespace triton { namespace backend { namespace rapids { namespace triton_api {
   template<typename ModelState>
   auto* model_initialize(TRITONBACKEND_Model* model) {
     auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
     try {
-      auto name = rapids::get_model_name(*model);
+      auto name = get_model_name(*model);
 
-      auto version = rapids::get_model_version(*model);
+      auto version = get_model_version(*model);
 
       // TODO (wphicks): Use sstream
-      rapids::log_info(__FILE__, __LINE__,
+      log_info(__FILE__, __LINE__,
                        (std::string("TRITONBACKEND_ModelInitialize: ") + name +
                         " (version " + std::to_string(version) + ")")
                            .c_str());
@@ -35,8 +39,8 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
       auto rapids_model_state = std::make_unique<ModelState>(*model);
       rapids_model_state->load();
 
-      rapids::set_model_state(*model, std::move(rapids_model_state));
-    } catch (rapids::TritonException& err) {
+      set_model_state(*model, std::move(rapids_model_state));
+    } catch (TritonException& err) {
       result = err.error();
     }
 

@@ -53,14 +53,10 @@ namespace triton { namespace backend { namespace rapids {
    * client via the Triton server once processing is complete.
    *
    * It is not recommended that developers of rapids_triton backends try to
-   * construct Batch objects directly. Instead, you should base your backend
-   * repository on the rapids_triton_template repo. This template repo includes
-   * all of the code necessary to construct a Batch and feed it to a Model
-   * implementation. Model implementers need only retrieve the input/output
-   * Tensors they require from the Batch and then call `finalize` on the output
-   * Tensors. The code provided in the template repo takes care of the rest.
+   * construct Batch objects directly. Instead, you should make use of the
+   * rapids::triton_api::execute template, which will construct the Batch for
+   * you.
    */
-  template<typename ModelState, typename ModelInstanceState>
   struct Batch {
     using size_type = std::size_t;
 
@@ -82,19 +78,20 @@ namespace triton { namespace backend { namespace rapids {
     requests_(raw_requests, raw_requests + count),
     responses_(construct_responses(requests_.begin(), requests_.end())),
     get_output_shape_{get_output_shape},
-    collector_{
+    collector_(
       raw_requests,
       count,
       &responses_,
-      triton_mem_manager,
+      &triton_mem_manager,
       use_pinned_input,
       stream
-    },
+    ),
     responder_{std::make_shared<BackendOutputResponder>(
       raw_requests,
       count,
       &responses_,
       max_batch_size,
+      &triton_mem_manager,
       use_pinned_output,
       stream
     )},
@@ -158,26 +155,39 @@ namespace triton { namespace backend { namespace rapids {
       return stream_;
     }
 
-    void finalize() {
+    void finalize(TRITONSERVER_Error* err) {
       auto compute_end_time = std::chrono::steady_clock::now();
       if (responder_->Finalize()) {
         cuda_check(cudaStreamSynchronize(stream_));
       }
-      std::for_each(
-        std::begin(requests_),
-        std::end(requests_),
-        [this, &compute_end_time](
-            auto& request) {
-          report_statistics_(request, true, start_time_, compute_start_time_, compute_end_time);
-        }
-      );
-      //TODO(wphicks): Send responses
+
+      send_responses(std::begin(responses_), std::end(responses_), err);
+
+      // Triton resumes ownership of failed requests; only release on success
+      if (err == nullptr) {
+        std::for_each(
+          std::begin(requests_),
+          std::end(requests_),
+          [this, &compute_end_time](
+              auto& request) {
+            report_statistics_(
+              request,
+              start_time_,
+              compute_start_time_,
+              compute_end_time,
+              std::chrono::steady_clock::now()
+            );
+          }
+        );
+        release_requests(std::begin(requests_), std::end(requests_));
+      }
     }
 
     private:
       std::vector<TRITONBACKEND_Request*> requests_;
       std::vector<TRITONBACKEND_Response*> responses_;
       std::function<std::vector<size_type>(std::string const&)> get_output_shape_;
+      std::function<void(TRITONBACKEND_Request*, time_point const&, time_point const&, time_point const&, time_point const&)> report_statistics_;
       BackendInputCollector collector_;
       std::shared_ptr<BackendOutputResponder> responder_;
       cudaStream_t stream_;

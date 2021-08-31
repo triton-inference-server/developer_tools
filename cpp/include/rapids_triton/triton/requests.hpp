@@ -16,9 +16,25 @@
 
 #pragma once
 #include <stdint.h>
+#include <triton/backend/backend_common.h>
+
+#include <algorithm>
+#include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/logging.hpp>
 
 namespace triton { namespace backend { namespace rapids {
   using request_size_t = uint32_t;
+
+  template<typename Iter>
+  void release_requests(Iter begin, Iter end) {
+    std::for_each(begin, end, [](auto& request) {
+      try {
+        triton_check(TRITONBACKEND_RequestRelease(request, TRITONSERVER_REQUEST_RELEASE_ALL));
+      } catch (TritonException& err) {
+        log_error(err.what());
+      }
+    });
+  }
 }}}  // namespace triton::backend::rapids
 
 

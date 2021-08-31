@@ -18,6 +18,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <rapids_triton/exceptions.hpp>
 #include <triton/core/tritonbackend.h>
 
 namespace triton { namespace backend { namespace rapids {

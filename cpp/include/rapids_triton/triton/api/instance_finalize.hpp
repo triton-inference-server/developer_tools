@@ -15,6 +15,9 @@
  */
 
 #pragma once
+#include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/logging.hpp>
+#include <rapids_triton/triton/model_instance.hpp>
 #include <triton/backend/backend_common.h>
 
 namespace triton { namespace backend { namespace rapids { namespace triton_api {
@@ -23,17 +26,17 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
     auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
     try {
       auto* instance_state =
-          rapids::get_instance_state<ModelInstanceState>(*instance);
+          get_instance_state<ModelInstanceState>(*instance);
       if (instance_state != nullptr) {
         instance_state->unload();
 
-        rapids::log_info(
+        log_info(
             __FILE__, __LINE__,
             "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
 
         delete instance_state;
       }
-    } catch (rapids::TritonException& err) {
+    } catch (TritonException& err) {
       result = err.error();
     }
 

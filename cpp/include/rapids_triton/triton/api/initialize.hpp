@@ -17,23 +17,28 @@
 #pragma once
 #include <triton/backend/backend_common.h>
 
+#include <string>
+#include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/backend.hpp>
+#include <rapids_triton/triton/logging.hpp>
+
 namespace triton { namespace backend { namespace rapids { namespace triton_api {
-  auto* model_initialize(TRITONBACKEND_Model* model) {
+  inline auto* initialize(TRITONBACKEND_Backend* backend) {
     auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
     try {
-      auto name = rapids::get_backend_name(*backend);
+      auto name = get_backend_name(*backend);
 
       // TODO (wphicks): use sstream
-      rapids::log_info(
+      log_info(
           __FILE__, __LINE__,
           (std::string("TRITONBACKEND_Initialize: ") + name).c_str());
 
-      if (!rapids::check_backend_version(*backend)) {
-        throw rapids::TritonException{
-            rapids::Error::Unsupported,
+      if (!check_backend_version(*backend)) {
+        throw TritonException{
+            Error::Unsupported,
             "triton backend API version does not support this backend"};
       }
-    } catch (rapids::TritonException& err) {
+    } catch (TritonException& err) {
       result = err.error();
     }
     return result;

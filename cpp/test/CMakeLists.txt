@@ -16,15 +16,22 @@
 
 # keep the files in alphabetical order!
 add_executable(test_rapids_triton
+    test/batch/batch.cpp
     test/build_control.cpp
     test/exceptions.cpp
-    test/batch/batch.cpp
     test/memory/buffer.cpp
     test/memory/detail/allocate.cpp
     test/memory/detail/copy.cpp
     test/memory/types.cpp
     test/tensor/dtype.cpp
     test/tensor/tensor.cpp
+    test/test.cpp
+    # test/triton/api/execute.cpp
+    test/triton/api/initialize.cpp
+    test/triton/api/instance_finalize.cpp
+    test/triton/api/instance_initialize.cpp
+    test/triton/api/model_finalize.cpp
+    test/triton/api/model_initialize.cpp
     test/triton/backend.cpp
     test/triton/config.cpp
     test/triton/deployment.cpp
@@ -35,7 +42,7 @@ add_executable(test_rapids_triton
     test/triton/model_instance.cpp
     test/triton/requests.cpp
     test/triton/responses.cpp
-    test/test.cpp
+    test/triton/statistics.cpp
     test/utils/const_agnostic.cpp
     test/utils/narrow.cpp
 )

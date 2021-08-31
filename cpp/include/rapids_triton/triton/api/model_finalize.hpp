@@ -15,23 +15,27 @@
  */
 
 #pragma once
+#include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/logging.hpp>
+#include <rapids_triton/triton/model.hpp>
 #include <triton/backend/backend_common.h>
+#include <triton/backend/backend_model.h>
 
 namespace triton { namespace backend { namespace rapids { namespace triton_api {
   template<typename ModelState>
   auto* model_finalize(TRITONBACKEND_Model* model) {
     auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
     try {
-      auto model_state = rapids::get_model_state<ModelState>(*model);
+      auto model_state = get_model_state<ModelState>(*model);
       if (model_state != nullptr) {
         model_state->get_shared_state()->unload();
       }
 
-      rapids::log_info(__FILE__, __LINE__,
+      log_info(__FILE__, __LINE__,
                        "TRITONBACKEND_ModelFinalize: delete model state");
 
       delete model_state;
-    } catch (rapids::TritonException& err) {
+    } catch (TritonException& err) {
       result = err.error();
     }
 

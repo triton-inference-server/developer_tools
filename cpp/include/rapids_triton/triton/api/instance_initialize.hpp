@@ -15,31 +15,37 @@
  */
 
 #pragma once
+#include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/logging.hpp>
+#include <rapids_triton/triton/model.hpp>
+#include <rapids_triton/triton/model_instance.hpp>
 #include <triton/backend/backend_common.h>
+#include <triton/backend/backend_model_instance.h>
 
 namespace triton { namespace backend { namespace rapids { namespace triton_api {
   template<typename ModelState, typename ModelInstanceState>
   auto* instance_initialize(TRITONBACKEND_ModelInstance* instance) {
     auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
     try {
-      auto name = rapids::get_model_instance_name(*instance);
-      auto device_id = rapids::get_device_id(*instance);
-      auto deployment_type = rapids::get_deployment_type(*instance);
+      auto name = get_model_instance_name(*instance);
+      auto device_id = get_device_id(*instance);
+      auto deployment_type = get_deployment_type(*instance);
 
       // TODO (wphicks): Use sstream
-      rapids::log_info(__FILE__, __LINE__,
+      log_info(__FILE__, __LINE__,
                        (std::string("TRITONBACKEND_ModelInstanceInitialize: ") +
-                        name + " (" + TRITONSERVER_InstanceGroupKindString(kind) +
+                        name + " (" + TRITONSERVER_InstanceGroupKindString(deployment_type) +
                         " device " + std::to_string(device_id) + ")")
                            .c_str());
 
-      auto* model_state = rapids::get_model_state<ModelState>(*instance);
+      auto* triton_model = get_model_from_instance(*instance);
+      auto* model_state = get_model_state<ModelState>(*triton_model);
 
       auto rapids_model =
-          std::make_unique<ModelInstanceState>(model_state, instance)
+          std::make_unique<ModelInstanceState>(model_state, instance);
 
-              rapids::set_instance_state(*instance, std::move(rapids_model));
-    } catch (rapids::TritonException& err) {
+      set_instance_state<ModelInstanceState>(*instance, std::move(rapids_model));
+    } catch (TritonException& err) {
       result = err.error();
     }
     return result;

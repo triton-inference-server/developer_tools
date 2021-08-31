@@ -19,6 +19,7 @@
 #include <iterator>
 #include <vector>
 #include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/logging.hpp>
 #include <triton/core/tritonbackend.h>
 
 namespace triton { namespace backend { namespace rapids {
@@ -43,6 +44,25 @@ auto construct_responses(Iter requests_begin, Iter requests_end)
         return response;
       });
   return responses;
+}
+
+template <typename Iter>
+void send_responses(Iter begin, Iter end, TRITONSERVER_Error* err) {
+  std::for_each(begin, end, [err](auto& response) {
+    decltype(err) err_copy;
+    if (err != nullptr) {
+      err_copy = TRITONSERVER_ErrorNew(
+          TRITONSERVER_ErrorCode(err), TRITONSERVER_ErrorMessage(err));
+    } else {
+      err_copy = err;
+    }
+
+    try {
+      triton_check(TRITONBACKEND_ResponseSend(response, TRITONSERVER_RESPONSE_COMPLETE_FINAL, err_copy));
+    } catch (TritonException& err) {
+      log_error(__FILE__, __LINE__, err.what());
+    }
+  });
 }
 
 }}}  // namespace triton::backend::rapids

@@ -15,6 +15,13 @@
  */
 
 #pragma once
+#include <chrono>
+#include <cstdint>
+#include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/batch/batch.hpp>
+#include <rapids_triton/triton/model.hpp>
+#include <rapids_triton/triton/model_instance.hpp>
+#include <rapids_triton/triton/statistics.hpp>
 #include <triton/backend/backend_common.h>
 
 namespace triton { namespace backend { namespace rapids { namespace triton_api {
@@ -25,9 +32,9 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
     auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
 
     try {
-      auto* model_state = rapids::get_model_state<ModelState>(*instance);
+      auto* model_state = get_model_state<ModelState>(*instance);
       auto* instance_state =
-          rapids::get_instance_state<ModelInstanceState>(*instance);
+          get_instance_state<ModelInstanceState>(*instance);
       auto& model = instance_state->get_model();
       auto max_batch_size = model.get_config_param("max_batch_size");
       auto batch = Batch{
@@ -38,7 +45,7 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
            * guarantees that the liftimes of both the instance and model states
            * extend beyond this function call. */
           [model_state](std::string const& name) {
-            auto result = std::vector<size_type>{};
+            auto result = std::vector<std::size_t>{};
             auto& triton_result =
                 model_state->FindBatchOutput(name)->OutputShape();
             std::transform(std::begin(triton_result), std::end(triton_result),
@@ -50,21 +57,27 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
           [instance](TRITONBACKEND_Request* request, time_point req_start,
                      time_point req_comp_start, time_point req_comp_end,
                      time_point req_end) {
-            report_statistics(*instance, request, req_start, req_comp_start,
+            report_statistics(*instance, *request, req_start, req_comp_start,
                               req_comp_end, req_end);
           },
           model_state->EnablePinnedInput(), model_state->EnablePinnedOutput(),
           max_batch_size model.get_stream()};
 
-      model.predict(batch);
+      auto predict_err = static_cast<TRITONSERVER_Error*>(nullptr);
+      try {
+        model.predict(batch);
+      } catch (TritonException& err) {
+        predict_err = err.error();
+      }
+
       auto& compute_start_time = batch.compute_start_time();
       auto compute_end_time = std::chrono::steady_clock::now();
-      batch.finalize();
+      batch.finalize(predict_err);
       auto end_time = std::chrono::steady_clock::now();
 
       report_statistics(*instance, request_count, start_time, compute_start_time,
                         compute_end_time, end_time);
-    } catch (rapids::TritonException& err) {
+    } catch (TritonException& err) {
       result = err.error();
     }
 
