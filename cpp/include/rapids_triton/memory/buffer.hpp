@@ -267,6 +267,6 @@ namespace triton { namespace backend { namespace rapids {
   template<typename T, typename U>
   void copy(Buffer<T>& dst, Buffer<U> const& src, typename Buffer<U>::size_type src_begin,
       typename Buffer<U>::size_type src_end) {
-    copy(dst, src, 0, 0, src.size());
+    copy(dst, src, 0, src_begin, src_end);
   }
 }}}  // namespace triton::backend::rapids

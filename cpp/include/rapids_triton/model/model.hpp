@@ -76,32 +76,36 @@ namespace triton { namespace backend { namespace rapids {
      * @brief Get input tensor of a particular named input for an entire batch
      */
     template<typename T>
-    auto get_input(Batch& batch, std::string const& name, std::optional<MemoryType>> const& mem_type, cudaStream_t stream) const {
+    auto get_input(Batch& batch, std::string const& name, std::optional<MemoryType> const& mem_type, cudaStream_t stream) const {
       return batch.get_input<T const>(name, mem_type, device_id_, stream);
     }
     template<typename T>
     auto get_input(Batch& batch, std::string const& name, std::optional<MemoryType> const& mem_type) const {
-      return get_input<T>(name, mem_type, device_id_, default_stream_);
+      return get_input<T>(batch, name, mem_type, default_stream_);
     }
     template<typename T>
     auto get_input(Batch& batch, std::string const& name) const {
-      return get_input<T>(name, preferred_mem_type(batch), device_id_, default_stream_);
+      return get_input<T>(batch, name, preferred_mem_type(batch), default_stream_);
     }
 
     /**
      * @brief Get output tensor of a particular named output for an entire batch
      */
     template<typename T>
-    auto get_output(Batch& batch, std::string const& name, std::optional<MemoryType>> const& mem_type, cudaStream_t stream) const {
-      return batch.get_output<T>(name, mem_type, device_id_, stream);
+    auto get_output(Batch& batch, std::string const& name, std::optional<MemoryType> const& mem_type, device_id_t device_id, cudaStream_t stream) const {
+      return batch.get_output<T>(name, mem_type, device_id, stream);
+    }
+    template<typename T>
+    auto get_output(Batch& batch, std::string const& name, std::optional<MemoryType> const& mem_type, cudaStream_t stream) const {
+      return get_output<T>(batch, name, mem_type, device_id_, stream);
     }
     template<typename T>
     auto get_output(Batch& batch, std::string const& name, std::optional<MemoryType> const& mem_type) const {
-      return get_output<T>(name, mem_type, device_id_, default_stream_);
+      return get_output<T>(batch, name, mem_type, device_id_, default_stream_);
     }
     template<typename T>
     auto get_output(Batch& batch, std::string const& name) const {
-      return get_output<T>(name, preferred_mem_type(batch), device_id_, default_stream_);
+      return get_output<T>(batch, name, preferred_mem_type(batch), device_id_, default_stream_);
     }
 
     /**
@@ -109,15 +113,15 @@ namespace triton { namespace backend { namespace rapids {
      */
     template <typename T>
     auto get_config_param(std::string const& name) const {
-      return shared_state_->get_config_param<T>(name);
+      return shared_state_->template get_config_param<T>(name);
     }
     template <typename T>
     auto get_config_param(std::string const& name, T default_value) const {
-      return shared_state_->get_config_param<T>(name, default_value);
+      return shared_state_->template get_config_param<T>(name, default_value);
     }
 
     Model(std::shared_ptr<SharedState> shared_state, device_id_t device_id, cudaStream_t default_stream, DeploymentType deployment_type, std::string const& filepath) :
-      shared_state_{shared_state}, device_id_{device_id}, default_stream_{default_stream}, deployment_type_{deployment_type} filepath_{filepath} {}
+      shared_state_{shared_state}, device_id_{device_id}, default_stream_{default_stream}, deployment_type_{deployment_type}, filepath_{filepath} {}
 
     auto get_device_id() const { return device_id_; }
     auto get_deployment_type() const { return deployment_type_; }

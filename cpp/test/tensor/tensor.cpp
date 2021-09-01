@@ -72,6 +72,66 @@ TEST(RapidsTriton, multi_buffer_tensor) {
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
+TEST(RapidsTriton, tensor_copy) {
+  auto shape = std::vector<std::size_t>{2, 2};
+  auto data = std::vector<int>{1, 2, 3, 4};
+
+  auto data1 = data;
+  auto tensor1 =
+      Tensor<int>(shape, Buffer<int>{data.data(), data.size(), HostMemory});
+  auto data2 = std::vector<int>(data1.size());
+  auto tensor2 =
+      Tensor<int>(shape, Buffer<int>{data.data(), data.size(), HostMemory});
+
+  copy(tensor2, tensor1);
+
+  auto data_out =
+      std::vector<int>(tensor2.data(), tensor2.data() + tensor2.size());
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+
+  auto small_shape = std::vector<std::size_t>{2};
+  auto small_data = std::vector<int>(2);
+  auto tensor3 = Tensor<int>(
+      small_shape,
+      Buffer<int>{small_data.data(), small_data.size(), HostMemory});
+
+  EXPECT_THROW(copy(tensor3, tensor1), TritonException);
+}
+
+TEST(RapidsTriton, tensor_multi_copy) {
+  auto shape = std::vector<std::size_t>{2, 2};
+  auto data = std::vector<int>{1, 2, 3, 4};
+
+  auto data1 = data;
+  auto tensor1 =
+      Tensor<int>(shape, Buffer<int>{data.data(), data.size(), HostMemory});
+
+  auto receiver_shape = std::vector<std::size_t>{1};
+  auto receivers = std::vector<Tensor<int>>{};
+
+  receivers.reserve(data.size());
+  std::transform(data.begin(), data.end(), std::back_inserter(receivers),
+                 [&receiver_shape](auto& val) {
+                   return Tensor<int>(receiver_shape,
+                                      Buffer<int>{std::size_t{1}, HostMemory});
+                 });
+
+  rapids::copy(receivers.begin(), receivers.end(), tensor1);
+
+  auto data_out = std::vector<int>{};
+  data_out.reserve(receivers.size());
+  std::transform(receivers.begin(), receivers.end(),
+                 std::back_inserter(data_out),
+                 [](auto& tensor) { return *tensor.data(); });
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+
+  // Throw if trying to copy to too many outputs
+  receivers.emplace_back(receiver_shape,
+                         Buffer<int>{std::size_t{1}, HostMemory});
+  EXPECT_THROW(rapids::copy(receivers.begin(), receivers.end(), tensor1),
+               TritonException);
+}
+
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton

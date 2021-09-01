@@ -41,6 +41,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # - User Options  ------------------------------------------------------------
 
 option(BUILD_TESTS "Build rapids_triton unit-tests" ON)
+option(BUILD_EXAMPLE "Build rapids_identity example backend" OFF)
 option(CUDA_ENABLE_KERNELINFO "Enable kernel resource usage info" OFF)
 option(CUDA_ENABLE_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler)" OFF)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA runtime" OFF)
@@ -173,6 +174,13 @@ rapids_export(BUILD rapids_triton
 
 if(BUILD_TESTS)
   include(test/CMakeLists.txt)
+endif()
+
+##############################################################################
+# - build example backend ----------------------------------------------------
+
+if(BUILD_EXAMPLE)
+  include(src/CMakeLists.txt)
 endif()
 
 ##############################################################################

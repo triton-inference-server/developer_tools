@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-#include <triton/common/triton_json.h>
+#include <triton/backend/backend_common.h>
 #include <rapids_triton/batch/batch.hpp>
 #include <rapids_triton/tensor/tensor.hpp>
 #include <rapids_triton/triton/config.hpp>
@@ -40,7 +40,7 @@ namespace triton { namespace backend { namespace rapids {
     virtual void unload() {}
 
     explicit SharedModelState(
-      common::TritonJSON::Value config) : config_{config},
+      common::TritonJson::Value&& config) : config_{std::move(config)},
              max_batch_size_(get_max_batch_size(config)) {}
 
     template <typename T>
@@ -54,7 +54,7 @@ namespace triton { namespace backend { namespace rapids {
     }
 
     private:
-      common::TritonJSON::Value config_;
+      common::TritonJson::Value config_;
       Batch::size_type max_batch_size_;
 
       template <typename T>
@@ -65,7 +65,7 @@ namespace triton { namespace backend { namespace rapids {
           return result;
         }
         auto json_value = common::TritonJson::Value{};
-        if (config_.Find(name.c_str(), &json_value) {
+        if (config_.Find(name.c_str(), &json_value)) {
           auto string_repr = std::string{};
           triton_check(json_value.MemberAsString("string_value", &string_repr));
 

@@ -94,32 +94,6 @@ namespace triton { namespace backend { namespace rapids {
   BaseTensor<T>::~BaseTensor() {}
 
   template<typename T>
-  void copy(BaseTensor<std::remove_const_t<T>> dst, BaseTensor<T> src) {
-    copy(dst.buffer(), src.buffer());
-  }
-
-  /**
-   * @brief Copy data from src Tensor into buffers indicated by iterators
-   *
-   * This method is provided to assist with distributing data from a single
-   * Tensor into many smaller buffers which have been set up to receive a part
-   * of the data from the src Tensor
-   */
-  template<typename T, typename Iter>
-  void copy(Iter begin, Iter end, BaseTensor<T> src) {
-    std::accumulate(
-      begin,
-      end,
-      BaseTensor<T>::size_type(0),
-      [&src] (auto offset, auto& buffer) {
-        auto end_offset = offset + buffer.size();
-        copy(buffer, src.buffer(), offset, end_offset);
-        return end_offset;
-      }
-    );
-  }
-
-  template<typename T>
   struct Tensor final : BaseTensor<T> {
     Tensor() : BaseTensor<T>{} {}
     Tensor(std::vector<typename BaseTensor<T>::size_type> const& shape, Buffer<T>&& buffer) : BaseTensor<T>(shape, std::move(buffer)) {}
@@ -165,4 +139,31 @@ namespace triton { namespace backend { namespace rapids {
       std::shared_ptr<BackendOutputResponder> responder_;
       std::string name_;
   };
+
+  template<typename T>
+  void copy(BaseTensor<std::remove_const_t<T>>& dst, BaseTensor<T>& src) {
+    copy(dst.buffer(), src.buffer());
+  }
+
+  /**
+   * @brief Copy data from src Tensor into buffers indicated by iterators
+   *
+   * This method is provided to assist with distributing data from a single
+   * Tensor into many smaller buffers which have been set up to receive a part
+   * of the data from the src Tensor
+   */
+  template<typename T, typename Iter>
+  void copy(Iter begin, Iter end, BaseTensor<T>& src) {
+    std::accumulate(
+      begin,
+      end,
+      typename BaseTensor<T>::size_type{},
+      [&src] (auto offset, auto& dst) {
+        auto end_offset = offset + dst.size();
+        copy(dst.buffer(), src.buffer(), offset, end_offset);
+        return end_offset;
+      }
+    );
+  }
+
 }}}  // namespace triton::backend::rapids

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cuda_runtime_api.h>
+#include <stdint.h>
 #include <algorithm>
 #include <chrono>
 #include <functional>
@@ -27,6 +28,7 @@
 #include <vector>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
+#include <rapids_triton/tensor/tensor.hpp>
 #include <rapids_triton/triton/device.hpp>
 #include <rapids_triton/triton/input.hpp>
 #include <rapids_triton/triton/requests.hpp>
@@ -99,33 +101,50 @@ namespace triton { namespace backend { namespace rapids {
     start_time_{std::chrono::steady_clock::now()},
     compute_start_time_{std::chrono::steady_clock::now()} {}
 
+    auto get_input_shape(std::string const& name) {
+      auto result = std::vector<size_type>{};
+      if(!requests_.empty()) {
+        result = get_triton_input_shape<size_type>(std::begin(requests_), std::end(requests_), name);
+      }
+      return result;
+    }
+
 
     template<typename T>
-    auto get_input(std::string const& name, MemoryType memory_type, device_id_t device_id) {
-      auto shape = get_input_shape(requests_.begin(), requests_.end(), name);
+    auto get_input(std::string const& name, std::optional<MemoryType>
+        memory_type, device_id_t device_id, cudaStream_t stream) {
+      auto shape = get_input_shape(name);
       auto size_bytes = sizeof(T) * std::reduce(shape.begin(), shape.end(), std::size_t{1}, std::multiplies<>());
+      auto allowed_memory_configs = std::vector<std::pair<MemoryType, int64_t>>{};
+      if (memory_type.has_value()) {
+        allowed_memory_configs.emplace_back(memory_type.value(), device_id);
+      } else {
+        allowed_memory_configs.emplace_back(HostMemory, int64_t{});
+        allowed_memory_configs.emplace_back(DeviceMemory, device_id);
+      }
 
       auto const* raw_buffer = static_cast<char*>(nullptr);
       auto reported_bytes = std::size_t{};
-      auto reported_mem_type = memory_type;
-      auto reported_device_id = device_id;
+      auto reported_mem_type = MemoryType{};
+      auto reported_device_id = int64_t{};
 
-      collector_.ProcessTensor(
+      triton_check(collector_.ProcessTensor(
         name.c_str(),
-        nullptr, // Return data without copy if possible
+        static_cast<char*>(nullptr), // Return data without copy if possible
         size_bytes,
-        {{memory_type, device_id}},
+        allowed_memory_configs,
         &raw_buffer,
         &reported_bytes,
         &reported_mem_type,
         &reported_device_id
-      );
+      ));
 
       auto buffer = Buffer(
         reinterpret_cast<T*>(raw_buffer),
         reported_bytes,
         reported_mem_type,
-        stream_
+        reported_device_id,
+        stream
       );
 
       if (reported_mem_type != memory_type || reported_device_id != device_id) {
@@ -139,12 +158,31 @@ namespace triton { namespace backend { namespace rapids {
     }
 
     template<typename T>
-    auto get_output(std::string const& name, MemoryType memory_type, device_id_t device_id) {
+    auto get_input(std::string const& name, std::optional<MemoryType>
+        memory_type, device_id_t device_id) {
+      return get_input<T>(name, memory_type, device_id, stream_);
+    }
+
+    template<typename T>
+    auto get_output(std::string const& name, std::optional<MemoryType> memory_type, device_id_t device_id, cudaStream_t stream) {
       auto shape = get_output_shape_(name);
       auto buffer_size = std::reduce(
           shape.begin(), shape.end(), std::size_t{1}, std::multiplies<>());
-      auto buffer = Buffer<T>(buffer_size, memory_type, device_id, stream_);
-      return OutputTensor(std::move(shape), std::move(buffer), responder_, name);
+      auto final_memory_type = MemoryType{};
+      if (memory_type.has_value()) {
+        final_memory_type = memory_type.value();
+      } else {
+        // If consumer doesn't care, use HostMemory to avoid additional copy on
+        // non-shared-memory responses.
+        final_memory_type = HostMemory;
+      }
+      auto buffer = Buffer<T>(buffer_size, final_memory_type, device_id, stream);
+      return OutputTensor<T>(std::move(shape), std::move(buffer), name, responder_);
+    }
+
+    template<typename T>
+    auto get_output(std::string const& name, std::optional<MemoryType> memory_type, device_id_t device_id) {
+      return get_output<T>(name, memory_type, device_id, stream_);
     }
 
     auto const& compute_start_time() const {
@@ -193,14 +231,6 @@ namespace triton { namespace backend { namespace rapids {
       cudaStream_t stream_;
       std::chrono::time_point<std::chrono::steady_clock> start_time_;
       std::chrono::time_point<std::chrono::steady_clock> compute_start_time_;
-
-      auto get_input_shape(std::string const& name) {
-        auto result = std::vector<size_type>{};
-        if(!requests_.empty()) {
-          result = get_triton_input_shape<size_type>(std::begin(requests_), std::end(requests_), name);
-        }
-        return result;
-      }
   };
 }}}  // namespace triton::backend::rapids
 
