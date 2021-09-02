@@ -47,7 +47,12 @@ namespace triton { namespace backend { namespace rapids {
             &input_dims, nullptr, nullptr));
 
         if (reported_dtype != TritonDtype<T>::value) {
-          throw(TritonException(Error::Internal, "incorrect type for requested input"));
+          auto log_stream = std::stringstream{};
+          log_stream << "incorrect type "
+                     << reported_dtype
+                     << " for output with required type "
+                     << TritonDtype<T>::value;
+          throw(TritonException(Error::Internal, log_stream.str()));
         }
 
         if (input_dims != 0) {

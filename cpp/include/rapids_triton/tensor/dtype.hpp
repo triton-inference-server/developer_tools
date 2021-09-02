@@ -16,6 +16,7 @@
 
 #pragma once
 #include <cstdint>
+#include <iostream>
 #include <rapids_triton/utils/const_agnostic.hpp>
 #include <triton/core/tritonserver.h>
 
@@ -153,5 +154,10 @@ template <typename T>
 struct TritonDtype<T, const_agnostic_same_t<T, double>> {
   static constexpr DType value = DTypeFloat64;
 };
+
+inline std::ostream& operator<<(std::ostream& out, DType const& dtype) {
+  out << TRITONSERVER_DataTypeString(dtype);
+  return out;
+}
 
 }}}
