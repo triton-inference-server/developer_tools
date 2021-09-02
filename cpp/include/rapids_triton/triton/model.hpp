@@ -55,7 +55,7 @@ inline
 auto
 get_model_config(TRITONBACKEND_Model& model)
 {
-  TRITONSERVER_Message* config_message = nullptr;
+  auto* config_message = static_cast<TRITONSERVER_Message*>(nullptr);
   triton_check(TRITONBACKEND_ModelConfig(&model, 1, &config_message));
 
   auto* buffer = static_cast<char const*>(nullptr);

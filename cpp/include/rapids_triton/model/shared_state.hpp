@@ -41,7 +41,7 @@ namespace triton { namespace backend { namespace rapids {
 
     explicit SharedModelState(
       std::unique_ptr<common::TritonJson::Value>&& config) : config_{std::move(config)},
-             max_batch_size_(get_max_batch_size(*config)) {}
+             max_batch_size_(get_max_batch_size(*config_)) {}
 
     template <typename T>
     auto get_config_param(std::string const& name) {

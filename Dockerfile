@@ -1,5 +1,13 @@
-ARG TRITON_VERSION=21.07
+###########################################################################################
+# Arguments for controlling build details
+###########################################################################################
+# Version of Triton to use
+ARG TRITON_VERSION=21.08
+# Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
+# Whether or not to build indicated components
+ARG BUILD_TESTS=OFF
+ARG BUILD_EXAMPLE=ON
 
 FROM ${BASE_IMAGE} as base
 
@@ -41,13 +49,32 @@ ENV TRITON_VERSION=$TRITON_VERSION
 
 ARG BUILD_TYPE=Release
 ENV BUILD_TYPE=$BUILD_TYPE
+ARG BUILD_TESTS
+ENV BUILD_TESTS=$BUILD_TESTS
+ARG BUILD_EXAMPLE
+ENV BUILD_EXAMPLE=$BUILD_EXAMPLE
 
 RUN mkdir /rapids_triton/build
 
 WORKDIR /rapids_triton/build
 
-RUN cmake -GNinja ..
+RUN cmake \
+      -GNinja \
+      -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+      -DBUILD_TESTS="${BUILD_TESTS}" \
+      -DBUILD_EXAMPLE="${BUILD_EXAMPLES}" \
+      ..
 
-RUN ninja
+RUN ninja install
 
-CMD ["/rapids_triton/build/test_rapids_triton"]
+# FROM ${BASE_IMAGE}
+# 
+# # Remove existing backend install
+# RUN if [ -d /opt/tritonserver/backends/rapids_identity ]; \
+#     then \
+#       rm -rf /opt/tritonserver/backends/rapids_identity/*; \
+#     fi
+# 
+# COPY --from=build-stage \
+#   /opt/tritonserver/backends/rapids_identity \
+#   /opt/tritonserver/backends/rapids_identity

@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-21.10/RAPIDS.cmake
     ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
@@ -50,9 +50,9 @@ option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
 option(NVTX "Enable nvtx markers" OFF)
 option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
 option(TRITON_ENABLE_STATS "Enable statistics collection in Triton" ON)
-set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
-set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
-set(TRITON_BACKEND_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/backend repo")
+set(TRITON_COMMON_REPO_TAG "r21.08" CACHE STRING "Tag for triton-inference-server/common repo")
+set(TRITON_CORE_REPO_TAG "r21.08" CACHE STRING "Tag for triton-inference-server/core repo")
+set(TRITON_BACKEND_REPO_TAG "r21.08" CACHE STRING "Tag for triton-inference-server/backend repo")
 
 message(VERBOSE "RAPIDS_TRITON: Build RAPIDS_TRITON unit-tests: ${BUILD_TESTS}")
 message(VERBOSE "RAPIDS_TRITON: Enable detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
