@@ -16,6 +16,7 @@
 
 #pragma once
 #include <cstddef>
+#include <type_traits>
 
 #include <cuda_runtime_api.h>
 
@@ -29,7 +30,11 @@ template <typename T>
 struct dev_deallocater {
   void operator()(T* d_ptr) {
     if constexpr (IS_GPU_BUILD) {
-      cudaFree(reinterpret_cast<void*>(d_ptr));
+      // Note: We allow a const_cast here because this deallocator is only used
+      // in a RAII context. If we are deallocating this memory, we allocated it
+      // and made it const. Removing the const qualifier allows the
+      // deallocation to proceed.
+      cudaFree(reinterpret_cast<void*>(const_cast<typename std::remove_const<T>::type*>(d_ptr)));
     } else {
       log_error(
         __FILE__,

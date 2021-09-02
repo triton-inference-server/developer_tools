@@ -18,7 +18,8 @@
 #include <cstdint>
 #include <memory>
 #include <rapids_triton/triton/model_instance.hpp>
-#include <triton/backend/backend_model.h>
+#include <rapids_triton/triton/model_state.hpp>
+#include <triton/backend/backend_model_instance.h>
 
 namespace triton { namespace backend { namespace rapids {
 
@@ -30,13 +31,13 @@ struct ModelInstanceState : public BackendModelInstance {
         model_(model_state.get_shared_state(),
                rapids::get_device_id(*triton_model_instance), CudaStream(),
                Kind(),
-               JoinPath({RepositoryPath(), std::to_string(Version()),
+               JoinPath({model_state.RepositoryPath(), std::to_string(model_state.Version()),
                          ArtifactFilename()})) {}
 
   auto& get_model() const { return model_; }
 
-  void load() { model_->load(); }
-  void unload() { model_->unload(); }
+  void load() { model_.load(); }
+  void unload() { model_.unload(); }
 
  private:
   RapidsModel model_;

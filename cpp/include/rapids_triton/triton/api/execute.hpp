@@ -16,6 +16,7 @@
 
 #pragma once
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 #include <rapids_triton/exceptions.hpp>
@@ -33,13 +34,13 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
     auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
 
     try {
-      auto* model_state = get_model_state<ModelState>(*instance);
+      auto* model_state = get_model_state<ModelState>(*get_model_from_instance(*instance));
       auto* instance_state =
           get_instance_state<ModelInstanceState>(*instance);
       auto& model = instance_state->get_model();
-      auto max_batch_size = model.get_config_param("max_batch_size");
-      auto batch = Batch{
-          raw_requests, request_count, model_state->TritonMemoryManager(),
+      auto max_batch_size = model.template get_config_param<std::size_t>("max_batch_size");
+      auto batch = Batch(
+          raw_requests, request_count, *(model_state->TritonMemoryManager()),
           /* Note: It is safe to keep a copy of the model_state
            * pointer in this closure and the instance pointer in the next because
            * the batch goes out of scope at the end of this block and Triton
@@ -63,7 +64,7 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
           },
           model_state->EnablePinnedInput(), model_state->EnablePinnedOutput(),
           max_batch_size,
-          model.get_stream()};
+          model.get_stream());
 
       auto predict_err = static_cast<TRITONSERVER_Error*>(nullptr);
       try {

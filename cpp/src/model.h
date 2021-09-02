@@ -16,14 +16,18 @@
 
 #pragma once
 
+#include <cuda_runtime_api.h>
 #include <names.h>
 #include <shared_state.h>
 
+#include <memory>
 #include <optional>
-#include <rapids_triton/batch/batch.hpp>    // rapids::Batch
-#include <rapids_triton/memory/types.hpp>   // rapids::MemoryType
-#include <rapids_triton/model/model.hpp>    // rapids::Model
-#include <rapids_triton/tensor/tensor.hpp>  // rapids::copy
+#include <rapids_triton/batch/batch.hpp>        // rapids::Batch
+#include <rapids_triton/memory/types.hpp>       // rapids::MemoryType
+#include <rapids_triton/model/model.hpp>        // rapids::Model
+#include <rapids_triton/tensor/tensor.hpp>      // rapids::copy
+#include <rapids_triton/triton/deployment.hpp>  // rapids::DeploymentType
+#include <rapids_triton/triton/device.hpp>      // rapids::device_id_t
 
 namespace triton {
 namespace backend {
@@ -33,6 +37,20 @@ namespace NAMESPACE {
  * should be implemented in a struct named RapidsModel, as shown here */
 
 struct RapidsModel : rapids::Model<RapidsSharedState> {
+  /***************************************************************************
+   * BOILERPLATE                                                             *
+   * *********************************************************************** *
+   * The following constructor can be copied directly into any model
+   * implementation.
+   **************************************************************************/
+  RapidsModel(std::shared_ptr<RapidsSharedState> shared_state,
+              rapids::device_id_t device_id, cudaStream_t default_stream,
+              rapids::DeploymentType deployment_type,
+              std::string const& filepath)
+      : rapids::Model<RapidsSharedState>(shared_state, device_id,
+                                         default_stream, deployment_type,
+                                         filepath) {}
+
   /***************************************************************************
    * BASIC FEATURES                                                          *
    * *********************************************************************** *
@@ -58,7 +76,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
    *    pointer to the underlying data.
    * 4. Call the `finalize` method on all output tensors.
    **************************************************************************/
-  void predict(rapids::Batch& batch) {
+  void predict(rapids::Batch& batch) const {
     // 1. Acquire a tensor representing the input named "input__0"
     auto input = get_input<float>(batch, "input__0");
     // 2. Acquire a tensor representing the output named "input__0"
@@ -66,7 +84,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     // 3. Perform inference. In this example, we simply copy the data from the
     // input to the output tensor.
-    rapids::copy<float>(output, input);
+    rapids::copy<float const>(output, input);
 
     // 4. Call finalize on all output tensors. In this case, we have just one
     // output, so we call finalize on it.

@@ -18,6 +18,7 @@
 
 #include <names.h>
 
+#include <memory>
 #include <rapids_triton/model/shared_state.hpp>
 
 namespace triton {
@@ -36,6 +37,8 @@ namespace NAMESPACE {
  * is entirely valid */
 
 struct RapidsSharedState : rapids::SharedModelState {
+  RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
+      : rapids::SharedModelState{std::move(config)} {}
   void load() {}
   void unload() {}
 };

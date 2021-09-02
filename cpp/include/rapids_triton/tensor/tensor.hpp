@@ -16,6 +16,7 @@
 
 #pragma once
 #include <algorithm>
+#include <iterator>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -30,6 +31,7 @@
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/tensor/dtype.hpp>
 #include <rapids_triton/triton/device.hpp>
+#include <rapids_triton/utils/narrow.hpp>
 #include <triton/backend/backend_output_responder.h>
 
 namespace triton { namespace backend { namespace rapids {
@@ -121,6 +123,11 @@ namespace triton { namespace backend { namespace rapids {
      * used to finalize them.
      */
     void finalize() {
+      auto& shape = BaseTensor<T>::shape();
+      auto triton_shape = std::vector<std::int64_t>{};
+      triton_shape.reserve(shape.size());
+      std::transform(std::begin(shape), std::end(shape), std::back_inserter(triton_shape), [](auto& val) { return narrow<int64_t>(val);});
+
       // Must call the following because BackendOutputResponder does not expose
       // its stream, so we cannot be certain that our data is not being
       // processed on another stream.
@@ -128,16 +135,16 @@ namespace triton { namespace backend { namespace rapids {
       responder_->ProcessTensor(
         name_.c_str(),
         TritonDtype<T>::value,
-        BaseTensor<T>::shape(),
-        BaseTensor<T>::data(),
+        triton_shape,
+        reinterpret_cast<char*>(BaseTensor<T>::data()),
         BaseTensor<T>::mem_type(),
         BaseTensor<T>::device()
       );
     }
 
     private:
-      std::shared_ptr<BackendOutputResponder> responder_;
       std::string name_;
+      std::shared_ptr<BackendOutputResponder> responder_;
   };
 
   template<typename T>

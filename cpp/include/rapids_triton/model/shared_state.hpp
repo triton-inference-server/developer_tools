@@ -40,8 +40,8 @@ namespace triton { namespace backend { namespace rapids {
     virtual void unload() {}
 
     explicit SharedModelState(
-      common::TritonJson::Value&& config) : config_{std::move(config)},
-             max_batch_size_(get_max_batch_size(config)) {}
+      std::unique_ptr<common::TritonJson::Value>&& config) : config_{std::move(config)},
+             max_batch_size_(get_max_batch_size(*config)) {}
 
     template <typename T>
     auto get_config_param(std::string const& name) {
@@ -54,7 +54,7 @@ namespace triton { namespace backend { namespace rapids {
     }
 
     private:
-      common::TritonJson::Value config_;
+      std::unique_ptr<common::TritonJson::Value> config_;
       Batch::size_type max_batch_size_;
 
       template <typename T>
@@ -65,7 +65,7 @@ namespace triton { namespace backend { namespace rapids {
           return result;
         }
         auto json_value = common::TritonJson::Value{};
-        if (config_.Find(name.c_str(), &json_value)) {
+        if (config_->Find(name.c_str(), &json_value)) {
           auto string_repr = std::string{};
           triton_check(json_value.MemberAsString("string_value", &string_repr));
 

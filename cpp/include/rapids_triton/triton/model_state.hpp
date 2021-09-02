@@ -23,7 +23,8 @@ template<typename RapidsSharedState>
 struct TritonModelState : public BackendModel {
 
   TritonModelState(TRITONBACKEND_Model& triton_model)
-      : state_{std::make_shared<RapidsSharedState>(
+      : BackendModel(&triton_model), 
+        state_{std::make_shared<RapidsSharedState>(
             get_model_config(triton_model))} {}
 
   void load() { state_->load(); }

@@ -30,7 +30,7 @@ namespace triton { namespace backend { namespace rapids {
   template<typename SharedState=SharedModelState>
   struct Model {
 
-    virtual void predict(Batch& batch) = 0;
+    virtual void predict(Batch& batch) const = 0;
 
     virtual void load() {}
     virtual void unload() {}
@@ -65,10 +65,9 @@ namespace triton { namespace backend { namespace rapids {
      * override this in order to provide different streams for use with
      * successive incoming batches. For instance, one might cycle through
      * several streams in order to distribute batches across them, but care
-     * should be taken to ensure proper synchronization in this case. It is
-     * recommended that this method be overridden only when strictly necessary.
+     * should be taken to ensure proper synchronization in this case.
      */
-    virtual cudaStream_t get_stream() {
+    virtual cudaStream_t get_stream() const {
       return default_stream_;
     }
 
@@ -118,6 +117,14 @@ namespace triton { namespace backend { namespace rapids {
     template <typename T>
     auto get_config_param(std::string const& name, T default_value) const {
       return shared_state_->template get_config_param<T>(name, default_value);
+    }
+    template <typename T>
+    auto get_config_param(char const* name) const {
+      return get_config_param<T>(std::string(name));
+    }
+    template <typename T>
+    auto get_config_param(char const* name, T default_value) const {
+      return get_config_param<T>(std::string(name), default_value);
     }
 
     Model(std::shared_ptr<SharedState> shared_state, device_id_t device_id, cudaStream_t default_stream, DeploymentType deployment_type, std::string const& filepath) :
