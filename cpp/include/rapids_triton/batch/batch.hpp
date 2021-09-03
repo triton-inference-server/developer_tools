@@ -65,7 +65,7 @@ namespace triton { namespace backend { namespace rapids {
     Batch(TRITONBACKEND_Request** raw_requests,
           request_size_t count,
           TRITONBACKEND_MemoryManager& triton_mem_manager,
-          std::function<std::vector<size_type>(std::string const&)> get_output_shape,
+          std::function<std::vector<size_type>(std::string const&, size_type)> get_output_shape,
           std::function<
             void(
               TRITONBACKEND_Request*,
@@ -80,6 +80,7 @@ namespace triton { namespace backend { namespace rapids {
     requests_(raw_requests, raw_requests + count),
     responses_(construct_responses(requests_.begin(), requests_.end())),
     get_output_shape_{get_output_shape},
+    report_statistics_{report_request_statistics},
     collector_(
       raw_requests,
       count,
@@ -99,12 +100,30 @@ namespace triton { namespace backend { namespace rapids {
     )},
     stream_{stream},
     start_time_{std::chrono::steady_clock::now()},
-    compute_start_time_{std::chrono::steady_clock::now()} {}
+    compute_start_time_{std::chrono::steady_clock::now()},
+    batch_size_{} {}
 
+    template<typename T>
     auto get_input_shape(std::string const& name) {
       auto result = std::vector<size_type>{};
       if(!requests_.empty()) {
-        result = get_triton_input_shape<size_type>(std::begin(requests_), std::end(requests_), name);
+        result = get_triton_input_shape<T>(std::begin(requests_), std::end(requests_), name);
+
+        auto input_batch_dim = size_type{};
+        if (result.size() > 0) {
+          input_batch_dim = result[0];
+        } else {
+          input_batch_dim = size_type{};
+        }
+
+        if(batch_size_.has_value()) {
+          if(batch_size_.value() != input_batch_dim) {
+            throw TritonException(
+                Error::Internal, "all input tensors must have same batch dimension");
+          }
+        } else {
+          batch_size_ = input_batch_dim;
+        }
       }
       return result;
     }
@@ -113,7 +132,7 @@ namespace triton { namespace backend { namespace rapids {
     template<typename T>
     auto get_input(std::string const& name, std::optional<MemoryType>
         memory_type, device_id_t device_id, cudaStream_t stream) {
-      auto shape = get_input_shape(name);
+      auto shape = get_input_shape<T>(name);
       auto size_bytes = sizeof(T) * std::reduce(shape.begin(), shape.end(), std::size_t{1}, std::multiplies<>());
       auto allowed_memory_configs = std::vector<std::pair<MemoryType, int64_t>>{};
       if (memory_type.has_value()) {
@@ -141,13 +160,13 @@ namespace triton { namespace backend { namespace rapids {
 
       auto buffer = Buffer(
         reinterpret_cast<T*>(raw_buffer),
-        reported_bytes,
+        reported_bytes / sizeof(T),
         reported_mem_type,
         reported_device_id,
         stream
       );
 
-      if (reported_mem_type != memory_type || reported_device_id != device_id) {
+      if (memory_type && (reported_mem_type != memory_type || reported_device_id != device_id)) {
         throw TritonException(Error::Internal, "data collected in wrong location");
       }
 
@@ -165,7 +184,13 @@ namespace triton { namespace backend { namespace rapids {
 
     template<typename T>
     auto get_output(std::string const& name, std::optional<MemoryType> memory_type, device_id_t device_id, cudaStream_t stream) {
-      auto shape = get_output_shape_(name);
+      if (!batch_size_.has_value()) {
+        throw TritonException(
+          Error::Internal,
+          "At least one input must be retrieved before any output"
+        );
+      }
+      auto shape = get_output_shape_(name, batch_size_.value());
       auto buffer_size = std::reduce(
           shape.begin(), shape.end(), std::size_t{1}, std::multiplies<>());
       auto final_memory_type = MemoryType{};
@@ -224,13 +249,14 @@ namespace triton { namespace backend { namespace rapids {
     private:
       std::vector<TRITONBACKEND_Request*> requests_;
       std::vector<TRITONBACKEND_Response*> responses_;
-      std::function<std::vector<size_type>(std::string const&)> get_output_shape_;
+      std::function<std::vector<size_type>(std::string const&, size_type)> get_output_shape_;
       std::function<void(TRITONBACKEND_Request*, time_point const&, time_point const&, time_point const&, time_point const&)> report_statistics_;
       BackendInputCollector collector_;
       std::shared_ptr<BackendOutputResponder> responder_;
       cudaStream_t stream_;
       std::chrono::time_point<std::chrono::steady_clock> start_time_;
       std::chrono::time_point<std::chrono::steady_clock> compute_start_time_;
+      std::optional<size_type> batch_size_;
   };
 }}}  // namespace triton::backend::rapids
 

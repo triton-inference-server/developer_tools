@@ -79,7 +79,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
   void predict(rapids::Batch& batch) const {
     // 1. Acquire a tensor representing the input named "input__0"
     auto input = get_input<float>(batch, "input__0");
-    // 2. Acquire a tensor representing the output named "input__0"
+    // 2. Acquire a tensor representing the output named "output__0"
     auto output = get_output<float>(batch, "output__0");
 
     // 3. Perform inference. In this example, we simply copy the data from the

@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -24,6 +25,7 @@
 #include <rapids_triton/triton/model.hpp>
 #include <rapids_triton/triton/model_instance.hpp>
 #include <rapids_triton/triton/statistics.hpp>
+#include <rapids_triton/utils/narrow.hpp>
 #include <triton/backend/backend_common.h>
 
 namespace triton { namespace backend { namespace rapids { namespace triton_api {
@@ -41,19 +43,32 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
       auto max_batch_size = model.template get_config_param<std::size_t>("max_batch_size");
       auto batch = Batch(
           raw_requests, request_count, *(model_state->TritonMemoryManager()),
-          /* Note: It is safe to keep a copy of the model_state
-           * pointer in this closure and the instance pointer in the next because
-           * the batch goes out of scope at the end of this block and Triton
-           * guarantees that the liftimes of both the instance and model states
-           * extend beyond this function call. */
-          [model_state](std::string const& name) {
-            auto result = std::vector<std::size_t>{};
-            auto& triton_result =
-                model_state->FindBatchOutput(name)->OutputShape();
-            std::transform(std::begin(triton_result), std::end(triton_result),
-                           std::back_inserter(result), [](auto& coord) {
-                             return narrow<std::size_t>(coord);
-                           });
+          /* Note: It is safe to keep a reference to the model in htis closure
+           * and a pointer to the instance in the next because the batch goes
+           * out of scope at the end of this block and Triton guarantees that
+           * the liftimes of both the instance and model extend beyond this
+           * function call. */
+          [&model](std::string const& name, Batch::size_type batch_dim) {
+            auto result = std::vector<Batch::size_type>{};
+            auto config_shape = model.get_output_shape(name);
+            if (config_shape.size() > 0 && config_shape[0] < 0) {
+              config_shape[0] = batch_dim;
+            }
+            std::transform(
+              std::begin(config_shape),
+              std::end(config_shape),
+              std::back_inserter(result),
+              [](auto& coord) {
+                if (coord < 0) {
+                  throw TritonException(
+                    Error::Internal,
+                    "Backends with variable-shape outputs must request desired output shape"
+                  );
+                } else {
+                  return narrow<std::size_t>(coord);
+                }
+              }
+            );
             return result;
           },
           [instance](TRITONBACKEND_Request* request, time_point req_start,

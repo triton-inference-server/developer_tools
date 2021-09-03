@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <algorithm>
 #include <cstddef>
 #include <cuda_runtime_api.h>
 #include <optional>
@@ -41,7 +42,45 @@ namespace triton { namespace backend { namespace rapids {
 
     explicit SharedModelState(
       std::unique_ptr<common::TritonJson::Value>&& config) : config_{std::move(config)},
-             max_batch_size_(get_max_batch_size(*config_)) {}
+             max_batch_size_(get_max_batch_size(*config_)), output_shapes_([this]() {
+        auto result = std::vector<std::pair<std::string, std::vector<std::int64_t>>>{};
+        auto output_entries = triton::common::TritonJson::Value{};
+        triton_check(config_->MemberAsArray("output", &output_entries));
+
+        result.reserve(output_entries.ArraySize());
+
+        // Using a raw loop because TritonJSON::Value access has no iterator interface
+        for (std::size_t i=0; i < output_entries.ArraySize(); ++i) {
+          auto output_entry = triton::common::TritonJson::Value{};
+          triton_check(output_entries.IndexAsObject(i, &output_entry));
+          auto name = std::string{};
+          triton_check(output_entry.MemberAsString("name", &name));
+
+          auto shape = std::vector<std::int64_t>{};
+          auto reshape_entry = triton::common::TritonJson::Value{};
+          if (output_entry.Find("reshape", &reshape_entry)) {
+            ParseShape(reshape_entry, "shape", &shape);
+          } else {
+            ParseShape(output_entry, "dims", &shape);
+          }
+          if (shape[0] != -1) {
+            shape.insert(shape.begin(), -1);
+          }
+          result.insert(
+            std::upper_bound(
+              std::begin(output_shapes_),
+              std::end(output_shapes_),
+              name,
+              [](auto& value, auto& entry) {
+                return value < entry.first;
+              }
+            ),
+            {name, shape}
+          );
+        }
+
+        return result;
+      }()) {}
 
     template <typename T>
     auto get_config_param(std::string const& name) {
@@ -53,9 +92,28 @@ namespace triton { namespace backend { namespace rapids {
       return get_config_param<T>(name, std::make_optional(default_value));
     }
 
+    auto get_output_shape(std::string const& name) const {
+      auto cached_shape = std::lower_bound(
+        std::begin(output_shapes_),
+        std::end(output_shapes_),
+        name,
+        [](auto& entry, auto& value) {
+          return entry.first < value;
+        }
+      );
+      if (cached_shape == std::end(output_shapes_)) {
+        auto log_stream = std::stringstream{};
+        log_stream << "No output with name " << name << " in configuration.";
+        throw TritonException(Error::Internal, log_stream.str());
+      } else {
+        return cached_shape->second;
+      }
+    }
+
     private:
       std::unique_ptr<common::TritonJson::Value> config_;
       Batch::size_type max_batch_size_;
+      std::vector<std::pair<std::string, std::vector<std::int64_t>>> mutable output_shapes_;
 
       template <typename T>
       auto get_config_param(std::string const& name, std::optional<T> const& default_value) {

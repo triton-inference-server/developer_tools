@@ -134,6 +134,10 @@ namespace triton { namespace backend { namespace rapids {
     auto get_deployment_type() const { return deployment_type_; }
     auto const& get_filepath() const { return filepath_; }
 
+    auto get_output_shape(std::string const& name) const {
+      return shared_state_->get_output_shape(name);
+    }
+
     protected:
       auto get_shared_state() const { return shared_state_; }
 
