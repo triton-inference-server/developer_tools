@@ -62,19 +62,23 @@ RUN cmake \
       -GNinja \
       -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
       -DBUILD_TESTS="${BUILD_TESTS}" \
-      -DBUILD_EXAMPLE="${BUILD_EXAMPLES}" \
+      -DBUILD_EXAMPLE="${BUILD_EXAMPLE}" \
       ..
 
 RUN ninja install
 
-# FROM ${BASE_IMAGE}
-# 
-# # Remove existing backend install
-# RUN if [ -d /opt/tritonserver/backends/rapids_identity ]; \
-#     then \
-#       rm -rf /opt/tritonserver/backends/rapids_identity/*; \
-#     fi
-# 
-# COPY --from=build-stage \
-#   /opt/tritonserver/backends/rapids_identity \
-#   /opt/tritonserver/backends/rapids_identity
+FROM ${BASE_IMAGE}
+
+RUN mkdir /models
+
+# Remove existing backend install
+RUN if [ -d /opt/tritonserver/backends/rapids-identity ]; \
+    then \
+      rm -rf /opt/tritonserver/backends/rapids-identity/*; \
+    fi
+
+COPY --from=build-stage \
+  /opt/tritonserver/backends/rapids-identity \
+  /opt/tritonserver/backends/rapids-identity
+
+ENTRYPOINT ["tritonserver", "--model-repository=/models"]
