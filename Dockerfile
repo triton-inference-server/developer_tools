@@ -72,16 +72,19 @@ RUN ninja install
 
 FROM ${BASE_IMAGE}
 
+ARG BACKEND_NAME=rapids_linear
+ENV BACKEND_NAME=$BACKEND_NAME
+
 RUN mkdir /models
 
 # Remove existing backend install
-RUN if [ -d /opt/tritonserver/backends/rapids-linear ]; \
+RUN if [ -d /opt/tritonserver/backends/${BACKEND_NAME} ]; \
     then \
-      rm -rf /opt/tritonserver/backends/rapids-linear/*; \
+      rm -rf /opt/tritonserver/backends/${BACKEND_NAME}/*; \
     fi
 
 COPY --from=build-stage \
-  /opt/tritonserver/backends/rapids-linear \
-  /opt/tritonserver/backends/rapids-linear
+  /opt/tritonserver/backends/$BACKEND_NAME \
+  /opt/tritonserver/backends/$BACKEND_NAME
 
 ENTRYPOINT ["tritonserver", "--model-repository=/models"]

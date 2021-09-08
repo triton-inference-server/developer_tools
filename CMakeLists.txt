@@ -15,6 +15,15 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
+
+##############################################################################
+# - Target names -------------------------------------------------------------
+set(BACKEND_NAME "rapids_linear")
+set(BACKEND_TARGET "triton_${BACKEND_NAME}")
+
+
+##############################################################################
+# - Prepare rapids-cmake -----------------------------------------------------
 file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-21.10/RAPIDS.cmake
     ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
@@ -24,9 +33,9 @@ include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
 
-rapids_cuda_init_architectures(RAPIDS_TRITON_LINEAR)
+rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
 
-project(RAPIDS_TRITON_LINEAR VERSION 21.10.00 LANGUAGES CXX CUDA)
+project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX CUDA)
 
 ##############################################################################
 # - build type ---------------------------------------------------------------
@@ -47,16 +56,16 @@ option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies"
 option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
 option(NVTX "Enable nvtx markers" OFF)
 
-message(VERBOSE "RAPIDS_TRITON_LINEAR: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
-message(VERBOSE "RAPIDS_TRITON_LINEAR: Enabling kernelinfo in nvcc: ${CUDA_ENABLE_KERNEL_INFO}")
-message(VERBOSE "RAPIDS_TRITON_LINEAR: Enabling lineinfo in nvcc: ${CUDA_ENABLE_LINE_INFO}")
-message(VERBOSE "RAPIDS_TRITON_LINEAR: Enabling nvtx markers: ${NVTX}")
-message(VERBOSE "RAPIDS_TRITON_LINEAR: Build RAPIDS_TRITON_LINEAR unit-tests: ${BUILD_TESTS}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling kernelinfo in nvcc: ${CUDA_ENABLE_KERNEL_INFO}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling lineinfo in nvcc: ${CUDA_ENABLE_LINE_INFO}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling nvtx markers: ${NVTX}")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: Build RAPIDS_TRITON_BACKEND unit-tests: ${BUILD_TESTS}")
 
 # Set RMM logging level
 set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
 set_property(CACHE RMM_LOGGING_LEVEL PROPERTY STRINGS "TRACE" "DEBUG" "INFO" "WARN" "ERROR" "CRITICAL" "OFF")
-message(VERBOSE "RAPIDS_TRITON_LINEAR: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
+message(VERBOSE "RAPIDS_TRITON_BACKEND: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
 
 ##############################################################################
 # - Conda environment detection ----------------------------------------------
@@ -100,11 +109,11 @@ endif()
 # - install targets-----------------------------------------------------------
 
 add_library(
-  triton_rapids-linear SHARED
+  ${BACKEND_TARGET} SHARED
   src/api.cc
 )
 
-set_target_properties(triton_rapids-linear
+set_target_properties(${BACKEND_TARGET}
 PROPERTIES BUILD_RPATH                         "\$ORIGIN"
            # set target compile options
            CXX_STANDARD                        17
@@ -115,17 +124,17 @@ PROPERTIES BUILD_RPATH                         "\$ORIGIN"
            INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
-target_compile_options(triton_rapids-linear
-  PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_LINEAR_CXX_FLAGS}>"
-  "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_LINEAR_CUDA_FLAGS}>"
+target_compile_options(${BACKEND_TARGET}
+  PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_BACKEND_CXX_FLAGS}>"
+  "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_BACKEND_CUDA_FLAGS}>"
 )
 
-target_include_directories(triton_rapids-linear
-  PRIVATE  "$<BUILD_INTERFACE:${RAPIDS_TRITON_LINEAR_SOURCE_DIR}/include>"
+target_include_directories(${BACKEND_TARGET}
+  PRIVATE  "$<BUILD_INTERFACE:${RAPIDS_TRITON_BACKEND_SOURCE_DIR}/include>"
             "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
-target_link_libraries(triton_rapids-linear
+target_link_libraries(${BACKEND_TARGET}
 PRIVATE
   rapids_triton::rapids_triton
   triton-core-serverstub
@@ -135,8 +144,8 @@ PRIVATE
 )
 
 install(
-  TARGETS triton_rapids-linear
-  LIBRARY DESTINATION /opt/tritonserver/backends/rapids-linear
+  TARGETS ${BACKEND_TARGET}
+  LIBRARY DESTINATION /opt/tritonserver/backends/${BACKEND_NAME}
 )
 
 ##############################################################################
