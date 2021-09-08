@@ -149,6 +149,16 @@ TEST(RapidsTriton, move_buffer) {
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
+TEST(RapidsTriton, move_assignment_buffer) {
+  auto data = std::vector<int>{1, 2, 3};
+
+  auto buffer = Buffer<int>{data.data(), data.size() - 1, DeviceMemory};
+  buffer = Buffer<int>{data.size(), HostMemory};
+
+  ASSERT_EQ(buffer.mem_type(), HostMemory);
+  ASSERT_EQ(buffer.size(), data.size());
+}
+
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton
