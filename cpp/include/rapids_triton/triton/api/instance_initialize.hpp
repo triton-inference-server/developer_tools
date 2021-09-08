@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <sstream>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/logging.hpp>
 #include <rapids_triton/triton/model.hpp>
@@ -33,16 +32,14 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
       auto device_id = get_device_id(*instance);
       auto deployment_type = get_deployment_type(*instance);
 
-      auto log_stream = std::stringstream{};
-      log_stream << "TRITONBACKEND_ModelInstanceInitialize: "
-                 << name
-                 << " ("
-                 << TRITONSERVER_InstanceGroupKindString(deployment_type)
-                 << " device "
-                 << device_id
-                 << ")";
-
-      log_info(__FILE__, __LINE__, log_stream.str());
+      log_info(__FILE__, __LINE__)
+        << "TRITONBACKEND_ModelInstanceInitialize: "
+        << name
+        << " ("
+        << TRITONSERVER_InstanceGroupKindString(deployment_type)
+        << " device "
+        << device_id
+        << ")";
 
       auto* triton_model = get_model_from_instance(*instance);
       auto* model_state = get_model_state<ModelState>(*triton_model);

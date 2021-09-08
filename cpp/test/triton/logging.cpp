@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
 #include <rapids_triton/triton/logging.hpp>
 
 namespace triton {
@@ -27,6 +28,14 @@ TEST(RapidsTriton, logging) {
   log_warn("Warn test message");
   log_error("Error test message");
 }
+
+TEST(RapidsTriton, stream_logging) {
+  log_debug() << "Streamed debug test message";
+  log_info() << "Streamed info test message";
+  log_warn() << "Streamed warn test message";
+  log_error() << "Streamed error test message";
+}
+
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton

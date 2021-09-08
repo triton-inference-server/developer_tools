@@ -31,8 +31,7 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
         model_state->get_shared_state()->unload();
       }
 
-      log_info(__FILE__, __LINE__,
-                       "TRITONBACKEND_ModelFinalize: delete model state");
+      log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelFinalize: delete model state";
 
       delete model_state;
     } catch (TritonException& err) {

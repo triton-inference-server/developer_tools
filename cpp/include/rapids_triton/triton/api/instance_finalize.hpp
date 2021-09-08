@@ -30,9 +30,7 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
       if (instance_state != nullptr) {
         instance_state->unload();
 
-        log_info(
-            __FILE__, __LINE__,
-            "TRITONBACKEND_ModelInstanceFinalize: delete instance state");
+        log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelInstanceFinalize: delete instance state";
 
         delete instance_state;
       }

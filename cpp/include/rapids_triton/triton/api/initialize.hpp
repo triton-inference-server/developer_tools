@@ -28,10 +28,7 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
     try {
       auto name = get_backend_name(*backend);
 
-      log_info(
-        __FILE__, __LINE__,
-        std::string("TRITONBACKEND_Initialize: ") + name
-      );
+      log_info(__FILE__, __LINE__) << "TRITONBACKEND_Initialize: " << name;
 
       if (!check_backend_version(*backend)) {
         throw TritonException{

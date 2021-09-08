@@ -54,18 +54,19 @@ namespace triton { namespace backend { namespace rapids {
     auto version = backend_version{};
     triton_check(TRITONBACKEND_ApiVersion(&version.major, &version.minor));
 
-    log_info(
-        (std::string("Triton TRITONBACKEND API version: ") +
-         std::to_string(version.major) + "." + std::to_string(version.minor))
-            .c_str());
+    log_info(__FILE__, __LINE__) << "Triton TRITONBACKEND API version: "
+                                 << version.major
+                                 << "."
+                                 << version.minor;
 
     auto name = get_backend_name(backend);
 
-    log_info(
-        (std::string("'") + name + "' TRITONBACKEND API version: " +
-         std::to_string(TRITONBACKEND_API_VERSION_MAJOR) + "." +
-         std::to_string(TRITONBACKEND_API_VERSION_MINOR))
-            .c_str());
+    log_info(__FILE__, __LINE__) << "'"
+                                 << name 
+                                 << "' TRITONBACKEND API version: "
+                                 << TRITONBACKEND_API_VERSION_MAJOR
+                                 << "."
+                                 << TRITONBACKEND_API_VERSION_MINOR;
 
     return (
         (version.major == TRITONBACKEND_API_VERSION_MAJOR) &&

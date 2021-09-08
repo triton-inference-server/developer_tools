@@ -15,7 +15,6 @@
  */
 
 #pragma once
-#include <sstream>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/logging.hpp>
 #include <rapids_triton/triton/model.hpp>
@@ -31,15 +30,11 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
 
       auto version = get_model_version(*model);
 
-      auto log_stream = std::stringstream{};
-
-      log_stream << "TRITONBACKEND_ModelInitialize: "
-                 << name
-                 << " (version "
-                 << version
-                 << ")";
-
-      log_info(__FILE__, __LINE__, log_stream.str());
+      log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelInitialize: "
+                                   << name
+                                   << " (version "
+                                   << version
+                                   << ")";
 
       auto rapids_model_state = std::make_unique<ModelState>(*model);
       rapids_model_state->load();
