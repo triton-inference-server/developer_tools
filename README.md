@@ -59,6 +59,14 @@ you to create custom backends in
 those who wish to use C++ directly, RAPIDS-Triton can help simplify the process
 of developing your backend.
 
+The goal of RAPIDS-Triton is not to facilitate every possible use case of the
+Triton backend API but to make the most common uses of this API easier by
+providing a simpler interface to them. That being said, if there is a feature
+of the Triton backend API which RAPIDS-Triton does not expose and which you
+wish to use in a custom backend, please [submit a feature
+request](https://github.com/rapidsai/rapids-triton/issues), and we will see if
+it can be added.
+
 ## Simple Example
 
 In the `cpp/src` directory of this repository, you can see a complete,

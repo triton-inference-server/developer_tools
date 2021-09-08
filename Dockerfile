@@ -67,6 +67,8 @@ RUN cmake \
 
 RUN ninja install
 
+ENTRYPOINT ["/rapids_triton/build/test_rapids_triton"]
+
 FROM ${BASE_IMAGE}
 
 RUN mkdir /models

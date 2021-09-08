@@ -122,8 +122,11 @@ namespace triton { namespace backend { namespace rapids {
           result = max_batch_size_;
           return result;
         }
+        auto parameters = common::TritonJson::Value{};
         auto json_value = common::TritonJson::Value{};
-        if (config_->Find(name.c_str(), &json_value)) {
+        if (
+            config_->Find("parameters", &parameters) &&
+            parameters.Find(name.c_str(), &json_value)) {
           auto string_repr = std::string{};
           triton_check(json_value.MemberAsString("string_value", &string_repr));
 

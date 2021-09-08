@@ -16,6 +16,7 @@
 
 #pragma once
 #include <memory>
+#include <rapids_triton/triton/model.hpp>
 #include <triton/backend/backend_model.h>
 
 namespace triton { namespace backend { namespace rapids {
