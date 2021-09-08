@@ -46,6 +46,7 @@ namespace triton { namespace backend { namespace rapids { namespace triton_api {
 
       auto rapids_model =
           std::make_unique<ModelInstanceState>(*model_state, instance);
+      rapids_model->load();
 
       set_instance_state<ModelInstanceState>(*instance, std::move(rapids_model));
     } catch (TritonException& err) {
