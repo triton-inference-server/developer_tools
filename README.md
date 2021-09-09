@@ -225,16 +225,17 @@ struct RapidsSharedState : rapids::SharedModelState {
 
 You may safely ignore the constructor in this example. It is boilerplate code
 that should be included for all `RapidsSharedState` definitions and will not
-change between backends.
+change between backends. Take a look at `src/shared_state.h` to see this
+implementation in context.
 
-Note that we have added two public member variables to this class definition
-which will be used to store \alpha and **c**. One could equally well have made
+Note that we have added a public member variables to this class definition
+which will be used to store \alpha. One could equally well have made
 these private members with getter functions or added arbitrarily complex logic
 to this class definition, but we will leave them as is for simplicity.
 
 ### Accessing configuration parameters
 
-Next, we need to actually load values into these newly-defined members. We can
+Next, we need to actually load a value into this newly-defined member. We can
 do this by filling out the logic for our `load` method. For example, in order
 to load \alpha, we could implement something like:
 ```cpp
@@ -254,12 +255,112 @@ We will instead use it here simply to illustrate the use of RAPIDS-Triton
 logging functions. Logging functions are defined in
 `rapids_triton/triton/logging.hpp` and may be invoked as follows:
 ```cpp
-void unload() { log_info(__FILE__, __LINE__) << "Unloading shared state..."; }
+void unload() { rapids::log_info(__FILE__, __LINE__) << "Unloading shared state..."; }
 ```
-The arguments to `log_info` and associated functions may be omitted, but if
+The arguments to `log_info` and related functions may be omitted, but if
 included may provide some use in debugging.
 
-### Accessing model serialization files
-Most backends will also need to deserialize their models from some file on-disk.
+## 5. Define RapidsModel
+
+The real heart of any RAPIDS-Triton backend is its RapidsModel definition. This
+class implements the actual logic to deserialize a model and use it to perform
+inference.
+
+### 5.1 Deserialize the model
+Most backends will need to deserialize their models from some file on-disk.
 In our case, we are using the **c** vector as a stand-in for some more
-interesting model representation. 
+interesting model structure. For simplicity, we will assume that **c** is
+just stored as space-separated floats in a text file.
+
+A natural question is why we did not perform this deserialization in
+`RapidsSharedState::load` since **c** is the same for all instances of a model.
+In general, instances may be initialized on different GPUs, or some may be on
+GPUs while others are on CPUs, so we defer model deserialization until we know
+where the model should be deserialized *to*.
+
+Given that **c** could be stored on either host or device, the question of how
+to represent it as a member variable becomes a little more fraught. We could
+represent it as a raw pointer, but this requires a great deal of manual
+tracking to determine whether to use `std::malloc` or `cudaMalloc` for the
+initial allocation in the model `load()` method and `std::free` or `cudaFree`
+in `unload()`.
+
+To help simplify how situations like this are handled, RAPIDS-Triton introduces
+a lightweight `Buffer` class, which can provide unified RAII access to memory
+on host or device **or** a non-owning view on host/device memory that was
+allocated elsewhere. We'll introduce a `Buffer` member to RapidsModel to store **c**:
+
+```cpp
+rapids::Buffer<float> c{};
+```
+
+Now, we are ready to actually load **c** from its file representation.
+`rapids::Model`, the abstract parent class of `RapidsModel` implementations,
+defines several methods to help with model deserialization, including:
+- `get_filepath`, which returns the path to the model file if it is specified
+  in the config or the model directory if it is not
+- `get_deployment_type`, which returns whether this model should be deployed on
+  CPU or GPU
+- `get_device_id`, which returns the id of the device on which the model should
+  be deployed (always 0 for CPU deployments)
+
+Using these functions, we can define our `load()` function as follows. First,
+we determine the full filepath to the model file, defaulting to a name of
+`c.txt` if it is not specified in the config file:
+```cpp
+if (std::filesystem::is_directory(path)) {
+  path /= "c.txt";
+}
+```
+
+Next, we actually read the values of **c** into a temporary vector from its
+text file representation:
+```cpp
+ auto model_vec = std::vector<float>{};
+ auto model_file = std::ifstream(path.string());
+ auto input_line = std::string{};
+ std::getline(model_file, input_line);
+ auto input_stream = std::stringstream{input_line};
+ auto value = 0.0f;
+ while (input_stream >> value) {
+   model_vec.push_back(value);
+ }
+```
+
+We then query the model to figure out exactly what sort of Buffer will be
+needed to store **c**:
+```cpp
+auto memory_type = rapids::MemoryType{};
+if (get_deployment_type() == rapids::GPUDeployment) {
+  memory_type = rapids::DeviceMemory;
+} else {
+  memory_type = rapids::HostMemory;
+}
+c = rapids::Buffer<float>(model_vec.size(), memory_type, get_device_id());
+```
+
+Finally, we use the helper function `rapids::copy` to copy the values of **c**
+from a Buffer-based view of `model_vec` to the `c` Buffer itself:
+```cpp
+rapids::copy(c, rapids::Buffer<float>(model_vec.data(), model_vec.size(),
+                                      rapids::HostMemory));
+```
+
+By taking advantage of Buffer's RAII semantics, we eliminate the need to
+explicitly implement an `unload` function, but we could do so if necessary.
+
+### 5.2 Write the predict function
+Now all that remains is to use our loaded "model" for inference. The `predict`
+method of a RapidsModel implementation takes in a `Batch` object as argument,
+which can be used to retrieve the input and output tensors that we will operate
+on during inference. We can retrieve these tensors using the names we
+originally specified in the config file:
+
+```cpp
+auto u = get_input<float>(batch, "u");
+auto v = get_input<float>(batch, "v");
+
+auto r = get_output<float>(batch, "r");
+```
+
+The returned tensors will be 

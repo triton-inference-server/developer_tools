@@ -20,29 +20,26 @@
 #include <names.h>
 #include <shared_state.h>
 
+#include <cstddef>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <rapids_triton/batch/batch.hpp>        // rapids::Batch
+#include <rapids_triton/memory/buffer.hpp>      // rapids::Buffer, rapids::copy
 #include <rapids_triton/memory/types.hpp>       // rapids::MemoryType
 #include <rapids_triton/model/model.hpp>        // rapids::Model
 #include <rapids_triton/tensor/tensor.hpp>      // rapids::copy
 #include <rapids_triton/triton/deployment.hpp>  // rapids::DeploymentType
 #include <rapids_triton/triton/device.hpp>      // rapids::device_id_t
+#include <rapids_triton/triton/logging.hpp>     // rapids::log_info
+#include <sstream>
 
 namespace triton {
 namespace backend {
 namespace NAMESPACE {
 
-/* Any logic necessary to perform inference with a model and manage its data
- * should be implemented in a struct named RapidsModel, as shown here */
-
 struct RapidsModel : rapids::Model<RapidsSharedState> {
-  /***************************************************************************
-   * BOILERPLATE                                                             *
-   * *********************************************************************** *
-   * The following constructor can be copied directly into any model
-   * implementation.
-   **************************************************************************/
   RapidsModel(std::shared_ptr<RapidsSharedState> shared_state,
               rapids::device_id_t device_id, cudaStream_t default_stream,
               rapids::DeploymentType deployment_type,
@@ -51,97 +48,68 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
                                          default_stream, deployment_type,
                                          filepath) {}
 
-  /***************************************************************************
-   * BASIC FEATURES                                                          *
-   * *********************************************************************** *
-   * The only method that *must* be implemented for a viable model is the
-   * `predict` method, but the others presented here are often used for basic
-   * model implementations. Filling out these methods should take care of most
-   * use cases.
-   **************************************************************************/
-
-  /***************************************************************************
-   * predict                                                                 *
-   * *********************************************************************** *
-   * This method performs the actual inference step on input data. Implementing
-   * a predict function requires four steps:
-   * 1. Call `get_input` on the provided `Batch` object for each of the input
-   *    tensors named in the config file for this backend. This provides a
-   *    `Tensor` object containing the input data.
-   * 2. Call `get_output` on the provided `Batch` object for each of the output
-   *    tensors named in the config file for this backend. This provides a
-   *    `Tensor` object to which output values can be written.
-   * 3. Perform inference based on the input Tensors and store the results in
-   *    the output Tensors. `some_tensor.data()` can be used to retrieve a raw
-   *    pointer to the underlying data.
-   * 4. Call the `finalize` method on all output tensors.
-   **************************************************************************/
   void predict(rapids::Batch& batch) const {
-    // 1. Acquire a tensor representing the input named "input__0"
-    auto input = get_input<float>(batch, "input__0");
-    // 2. Acquire a tensor representing the output named "output__0"
-    auto output = get_output<float>(batch, "output__0");
+    auto u = get_input<float>(batch, "u");
+    auto v = get_input<float>(batch, "v");
 
-    // 3. Perform inference. In this example, we simply copy the data from the
-    // input to the output tensor.
-    rapids::copy<float const>(output, input);
+    auto r = get_output<float>(batch, "r");
 
-    // 4. Call finalize on all output tensors. In this case, we have just one
-    // output, so we call finalize on it.
-    output.finalize();
+    if (u.mem_type() == rapids::HostMemory) {
+      auto alpha = get_shared_state()->alpha;
+      for (std::size_t i{}; i < u.size(); ++i) {
+        auto u_val = *(u.data() + i);
+        auto v_val = *(v.data() + i);
+        auto& r_val = *(r.data() + i);
+        auto c_val = *(c.data() + (i % c.size()));
+
+        r_val = alpha * u_val + v_val + c_val;
+      }
+    }
+
+    r.finalize();
   }
 
-  /***************************************************************************
-   * load / unload                                                           *
-   * *********************************************************************** *
-   * These methods can be used to perform one-time loading/unloading of
-   * resources when a model is created. For example, data representing the
-   * model may be loaded onto the GPU in the `load` method and unloaded in the
-   * `unload` method. This data will then remain loaded while the server is
-   * running.
-   *
-   * While these methods take no arguments, it is typical to read any necessary
-   * input from the model configuration file by using the `get_config_param`
-   * method. Any parameters defined in the "parameters" section of the config
-   * can be accessed by name in this way. The maximum batch size can also be
-   * retrieved using the name "max_batch_size".
-   *
-   * These methods need not be explicitly implemented if no loading/unloading
-   * logic is required, but we show them here for illustrative purposes.
-   **************************************************************************/
-  void load() {}
-  void unload() {}
+  void load() {
+    auto path = std::filesystem::path(get_filepath());
+    /* If the config file does not specify a filepath for the model,
+     * get_filepath returns the directory where the serialized model should be
+     * found. It is generally good practice to provide logic to allow the use
+     * of a default filename so that model configurations do not always have to
+     * specify a path to their model */
+    if (std::filesystem::is_directory(path)) {
+      path /= "c.txt";
+    }
 
-  /***************************************************************************
-   * ADVANCED FEATURES                                                       *
-   * *********************************************************************** *
-   * None of the following methods are required to be implemented in order to
-   * create a valid model, but they are presented here for those who require
-   * the additional functionality they provide.
-   **************************************************************************/
+    // Read space-separated text file into a vector of floats
+    auto model_vec = std::vector<float>{};
+    auto model_file = std::ifstream(path.string());
+    auto input_line = std::string{};
+    std::getline(model_file, input_line);
+    auto input_stream = std::stringstream{input_line};
+    auto value = 0.0f;
+    while (input_stream >> value) {
+      model_vec.push_back(value);
+    }
 
-  /***************************************************************************
-   * preferred_mem_type / preferred_mem_type_in / preferred_mem_type_out     *
-   * *********************************************************************** *
-   * If implemented, `preferred_mem_type` allows for control over when input
-   * and output data are provided on the host versus on device. In the case
-   * that a model prefers to receive its input on-host but return output
-   * on-device (or vice versa), `preferred_mem_type_in` and
-   * `preferred_mem_type_out` can be used for even more precise control.
-   *
-   * In this example, we simply return `std::nullopt` to indicate that the
-   * model has no preference on its input/output data locations. Note that the
-   * Batch being processed is taken as input to this function to facilitate
-   * implementations that may switch their preferred memory location based on
-   * properties of the batch.
-   *
-   * Valid MemoryType options to return are rapids::HostMemory and
-   * rapids::DeviceMemory.
-   **************************************************************************/
-  std::optional<rapids::MemoryType> preferred_mem_type(
-      rapids::Batch& batch) const {
-    return std::nullopt;
+    // Construct buffer to hold c based on details of this model deployment
+    auto memory_type = rapids::MemoryType{};
+    if (get_deployment_type() == rapids::GPUDeployment) {
+      memory_type = rapids::DeviceMemory;
+    } else {
+      memory_type = rapids::HostMemory;
+    }
+    c = rapids::Buffer<float>(model_vec.size(), memory_type, get_device_id());
+
+    /* Use a Buffer view on model_vec to safely copy data to its final
+     * location. Making use of rapids::copy here provides additional safety
+     * checks to avoid buffer overruns. Note that the destination buffer comes
+     * first in rapids::copy calls, so we are copying *into* c */
+    rapids::copy(c, rapids::Buffer<float>(model_vec.data(), model_vec.size(),
+                                          rapids::HostMemory));
   }
+
+ private:
+  rapids::Buffer<float> c{};
 };
 
 }  // namespace NAMESPACE

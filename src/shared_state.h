@@ -42,7 +42,9 @@ struct RapidsSharedState : rapids::SharedModelState {
   RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
       : rapids::SharedModelState{std::move(config)} {}
   void load() { alpha = get_config_param<float>("alpha"); }
-  void unload() { log_info(__FILE__, __LINE__) << "Unloading shared state..."; }
+  void unload() {
+    rapids::log_info(__FILE__, __LINE__) << "Unloading shared state...";
+  }
 
   float alpha = 1.0f;
 };
