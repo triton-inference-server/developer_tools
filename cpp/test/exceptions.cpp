@@ -24,16 +24,17 @@ namespace triton {
 namespace backend {
 namespace rapids {
 
-TEST(RapidsTriton, default_except) {
+TEST(RapidsTriton, default_except)
+{
   try {
     throw TritonException();
   } catch (TritonException const& err) {
-    EXPECT_EQ(std::string(err.what()),
-              std::string("encountered unknown error"));
+    EXPECT_EQ(std::string(err.what()), std::string("encountered unknown error"));
   }
 }
 
-TEST(RapidsTriton, msg_except) {
+TEST(RapidsTriton, msg_except)
+{
   auto msg = std::string("TEST ERROR MESSAGE");
   try {
     throw TritonException(Error::Internal, msg);
@@ -56,17 +57,16 @@ TEST(RapidsTriton, msg_except) {
   }
 }
 
-TEST(RapidsTriton, triton_check) {
+TEST(RapidsTriton, triton_check)
+{
   auto msg = std::string("TEST ERROR MESSAGE");
-  EXPECT_THROW(
-      triton_check(TRITONSERVER_ErrorNew(Error::Internal, msg.c_str())),
-      TritonException);
+  EXPECT_THROW(triton_check(TRITONSERVER_ErrorNew(Error::Internal, msg.c_str())), TritonException);
   triton_check(nullptr);
 }
 
-TEST(RapidsTriton, cuda_check) {
-  EXPECT_THROW(cuda_check(cudaError::cudaErrorMissingConfiguration),
-               TritonException);
+TEST(RapidsTriton, cuda_check)
+{
+  EXPECT_THROW(cuda_check(cudaError::cudaErrorMissingConfiguration), TritonException);
   cuda_check(cudaError::cudaSuccess);
 }
 

@@ -26,50 +26,46 @@
 
 #pragma once
 
+#include <triton/core/tritonbackend.h>
 #include <cstdint>
-#include <string>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/logging.hpp>
-#include <triton/core/tritonbackend.h>
+#include <string>
 
-namespace triton { namespace backend { namespace rapids {
-  inline auto
-  get_backend_name(TRITONBACKEND_Backend& backend)
-  {
-    const char* cname;
-    triton_check(TRITONBACKEND_BackendName(&backend, &cname));
-    return std::string(cname);
-  }
+namespace triton {
+namespace backend {
+namespace rapids {
+inline auto get_backend_name(TRITONBACKEND_Backend& backend)
+{
+  const char* cname;
+  triton_check(TRITONBACKEND_BackendName(&backend, &cname));
+  return std::string(cname);
+}
 
-  namespace {
-    struct backend_version {
-      std::uint32_t major;
-      std::uint32_t minor;
-    };
-  }
+namespace {
+struct backend_version {
+  std::uint32_t major;
+  std::uint32_t minor;
+};
+}  // namespace
 
-  inline auto
-  check_backend_version(TRITONBACKEND_Backend& backend)
-  {
-    auto version = backend_version{};
-    triton_check(TRITONBACKEND_ApiVersion(&version.major, &version.minor));
+inline auto check_backend_version(TRITONBACKEND_Backend& backend)
+{
+  auto version = backend_version{};
+  triton_check(TRITONBACKEND_ApiVersion(&version.major, &version.minor));
 
-    log_info(__FILE__, __LINE__) << "Triton TRITONBACKEND API version: "
-                                 << version.major
-                                 << "."
-                                 << version.minor;
+  log_info(__FILE__, __LINE__) << "Triton TRITONBACKEND API version: " << version.major << "."
+                               << version.minor;
 
-    auto name = get_backend_name(backend);
+  auto name = get_backend_name(backend);
 
-    log_info(__FILE__, __LINE__) << "'"
-                                 << name 
-                                 << "' TRITONBACKEND API version: "
-                                 << TRITONBACKEND_API_VERSION_MAJOR
-                                 << "."
-                                 << TRITONBACKEND_API_VERSION_MINOR;
+  log_info(__FILE__, __LINE__) << "'" << name
+                               << "' TRITONBACKEND API version: " << TRITONBACKEND_API_VERSION_MAJOR
+                               << "." << TRITONBACKEND_API_VERSION_MINOR;
 
-    return (
-        (version.major == TRITONBACKEND_API_VERSION_MAJOR) &&
-        (version.minor >= TRITONBACKEND_API_VERSION_MINOR));
-  }
-}}}  // namespace triton::backend::rapids
+  return ((version.major == TRITONBACKEND_API_VERSION_MAJOR) &&
+          (version.minor >= TRITONBACKEND_API_VERSION_MINOR));
+}
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

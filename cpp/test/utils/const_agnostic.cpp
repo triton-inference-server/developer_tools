@@ -22,9 +22,9 @@
 namespace triton {
 namespace backend {
 namespace rapids {
-TEST(RapidsTriton, const_agnostic) {
-  static_assert(
-      std::is_same<const_agnostic_same_t<bool const, bool>, void>::value);
+TEST(RapidsTriton, const_agnostic)
+{
+  static_assert(std::is_same<const_agnostic_same_t<bool const, bool>, void>::value);
   static_assert(std::is_same<const_agnostic_same_t<bool, bool>, void>::value);
 }
 

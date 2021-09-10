@@ -15,24 +15,26 @@
  */
 
 #pragma once
-#include <triton/core/tritonserver.h>
 #include <cuda_runtime_api.h>
+#include <triton/core/tritonserver.h>
 #include <exception>
 #include <string>
 
-namespace triton { namespace backend { namespace rapids {
+namespace triton {
+namespace backend {
+namespace rapids {
 
 using ErrorCode = TRITONSERVER_Error_Code;
 
 namespace Error {
-  auto constexpr Unknown = ErrorCode::TRITONSERVER_ERROR_UNKNOWN;
-  auto constexpr Internal = ErrorCode::TRITONSERVER_ERROR_INTERNAL;
-  auto constexpr NotFound = ErrorCode::TRITONSERVER_ERROR_NOT_FOUND;
-  auto constexpr InvalidArg = ErrorCode::TRITONSERVER_ERROR_INVALID_ARG;
-  auto constexpr Unavailable = ErrorCode::TRITONSERVER_ERROR_UNAVAILABLE;
-  auto constexpr Unsupported = ErrorCode::TRITONSERVER_ERROR_UNSUPPORTED;
-  auto constexpr AlreadyExists = ErrorCode::TRITONSERVER_ERROR_ALREADY_EXISTS;
-}
+auto constexpr Unknown       = ErrorCode::TRITONSERVER_ERROR_UNKNOWN;
+auto constexpr Internal      = ErrorCode::TRITONSERVER_ERROR_INTERNAL;
+auto constexpr NotFound      = ErrorCode::TRITONSERVER_ERROR_NOT_FOUND;
+auto constexpr InvalidArg    = ErrorCode::TRITONSERVER_ERROR_INVALID_ARG;
+auto constexpr Unavailable   = ErrorCode::TRITONSERVER_ERROR_UNAVAILABLE;
+auto constexpr Unsupported   = ErrorCode::TRITONSERVER_ERROR_UNSUPPORTED;
+auto constexpr AlreadyExists = ErrorCode::TRITONSERVER_ERROR_ALREADY_EXISTS;
+}  // namespace Error
 
 /**
  * @brief Exception thrown if processing cannot continue for a request
@@ -45,30 +47,19 @@ namespace Error {
  * requests, including requests to other models.
  */
 struct TritonException : std::exception {
-
  public:
-  TritonException()
-      : error_(TRITONSERVER_ErrorNew(Error::Unknown,
-            "encountered unknown error"))
+  TritonException() : error_(TRITONSERVER_ErrorNew(Error::Unknown, "encountered unknown error")) {}
+
+  TritonException(ErrorCode code, std::string const& msg)
+    : error_(TRITONSERVER_ErrorNew(code, msg.c_str()))
   {
   }
 
-  TritonException(ErrorCode code, std::string const & msg)
-      : error_(TRITONSERVER_ErrorNew(code, msg.c_str()))
-  {
-  }
-
-  TritonException(ErrorCode code, char const* msg)
-      : error_{TRITONSERVER_ErrorNew(code, msg)}
-  {
-  }
+  TritonException(ErrorCode code, char const* msg) : error_{TRITONSERVER_ErrorNew(code, msg)} {}
 
   TritonException(TRITONSERVER_Error* prev_error) : error_(prev_error) {}
 
-  virtual char const* what() const noexcept
-  {
-    return TRITONSERVER_ErrorMessage(error_);
-  }
+  virtual char const* what() const noexcept { return TRITONSERVER_ErrorMessage(error_); }
 
   auto* error() const { return error_; }
 
@@ -76,18 +67,19 @@ struct TritonException : std::exception {
   TRITONSERVER_Error* error_;
 };
 
-inline void triton_check(TRITONSERVER_Error* err) {
-  if (err != nullptr) {
-    throw TritonException(err);
-  }
+inline void triton_check(TRITONSERVER_Error* err)
+{
+  if (err != nullptr) { throw TritonException(err); }
 }
 
-inline void cuda_check(cudaError_t const& err) {
+inline void cuda_check(cudaError_t const& err)
+{
   if (err != cudaSuccess) {
     cudaGetLastError();
     throw TritonException(Error::Internal, cudaGetErrorString(err));
   }
 }
 
-}}}  // namespace triton::backend::rapids
-
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

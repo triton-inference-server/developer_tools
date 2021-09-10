@@ -15,35 +15,39 @@
  */
 
 #pragma once
+#include <triton/backend/backend_common.h>
+#include <triton/backend/backend_model.h>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/logging.hpp>
 #include <rapids_triton/triton/model.hpp>
-#include <triton/backend/backend_common.h>
-#include <triton/backend/backend_model.h>
 
-namespace triton { namespace backend { namespace rapids { namespace triton_api {
-  template<typename ModelState>
-  auto* model_initialize(TRITONBACKEND_Model* model) {
-    auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-    try {
-      auto name = get_model_name(*model);
+namespace triton {
+namespace backend {
+namespace rapids {
+namespace triton_api {
+template <typename ModelState>
+auto* model_initialize(TRITONBACKEND_Model* model)
+{
+  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
+  try {
+    auto name = get_model_name(*model);
 
-      auto version = get_model_version(*model);
+    auto version = get_model_version(*model);
 
-      log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelInitialize: "
-                                   << name
-                                   << " (version "
-                                   << version
-                                   << ")";
+    log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelInitialize: " << name << " (version "
+                                 << version << ")";
 
-      auto rapids_model_state = std::make_unique<ModelState>(*model);
-      rapids_model_state->load();
+    auto rapids_model_state = std::make_unique<ModelState>(*model);
+    rapids_model_state->load();
 
-      set_model_state(*model, std::move(rapids_model_state));
-    } catch (TritonException& err) {
-      result = err.error();
-    }
-
-    return result;
+    set_model_state(*model, std::move(rapids_model_state));
+  } catch (TritonException& err) {
+    result = err.error();
   }
-}}}}
+
+  return result;
+}
+}  // namespace triton_api
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

@@ -23,11 +23,11 @@
 namespace triton {
 namespace backend {
 namespace rapids {
-TEST(RapidsTriton, narrow) {
+TEST(RapidsTriton, narrow)
+{
   EXPECT_THROW(narrow<std::size_t>(-1), TritonException);
   narrow<std::size_t>(int{5});
-  EXPECT_THROW(narrow<int>(std::numeric_limits<std::size_t>::max()),
-               TritonException);
+  EXPECT_THROW(narrow<int>(std::numeric_limits<std::size_t>::max()), TritonException);
   narrow<int>(std::size_t{5});
 }
 

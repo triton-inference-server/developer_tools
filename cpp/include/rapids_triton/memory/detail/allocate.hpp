@@ -25,10 +25,14 @@
 #include <rapids_triton/triton/logging.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 
-namespace triton { namespace backend { namespace rapids { namespace detail {
+namespace triton {
+namespace backend {
+namespace rapids {
+namespace detail {
 template <typename T>
 struct dev_deallocater {
-  void operator()(T* d_ptr) {
+  void operator()(T* d_ptr)
+  {
     if constexpr (IS_GPU_BUILD) {
       // Note: We allow a const_cast here because this deallocator is only used
       // in a RAII context. If we are deallocating this memory, we allocated it
@@ -37,10 +41,7 @@ struct dev_deallocater {
       cudaFree(reinterpret_cast<void*>(const_cast<typename std::remove_const<T>::type*>(d_ptr)));
     } else {
       log_error(
-        __FILE__,
-        __LINE__,
-        "ERROR: device deallocation cannot be performed in non-GPU build!"
-      );
+        __FILE__, __LINE__, "ERROR: device deallocation cannot be performed in non-GPU build!");
     }
   }
 };
@@ -49,16 +50,17 @@ struct dev_deallocater {
  * @brief Allocate given number of elements on GPU and return device pointer
  */
 template <typename T>
-[[nodiscard]] T*
-dev_allocate(std::size_t count, cudaStream_t stream)
+[[nodiscard]] T* dev_allocate(std::size_t count, cudaStream_t stream)
 {
   if constexpr (!IS_GPU_BUILD) {
     throw TritonException(Error::Internal, "device allocation attempted in non-GPU build");
   }
   auto* ptr_d =
-      static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(
-          sizeof(T) * count, stream));
+    static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(sizeof(T) * count, stream));
   return ptr_d;
 }
 
-}}}}  // namespace triton::backend::rapids::detail
+}  // namespace detail
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

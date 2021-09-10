@@ -15,25 +15,27 @@
  */
 
 #pragma once
+#include <triton/core/tritonserver.h>
 #include <cstdint>
 #include <iostream>
 #include <rapids_triton/utils/const_agnostic.hpp>
-#include <triton/core/tritonserver.h>
 
-namespace triton { namespace backend { namespace rapids {
+namespace triton {
+namespace backend {
+namespace rapids {
 
-using DType = TRITONSERVER_DataType;
-auto constexpr DTypeBool = TRITONSERVER_TYPE_BOOL;
-auto constexpr DTypeUint8 = TRITONSERVER_TYPE_UINT8;
-auto constexpr DTypeChar = DTypeUint8;
-auto constexpr DTypeByte = DTypeUint8;
-auto constexpr DTypeUint16 = TRITONSERVER_TYPE_UINT16;
-auto constexpr DTypeUint32 = TRITONSERVER_TYPE_UINT32;
-auto constexpr DTypeUint64 = TRITONSERVER_TYPE_UINT64;
-auto constexpr DTypeInt8 = TRITONSERVER_TYPE_INT8;
-auto constexpr DTypeInt16 = TRITONSERVER_TYPE_INT16;
-auto constexpr DTypeInt32 = TRITONSERVER_TYPE_INT32;
-auto constexpr DTypeInt64 = TRITONSERVER_TYPE_INT64;
+using DType                 = TRITONSERVER_DataType;
+auto constexpr DTypeBool    = TRITONSERVER_TYPE_BOOL;
+auto constexpr DTypeUint8   = TRITONSERVER_TYPE_UINT8;
+auto constexpr DTypeChar    = DTypeUint8;
+auto constexpr DTypeByte    = DTypeUint8;
+auto constexpr DTypeUint16  = TRITONSERVER_TYPE_UINT16;
+auto constexpr DTypeUint32  = TRITONSERVER_TYPE_UINT32;
+auto constexpr DTypeUint64  = TRITONSERVER_TYPE_UINT64;
+auto constexpr DTypeInt8    = TRITONSERVER_TYPE_INT8;
+auto constexpr DTypeInt16   = TRITONSERVER_TYPE_INT16;
+auto constexpr DTypeInt32   = TRITONSERVER_TYPE_INT32;
+auto constexpr DTypeInt64   = TRITONSERVER_TYPE_INT64;
 auto constexpr DTypeFloat32 = TRITONSERVER_TYPE_FP32;
 auto constexpr DTypeFloat64 = TRITONSERVER_TYPE_FP64;
 
@@ -41,7 +43,7 @@ template <DType D>
 struct TritonType {
 };
 
-template <typename T, typename=void>
+template <typename T, typename = void>
 struct TritonDtype {
 };
 
@@ -155,9 +157,12 @@ struct TritonDtype<T, const_agnostic_same_t<T, double>> {
   static constexpr DType value = DTypeFloat64;
 };
 
-inline std::ostream& operator<<(std::ostream& out, DType const& dtype) {
+inline std::ostream& operator<<(std::ostream& out, DType const& dtype)
+{
   out << TRITONSERVER_DataTypeString(dtype);
   return out;
 }
 
-}}}
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

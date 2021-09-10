@@ -17,8 +17,12 @@
 #pragma once
 #include <triton/core/tritonserver.h>
 
-namespace triton { namespace backend { namespace rapids {
-  using MemoryType = TRITONSERVER_MemoryType;
-  auto constexpr DeviceMemory = TRITONSERVER_MEMORY_GPU;
-  auto constexpr HostMemory = TRITONSERVER_MEMORY_CPU;
-}}}  // namespace triton::backend::rapids
+namespace triton {
+namespace backend {
+namespace rapids {
+using MemoryType            = TRITONSERVER_MemoryType;
+auto constexpr DeviceMemory = TRITONSERVER_MEMORY_GPU;
+auto constexpr HostMemory   = TRITONSERVER_MEMORY_CPU;
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

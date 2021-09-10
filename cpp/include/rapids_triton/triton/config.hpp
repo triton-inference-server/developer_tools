@@ -19,14 +19,19 @@
 #include <stdint.h>
 #include <cstddef>
 
+#include <triton/backend/backend_common.h>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/utils/narrow.hpp>
-#include <triton/backend/backend_common.h>
 
-namespace triton { namespace backend { namespace rapids {
-  inline auto get_max_batch_size(common::TritonJson::Value& config) {
-    auto reported = int64_t{};
-    triton_check(config.MemberAsInt("max_batch_size", &reported));
-    return narrow<std::size_t>(reported);
-  }
-}}}  // namespace triton::backend::rapids
+namespace triton {
+namespace backend {
+namespace rapids {
+inline auto get_max_batch_size(common::TritonJson::Value& config)
+{
+  auto reported = int64_t{};
+  triton_check(config.MemberAsInt("max_batch_size", &reported));
+  return narrow<std::size_t>(reported);
+}
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

@@ -15,9 +15,9 @@
  */
 
 #pragma once
+#include <cuda_runtime_api.h>
 #include <algorithm>
 #include <cstddef>
-#include <cuda_runtime_api.h>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -31,136 +31,128 @@
 #include <rapids_triton/triton/deployment.hpp>
 #include <rapids_triton/utils/narrow.hpp>
 
-namespace triton { namespace backend { namespace rapids {
-  /**
-   * @brief Stores shared state for multiple instances of the same model
-   */
-  struct SharedModelState {
+namespace triton {
+namespace backend {
+namespace rapids {
+/**
+ * @brief Stores shared state for multiple instances of the same model
+ */
+struct SharedModelState {
+  virtual void load() {}
+  virtual void unload() {}
 
-    virtual void load() {}
-    virtual void unload() {}
-
-    explicit SharedModelState(
-      std::unique_ptr<common::TritonJson::Value>&& config) : config_{std::move(config)},
-             max_batch_size_(get_max_batch_size(*config_)), output_shapes_([this]() {
-        auto result = std::vector<std::pair<std::string, std::vector<std::int64_t>>>{};
+  explicit SharedModelState(std::unique_ptr<common::TritonJson::Value>&& config)
+    : config_{std::move(config)},
+      max_batch_size_(get_max_batch_size(*config_)),
+      output_shapes_([this]() {
+        auto result         = std::vector<std::pair<std::string, std::vector<std::int64_t>>>{};
         auto output_entries = triton::common::TritonJson::Value{};
         triton_check(config_->MemberAsArray("output", &output_entries));
 
         result.reserve(output_entries.ArraySize());
 
         // Using a raw loop because TritonJSON::Value access has no iterator interface
-        for (std::size_t i=0; i < output_entries.ArraySize(); ++i) {
+        for (std::size_t i = 0; i < output_entries.ArraySize(); ++i) {
           auto output_entry = triton::common::TritonJson::Value{};
           triton_check(output_entries.IndexAsObject(i, &output_entry));
           auto name = std::string{};
           triton_check(output_entry.MemberAsString("name", &name));
 
-          auto shape = std::vector<std::int64_t>{};
+          auto shape         = std::vector<std::int64_t>{};
           auto reshape_entry = triton::common::TritonJson::Value{};
           if (output_entry.Find("reshape", &reshape_entry)) {
             ParseShape(reshape_entry, "shape", &shape);
           } else {
             ParseShape(output_entry, "dims", &shape);
           }
-          if (shape[0] != -1) {
-            shape.insert(shape.begin(), -1);
-          }
+          if (shape[0] != -1) { shape.insert(shape.begin(), -1); }
           result.insert(
-            std::upper_bound(
-              std::begin(output_shapes_),
-              std::end(output_shapes_),
-              name,
-              [](auto& value, auto& entry) {
-                return value < entry.first;
-              }
-            ),
-            {name, shape}
-          );
+            std::upper_bound(std::begin(output_shapes_),
+                             std::end(output_shapes_),
+                             name,
+                             [](auto& value, auto& entry) { return value < entry.first; }),
+            {name, shape});
         }
 
         return result;
-      }()) {}
+      }())
+  {
+  }
 
-    template <typename T>
-    auto get_config_param(std::string const& name) {
-      return get_config_param<T>(name, std::optional<T>{});
+  template <typename T>
+  auto get_config_param(std::string const& name)
+  {
+    return get_config_param<T>(name, std::optional<T>{});
+  }
+
+  template <typename T>
+  auto get_config_param(std::string const& name, T default_value)
+  {
+    return get_config_param<T>(name, std::make_optional(default_value));
+  }
+
+  auto get_output_shape(std::string const& name) const
+  {
+    auto cached_shape = std::lower_bound(
+      std::begin(output_shapes_), std::end(output_shapes_), name, [](auto& entry, auto& value) {
+        return entry.first < value;
+      });
+    if (cached_shape == std::end(output_shapes_)) {
+      auto log_stream = std::stringstream{};
+      log_stream << "No output with name " << name << " in configuration.";
+      throw TritonException(Error::Internal, log_stream.str());
+    } else {
+      return cached_shape->second;
     }
+  }
 
-    template <typename T>
-    auto get_config_param(std::string const& name, T default_value) {
-      return get_config_param<T>(name, std::make_optional(default_value));
+ private:
+  std::unique_ptr<common::TritonJson::Value> config_;
+  Batch::size_type max_batch_size_;
+  std::vector<std::pair<std::string, std::vector<std::int64_t>>> mutable output_shapes_;
+
+  template <typename T>
+  auto get_config_param(std::string const& name, std::optional<T> const& default_value)
+  {
+    auto result = T{};
+    if (name == std::string("max_batch_size")) {
+      result = max_batch_size_;
+      return result;
     }
+    auto parameters = common::TritonJson::Value{};
+    auto json_value = common::TritonJson::Value{};
+    if (config_->Find("parameters", &parameters) && parameters.Find(name.c_str(), &json_value)) {
+      auto string_repr = std::string{};
+      triton_check(json_value.MemberAsString("string_value", &string_repr));
 
-    auto get_output_shape(std::string const& name) const {
-      auto cached_shape = std::lower_bound(
-        std::begin(output_shapes_),
-        std::end(output_shapes_),
-        name,
-        [](auto& entry, auto& value) {
-          return entry.first < value;
-        }
-      );
-      if (cached_shape == std::end(output_shapes_)) {
-        auto log_stream = std::stringstream{};
-        log_stream << "No output with name " << name << " in configuration.";
-        throw TritonException(Error::Internal, log_stream.str());
+      auto input_stream = std::istringstream{string_repr};
+
+      if (std::is_same<T, bool>::value) {
+        input_stream >> std::boolalpha >> result;
       } else {
-        return cached_shape->second;
+        input_stream >> result;
+      }
+
+      if (input_stream.fail()) {
+        if (default_value) {
+          result = *default_value;
+        } else {
+          throw TritonException(Error::InvalidArg, std::string("Bad input for parameter ") + name);
+        }
+      }
+    } else {
+      if (default_value) {
+        result = *default_value;
+      } else {
+        throw TritonException(
+          Error::InvalidArg,
+          std::string("Required parameter ") + name + std::string(" not found in config"));
       }
     }
 
-    private:
-      std::unique_ptr<common::TritonJson::Value> config_;
-      Batch::size_type max_batch_size_;
-      std::vector<std::pair<std::string, std::vector<std::int64_t>>> mutable output_shapes_;
-
-      template <typename T>
-      auto get_config_param(std::string const& name, std::optional<T> const& default_value) {
-        auto result = T{};
-        if (name == std::string("max_batch_size")) {
-          result = max_batch_size_;
-          return result;
-        }
-        auto parameters = common::TritonJson::Value{};
-        auto json_value = common::TritonJson::Value{};
-        if (
-            config_->Find("parameters", &parameters) &&
-            parameters.Find(name.c_str(), &json_value)) {
-          auto string_repr = std::string{};
-          triton_check(json_value.MemberAsString("string_value", &string_repr));
-
-          auto input_stream = std::istringstream{string_repr};
-
-          if (std::is_same<T, bool>::value) {
-            input_stream >> std::boolalpha >> result;
-          } else {
-            input_stream >> result;
-          }
-
-          if (input_stream.fail()) {
-            if (default_value) {
-              result = *default_value;
-            } else {
-              throw TritonException(
-                Error::InvalidArg,
-                std::string("Bad input for parameter ") + name
-              );
-            }
-          }
-        } else {
-          if (default_value) {
-            result = *default_value;
-          } else {
-            throw TritonException(
-              Error::InvalidArg,
-              std::string("Required parameter ") + name + std::string(" not found in config")
-            );
-          }
-        }
-
-        return result;
-      }
-  };
-}}}  // namespace triton::backend::rapids
-
+    return result;
+  }
+};
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

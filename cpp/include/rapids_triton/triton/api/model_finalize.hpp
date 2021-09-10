@@ -15,29 +15,34 @@
  */
 
 #pragma once
+#include <triton/backend/backend_common.h>
+#include <triton/backend/backend_model.h>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/logging.hpp>
 #include <rapids_triton/triton/model.hpp>
-#include <triton/backend/backend_common.h>
-#include <triton/backend/backend_model.h>
 
-namespace triton { namespace backend { namespace rapids { namespace triton_api {
-  template<typename ModelState>
-  auto* model_finalize(TRITONBACKEND_Model* model) {
-    auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-    try {
-      auto model_state = get_model_state<ModelState>(*model);
-      if (model_state != nullptr) {
-        model_state->get_shared_state()->unload();
-      }
+namespace triton {
+namespace backend {
+namespace rapids {
+namespace triton_api {
+template <typename ModelState>
+auto* model_finalize(TRITONBACKEND_Model* model)
+{
+  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
+  try {
+    auto model_state = get_model_state<ModelState>(*model);
+    if (model_state != nullptr) { model_state->get_shared_state()->unload(); }
 
-      log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelFinalize: delete model state";
+    log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelFinalize: delete model state";
 
-      delete model_state;
-    } catch (TritonException& err) {
-      result = err.error();
-    }
-
-    return result;
+    delete model_state;
+  } catch (TritonException& err) {
+    result = err.error();
   }
-}}}}
+
+  return result;
+}
+}  // namespace triton_api
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

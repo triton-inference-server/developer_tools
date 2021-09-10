@@ -22,7 +22,8 @@ namespace triton {
 namespace backend {
 namespace rapids {
 
-TEST(RapidsTriton, build_control) {
+TEST(RapidsTriton, build_control)
+{
 #ifdef TRITON_ENABLE_GPU
   ASSERT_EQ(IS_GPU_BUILD, true) << "IS_GPU_BUILD constant has wrong value\n";
 #else

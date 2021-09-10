@@ -17,7 +17,9 @@
 #pragma once
 #include <cstddef>
 
-namespace triton { namespace backend { namespace rapids {
+namespace triton {
+namespace backend {
+namespace rapids {
 
 #ifdef TRITON_ENABLE_GPU
 auto constexpr IS_GPU_BUILD = true;
@@ -25,4 +27,6 @@ auto constexpr IS_GPU_BUILD = true;
 auto constexpr IS_GPU_BUILD = false;
 #endif
 
-}}}  // namespace triton::backend::rapids
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

@@ -17,8 +17,10 @@
 #pragma once
 #include <cstdint>
 
-namespace triton { namespace backend { namespace rapids {
-  using device_id_t = std::int32_t;
-}}}  // namespace triton::backend::rapids
-
-
+namespace triton {
+namespace backend {
+namespace rapids {
+using device_id_t = std::int32_t;
+}
+}  // namespace backend
+}  // namespace triton

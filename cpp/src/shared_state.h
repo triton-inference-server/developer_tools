@@ -38,7 +38,9 @@ namespace NAMESPACE {
 
 struct RapidsSharedState : rapids::SharedModelState {
   RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
-      : rapids::SharedModelState{std::move(config)} {}
+    : rapids::SharedModelState{std::move(config)}
+  {
+  }
   void load() {}
   void unload() {}
 };

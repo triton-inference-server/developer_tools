@@ -20,19 +20,20 @@
 
 #include <cuda_runtime_api.h>
 
-#include <rapids_triton/memory/types.hpp>
 #include <raft/cudart_utils.h>
+#include <rapids_triton/memory/types.hpp>
 
-
-namespace triton { namespace backend { namespace rapids { namespace detail {
+namespace triton {
+namespace backend {
+namespace rapids {
+namespace detail {
 
 /**
  * @brief Copy given number of elements from one place to another, with either
  * source or destination on device
  */
 template <typename T>
-void
-dev_copy(T* dst, T const* src, std::size_t len, cudaStream_t stream)
+void dev_copy(T* dst, T const* src, std::size_t len, cudaStream_t stream)
 {
   if constexpr (IS_GPU_BUILD) {
     try {
@@ -41,10 +42,8 @@ dev_copy(T* dst, T const* src, std::size_t len, cudaStream_t stream)
       throw TritonException(Error::Internal, err.what());
     }
   } else {
-    throw TritonException(
-      Error::Internal,
-      "copy to or from device memory cannot be used in CPU-only builds"
-    );
+    throw TritonException(Error::Internal,
+                          "copy to or from device memory cannot be used in CPU-only builds");
   }
 }
 
@@ -53,28 +52,31 @@ dev_copy(T* dst, T const* src, std::size_t len, cudaStream_t stream)
  * source or destination on device
  */
 template <typename T>
-void
-host_copy(T* dst, T const* src, std::size_t len)
+void host_copy(T* dst, T const* src, std::size_t len)
 {
   std::memcpy(dst, src, len * sizeof(T));
 }
 
-template<typename T>
-void
-copy(T* dst, T const* src, std::size_t len, cudaStream_t stream, MemoryType
-    dst_type, MemoryType src_type) {
+template <typename T>
+void copy(T* dst,
+          T const* src,
+          std::size_t len,
+          cudaStream_t stream,
+          MemoryType dst_type,
+          MemoryType src_type)
+{
   if (dst_type == DeviceMemory || src_type == DeviceMemory) {
     if constexpr (IS_GPU_BUILD) {
       dev_copy(dst, src, len, stream);
     } else {
-      throw TritonException(
-        Error::Internal,
-        "DeviceMemory copy cannot be used in CPU-only builds"
-      );
+      throw TritonException(Error::Internal, "DeviceMemory copy cannot be used in CPU-only builds");
     }
   } else {
     host_copy(dst, src, len);
   }
 }
 
-}}}}  // namespace triton::backend::rapids::detail
+}  // namespace detail
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

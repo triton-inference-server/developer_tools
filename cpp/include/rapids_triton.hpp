@@ -17,13 +17,15 @@
 #pragma once
 #include <string>
 
-namespace triton { namespace backend { namespace rapids {
+namespace triton {
+namespace backend {
+namespace rapids {
 
 /* Function for testing rapids_triton include
  *
  * @return message indicating rapids_triton has been included succesfully*/
-inline auto test_install() {
-  return std::string("rapids_triton set up successfully");
-}
+inline auto test_install() { return std::string("rapids_triton set up successfully"); }
 
-}}}
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

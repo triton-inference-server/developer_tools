@@ -17,70 +17,64 @@
 #pragma once
 
 #include <stdint.h>
+#include <triton/core/tritonbackend.h>
 #include <algorithm>
 #include <numeric>
-#include <sstream>
-#include <string>
-#include <vector>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/tensor/dtype.hpp>
 #include <rapids_triton/utils/narrow.hpp>
-#include <triton/core/tritonbackend.h>
+#include <sstream>
+#include <string>
+#include <vector>
 
-namespace triton { namespace backend { namespace rapids {
-  inline auto* get_triton_input(TRITONBACKEND_Request* request, std::string const& name) {
-    auto result = static_cast<TRITONBACKEND_Input*>(nullptr);
-    triton_check(
-      TRITONBACKEND_RequestInput(request, name.c_str(), &result));
-    return result;
-  }
+namespace triton {
+namespace backend {
+namespace rapids {
+inline auto* get_triton_input(TRITONBACKEND_Request* request, std::string const& name)
+{
+  auto result = static_cast<TRITONBACKEND_Input*>(nullptr);
+  triton_check(TRITONBACKEND_RequestInput(request, name.c_str(), &result));
+  return result;
+}
 
-  template<typename T, typename Iter>
-  auto get_triton_input_shape(Iter requests_begin, Iter requests_end, std::string const& name) {
-    auto result = std::vector<std::size_t>{};
+template <typename T, typename Iter>
+auto get_triton_input_shape(Iter requests_begin, Iter requests_end, std::string const& name)
+{
+  auto result = std::vector<std::size_t>{};
 
-    auto reported_dtype = DType{};
-    auto const* input_shape = static_cast<int64_t*>(nullptr);
-    auto input_dims = uint32_t{};
+  auto reported_dtype     = DType{};
+  auto const* input_shape = static_cast<int64_t*>(nullptr);
+  auto input_dims         = uint32_t{};
 
-    auto batch_dim = std::accumulate(
-      requests_begin,
-      requests_end,
-      int64_t{},
-      [&reported_dtype, &input_shape, &input_dims, &name](auto total, auto& request) {
-        auto* input = get_triton_input(request, name);
-        triton_check(
-          TRITONBACKEND_InputProperties(
-            input, nullptr, &reported_dtype, &input_shape,
-            &input_dims, nullptr, nullptr));
+  auto batch_dim = std::accumulate(
+    requests_begin,
+    requests_end,
+    int64_t{},
+    [&reported_dtype, &input_shape, &input_dims, &name](auto total, auto& request) {
+      auto* input = get_triton_input(request, name);
+      triton_check(TRITONBACKEND_InputProperties(
+        input, nullptr, &reported_dtype, &input_shape, &input_dims, nullptr, nullptr));
 
-        if (reported_dtype != TritonDtype<T>::value) {
-          auto log_stream = std::stringstream{};
-          log_stream << "incorrect type "
-                     << reported_dtype
-                     << " for input with required type "
-                     << TritonDtype<T>::value;
-          throw(TritonException(Error::Internal, log_stream.str()));
-        }
+      if (reported_dtype != TritonDtype<T>::value) {
+        auto log_stream = std::stringstream{};
+        log_stream << "incorrect type " << reported_dtype << " for input with required type "
+                   << TritonDtype<T>::value;
+        throw(TritonException(Error::Internal, log_stream.str()));
+      }
 
-        if (input_dims != 0) {
-          total += *input_shape;
-        }
-        return total;
+      if (input_dims != 0) { total += *input_shape; }
+      return total;
     });
 
-    result.reserve(input_dims);
-    std::transform(
-      input_shape,
-      input_shape + input_dims,
-      std::back_inserter(result),
-      [](auto& val) { return narrow<std::size_t>(val); }
-    );
+  result.reserve(input_dims);
+  std::transform(input_shape, input_shape + input_dims, std::back_inserter(result), [](auto& val) {
+    return narrow<std::size_t>(val);
+  });
 
-    if (!result.empty()) {
-      result[0] = narrow<std::size_t>(batch_dim);
-    }
+  if (!result.empty()) { result[0] = narrow<std::size_t>(batch_dim); }
 
-    return result;
-  }
-}}}
+  return result;
+}
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

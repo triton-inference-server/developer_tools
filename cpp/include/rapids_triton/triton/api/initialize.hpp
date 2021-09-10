@@ -17,27 +17,33 @@
 #pragma once
 #include <triton/backend/backend_common.h>
 
-#include <string>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/backend.hpp>
 #include <rapids_triton/triton/logging.hpp>
+#include <string>
 
-namespace triton { namespace backend { namespace rapids { namespace triton_api {
-  inline auto* initialize(TRITONBACKEND_Backend* backend) {
-    auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
-    try {
-      auto name = get_backend_name(*backend);
+namespace triton {
+namespace backend {
+namespace rapids {
+namespace triton_api {
+inline auto* initialize(TRITONBACKEND_Backend* backend)
+{
+  auto* result = static_cast<TRITONSERVER_Error*>(nullptr);
+  try {
+    auto name = get_backend_name(*backend);
 
-      log_info(__FILE__, __LINE__) << "TRITONBACKEND_Initialize: " << name;
+    log_info(__FILE__, __LINE__) << "TRITONBACKEND_Initialize: " << name;
 
-      if (!check_backend_version(*backend)) {
-        throw TritonException{
-            Error::Unsupported,
-            "triton backend API version does not support this backend"};
-      }
-    } catch (TritonException& err) {
-      result = err.error();
+    if (!check_backend_version(*backend)) {
+      throw TritonException{Error::Unsupported,
+                            "triton backend API version does not support this backend"};
     }
-    return result;
+  } catch (TritonException& err) {
+    result = err.error();
   }
-}}}}
+  return result;
+}
+}  // namespace triton_api
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

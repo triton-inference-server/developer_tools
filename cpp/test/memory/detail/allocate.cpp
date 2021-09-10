@@ -26,21 +26,25 @@
 namespace triton {
 namespace backend {
 namespace rapids {
-TEST(RapidsTriton, dev_allocate) {
+TEST(RapidsTriton, dev_allocate)
+{
   auto data = std::vector<int>{1, 2, 3};
   if constexpr (IS_GPU_BUILD) {
-    auto ptr_d = detail::dev_allocate<int>(data.size(), 0);
+    auto ptr_d    = detail::dev_allocate<int>(data.size(), 0);
     auto data_out = std::vector<int>(data.size());
-    cudaMemcpy(static_cast<void*>(ptr_d), static_cast<void*>(data.data()),
-               sizeof(int) * data.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(static_cast<void*>(data_out.data()), static_cast<void*>(ptr_d),
-               sizeof(int) * data.size(), cudaMemcpyDeviceToHost);
+    cudaMemcpy(static_cast<void*>(ptr_d),
+               static_cast<void*>(data.data()),
+               sizeof(int) * data.size(),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(static_cast<void*>(data_out.data()),
+               static_cast<void*>(ptr_d),
+               sizeof(int) * data.size(),
+               cudaMemcpyDeviceToHost);
     EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
     detail::dev_deallocater<int>{}(ptr_d);
   } else {
-    EXPECT_THROW(
-        [&data]() { return detail::dev_allocate<int>(data.size(), 0); }(),
-        TritonException);
+    EXPECT_THROW([&data]() { return detail::dev_allocate<int>(data.size(), 0); }(),
+                 TritonException);
   }
 }
 

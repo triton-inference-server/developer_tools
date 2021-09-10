@@ -44,12 +44,14 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
    * implementation.
    **************************************************************************/
   RapidsModel(std::shared_ptr<RapidsSharedState> shared_state,
-              rapids::device_id_t device_id, cudaStream_t default_stream,
+              rapids::device_id_t device_id,
+              cudaStream_t default_stream,
               rapids::DeploymentType deployment_type,
               std::string const& filepath)
-      : rapids::Model<RapidsSharedState>(shared_state, device_id,
-                                         default_stream, deployment_type,
-                                         filepath) {}
+    : rapids::Model<RapidsSharedState>(
+        shared_state, device_id, default_stream, deployment_type, filepath)
+  {
+  }
 
   /***************************************************************************
    * BASIC FEATURES                                                          *
@@ -76,7 +78,8 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
    *    pointer to the underlying data.
    * 4. Call the `finalize` method on all output tensors.
    **************************************************************************/
-  void predict(rapids::Batch& batch) const {
+  void predict(rapids::Batch& batch) const
+  {
     // 1. Acquire a tensor representing the input named "input__0"
     auto input = get_input<float>(batch, "input__0");
     // 2. Acquire a tensor representing the output named "output__0"
@@ -138,8 +141,8 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
    * Valid MemoryType options to return are rapids::HostMemory and
    * rapids::DeviceMemory.
    **************************************************************************/
-  std::optional<rapids::MemoryType> preferred_mem_type(
-      rapids::Batch& batch) const {
+  std::optional<rapids::MemoryType> preferred_mem_type(rapids::Batch& batch) const
+  {
     return std::nullopt;
   }
 };
