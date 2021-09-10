@@ -119,5 +119,5 @@ def get_random_seed():
     else:
         random_seed = np.random.randint(0, 1e6)
         os.environ['PYTEST_RANDOM_SEED'] = str(random_seed)
-    logger.info("Random seed value:", random_seed)
+    logger.info("Random seed value: %d", random_seed)
     return random_seed
