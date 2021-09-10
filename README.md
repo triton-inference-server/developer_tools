@@ -513,7 +513,38 @@ which should give us the following output:
 ```
 
 While this suggests that the backend is operating correctly, we probably want
-to offer a more robust test, one that might form the basis for end-to-end
-testing in CI. For this, we can make use of `pytest` to write something like
-```python
-```
+to set up a more robust test with larger input data for use in CI and
+development testing. See `qa/L0_e2e/test_model.py` for an example of how such a
+test might be created.
+
+## Conclusion
+This walkthrough has provided an in-depth look at how to create a Triton
+backend using RAPIDS-Triton, from initial description of the backend behavior
+to end-to-end testing of models deployed using this backend. Following similar
+steps, you should be able to integrate almost any algorithm for deployment with
+Triton.
+
+While we have tried to cover a wide variety of possible use cases with this
+example, there is much more to explore in the RAPIDS-Triton API documentation.
+If there is something you would like to do with RAPIDS-Triton which does not
+seem to be covered by the available API or if something is not working as
+expected, please submit a feature request or bug report to the [RAPIDS-Triton
+issue tracker](https://github.com/rapidsai/rapids-triton/issues). If you think
+this example could be improved or expanded in some way, please [submit a pull
+request](https://github.com/rapidsai/rapids-triton-linear-example/pulls) or
+[issue](https://github.com/rapidsai/rapids-triton-linear-example/issues) to
+this repo.
+
+For additional information about using and deploying Triton after creating a
+backend like this, check out the [main Triton
+repo](https://github.com/triton-inference-server/server/). There you will find
+information about many more tools to help you get the most out of Triton,
+including:
+- `perf_analyzer`: A tool to help measure throughput and latency for models
+  deployed with Triton
+- `model_analyzer`: A tool to help determine what parameters will optimize
+  throughput, latency, or any other metric for your deployed models
+- [Helm
+  charts](https://ngc.nvidia.com/catalog/helm-charts/nvidia:tritoninferenceserver/)
+  and other information to help you easily deploy Triton in any
+  cloud service or orchestration environment
