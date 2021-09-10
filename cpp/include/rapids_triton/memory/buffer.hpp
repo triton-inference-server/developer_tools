@@ -101,18 +101,9 @@ namespace triton { namespace backend { namespace rapids {
       return result;
     }()}, size_{other.size_}, stream_{other.stream_} {}
 
-    Buffer(Buffer<T>&& other) noexcept : device_{other.device_}, data_{std::move(other.data_)}, size_{other.size_},
-      stream_{other.stream_} {}
+    Buffer(Buffer<T>&& other) = default;
 
-    auto& operator=(Buffer<T>&& other) noexcept {
-      if (this != &other) {
-        device_ = other.device_;
-        data_ = std::move(other.data_);
-        size_ = other.size_;
-        stream_ = other.stream_;
-      }
-      return *this;
-    }
+    Buffer<T>& operator=(Buffer<T>&& other) = default;
 
     ~Buffer() = default;
 
