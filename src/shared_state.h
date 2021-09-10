@@ -27,17 +27,6 @@ namespace triton {
 namespace backend {
 namespace NAMESPACE {
 
-/* Triton allows multiple instances of a single model to be instantiated at the
- * same time (e.g. on different GPUs). All instances of a model share access to
- * an object which manages any state that can be shared across all instances.
- * Any logic necessary for managing such state should be implemented in a
- * struct named RapidsSharedState, as shown here. Models may access this shared
- * state object via the `get_shared_state` method, which returns a shared
- * pointer to the RapidsSharedState object.
- *
- * Not all backends require shared state, so leaving this implementation empty
- * is entirely valid */
-
 struct RapidsSharedState : rapids::SharedModelState {
   RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
       : rapids::SharedModelState{std::move(config)} {}
