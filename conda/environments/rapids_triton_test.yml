@@ -1,0 +1,11 @@
+---
+name: rapids_triton_dev
+channels:
+  - conda-forge
+dependencies:
+  - flake8
+  - pip
+  - python
+  - numpy
+  - pip:
+      - nvidia-pyindex
