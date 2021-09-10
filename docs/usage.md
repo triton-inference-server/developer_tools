@@ -29,4 +29,11 @@
 # Using RAPIDS-Triton
 
 To begin developing a custom backend with RAPIDS-Triton, we strongly recommend
-that you take advantage of the [rapids-triton-template repo](https://github.com/rapidsai/rapids-triton-template), which provides a basic template for your backend code.
+that you take advantage of the [rapids-triton-template
+repo](https://github.com/rapidsai/rapids-triton-template), which provides a
+basic template for your backend code. For a detailed example of how to make use
+of this template, check out the [Linear Example
+repo](https://github.com/rapidsai/rapids-triton-linear-example), which provides
+a complete walkthrough of how to build a backend using RAPIDS-Triton
+
+<!-- TODO(wphicks): Fill out the rest of these usage docs -->
