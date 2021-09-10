@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='rapids_triton',
@@ -20,7 +20,7 @@ setup(
     version='21.10.00',  # TODO(wphicks): versioneer
     author='NVIDIA Corporation',
     license='Apache',
-    packages=['rapids_triton'],
+    packages=find_packages(),
     install_requires=[
         'numpy',
         'tritonclient[all]'
