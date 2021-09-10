@@ -43,6 +43,10 @@ constant vector read from a "model" file. Along the way, we will illustrate a
 variety of useful operations in RAPIDS-Triton, including retrieving data from a
 configuration file and loading model resources.
 
+All of the following steps are written as if you were starting from scratch in
+creating this backend, but you can also just browse the files in this repo to
+see how the final version of the backend might look.
+
 ## 1. Getting Started
 
 It is strongly recommended that you start from the [RAPIDS-Triton template
@@ -359,8 +363,66 @@ originally specified in the config file:
 ```cpp
 auto u = get_input<float>(batch, "u");
 auto v = get_input<float>(batch, "v");
-
 auto r = get_output<float>(batch, "r");
 ```
 
-The returned tensors will be 
+By default, the location of the returned tensors (host or device) is determined
+by whether the model is deployed on host or device and whether or not the
+backend was compiled with GPU-support enabled. You may choose to override the
+`preferred_mem_type` method of your RapidsModel implementation in order to
+specify a different general rule, or you can optionally pass a `MemoryType` to
+`get_input` and `get_output` for even finer-grained control. Here, we will
+simply accept the default behavior and use the `mem_type` method of the
+returned tensor to determine how inference will proceed.
+
+For tensors on the host, our inference logic might look something like:
+
+```cpp
+if (u.mem_type() == rapids::HostMemory) {
+  auto alpha = get_shared_state()->alpha;
+  for (std::size_t i{}; i < u.size(); ++i) {
+    r.data()[i] =
+        alpha * u.data()[i] + v.data()[i] + c.data()[i % c.size()];
+  }
+}
+```
+
+We'll define the logic for GPU inference in a separate `.cu` file like so:
+```cuda
+__global__ void cu_gpu_infer(float* r, float const* u, float const* v,
+                             float* c, float alpha, std::size_t features,
+                             std::size_t length) {
+  auto id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id < length) {
+    r[id] = alpha * u[id] + v[id] + c[id % features];
+  }
+}
+void gpu_infer(float* r, float const* u, float const* v, float* c, float alpha,
+               std::size_t features, std::size_t length) {
+  auto constexpr block_size = 1024;
+  auto grid_size = static_cast<int>(std::max(1.0f, std::ceil(length /
+          static_cast<float>(block_size))));;
+  cu_gpu_infer<<<grid_size, block_size>>>(r, u, v, c, alpha, features, length);
+}
+```
+
+and then call it within our RapidsModel `predict` method via:
+
+```cpp
+gpu_infer(r.data(), u.data(), v.data(), c.data(), alpha, c.size(),
+        u.size());
+```
+
+After the actual inference has been performed, the one remaining task is to
+call the `finalize` method of all output tensors. In this example, we have
+exactly one, so the final line of our `predict method is just:
+
+```cpp
+r.finalize();
+```
+
+## 6. Build the backend
+TODO (wphicks)
+
+## 7. Test inference
+TODO (wphicks)

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cuda_runtime_api.h>
+#include <gpu_infer.h>
 #include <names.h>
 #include <shared_state.h>
 
@@ -24,7 +25,6 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
-#include <optional>
 #include <rapids_triton/batch/batch.hpp>        // rapids::Batch
 #include <rapids_triton/memory/buffer.hpp>      // rapids::Buffer, rapids::copy
 #include <rapids_triton/memory/types.hpp>       // rapids::MemoryType
@@ -54,16 +54,15 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     auto r = get_output<float>(batch, "r");
 
+    auto alpha = get_shared_state()->alpha;
     if (u.mem_type() == rapids::HostMemory) {
-      auto alpha = get_shared_state()->alpha;
       for (std::size_t i{}; i < u.size(); ++i) {
-        auto u_val = *(u.data() + i);
-        auto v_val = *(v.data() + i);
-        auto& r_val = *(r.data() + i);
-        auto c_val = *(c.data() + (i % c.size()));
-
-        r_val = alpha * u_val + v_val + c_val;
+        r.data()[i] =
+            alpha * u.data()[i] + v.data()[i] + c.data()[i % c.size()];
       }
+    } else {
+      gpu_infer(r.data(), u.data(), v.data(), c.data(), alpha, c.size(),
+                u.size());
     }
 
     r.finalize();
@@ -98,6 +97,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     } else {
       memory_type = rapids::HostMemory;
     }
+
     c = rapids::Buffer<float>(model_vec.size(), memory_type, get_device_id());
 
     /* Use a Buffer view on model_vec to safely copy data to its final

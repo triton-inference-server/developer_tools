@@ -111,6 +111,7 @@ endif()
 add_library(
   ${BACKEND_TARGET} SHARED
   src/api.cc
+  src/gpu_infer.cu
 )
 
 set_target_properties(${BACKEND_TARGET}
