@@ -43,6 +43,13 @@ constant vector read from a "model" file. Along the way, we will illustrate a
 variety of useful operations in RAPIDS-Triton, including retrieving data from a
 configuration file and loading model resources.
 
+This example is intended to provide a fair amount of depth about backend
+development with RAPIDS-Triton. For a simpler example, check out the
+pass-through backend in the main [RAPIDS-Triton
+repo](https://github.com/rapidsai/rapids-triton/tree/fea-initial#simple-example).
+For even more detail on RAPIDS-Triton features introduced here, check out the
+API documentation.
+
 All of the following steps are written as if you were starting from scratch in
 creating this backend, but you can also just browse the files in this repo to
 see how the final version of the backend might look.
@@ -83,7 +90,7 @@ follows:
 set(BACKEND_NAME "rapids_linear")
 ```
 
-## 2. Create an Example Configuration
+## 3. Create an Example Configuration
 
 [Configuration
 files](https://github.com/triton-inference-server/server/blob/main/docs/model_configuration.md)
@@ -415,14 +422,98 @@ gpu_infer(r.data(), u.data(), v.data(), c.data(), alpha, c.size(),
 
 After the actual inference has been performed, the one remaining task is to
 call the `finalize` method of all output tensors. In this example, we have
-exactly one, so the final line of our `predict method is just:
+exactly one, so the final line of our `predict` method is just:
 
 ```cpp
 r.finalize();
 ```
 
-## 6. Build the backend
-TODO (wphicks)
+To see all of this in context, check out the `src/gpu_infer.h` and
+`src/gpu_infer.cu` files where GPU inference has been implemented as well as
+`src/model.h` where it is used. When introducing a new source file, don't
+forget to add it to CMakeLists.txt so that it will be included in the build.
 
-## 7. Test inference
-TODO (wphicks)
+## 6. Build the backend
+Having defined all the necessary logic for serving our model, we can now
+actually build the server container with the new backend included. To do so,
+run the following command from the base of the repository:
+
+```bash
+docker build --build-arg BACKEND_NAME=rapids_linear -t rapids_linear .
+```
+
+## 7. Test
+
+All that remains is to test that the backend performs correctly. In this repo,
+we have provided two model directories in `qa/L0_e2e/model_repository`. These
+models are identical except that one is deployed on CPU and the other on GPU.
+The `config.pbtxt` files are laid out exactly as discussed in step 3.
+
+To start the server with these models, run the following:
+
+```bash
+docker run \
+  --gpus=all \
+  --rm \
+  -p 8000:8000 \
+  -p 8001:8001 \
+  -p 8002:8002 \
+  -v $PWD/qa/L0_e2e/model_repository:/models
+  rapids_linear
+```
+
+You can now submit inference requests via any Triton client. For convenience,
+we will use the client provided by the `rapids_triton` package in the main
+RAPIDS-Triton repo. This package is primarily designed to assist with writing
+end-to-end tests for RAPIDS-Triton backends. We can install it into a conda
+environment as follows:
+
+```bash
+conda env create -f conda/environments/rapids_triton_test.yml
+conda activate rapids_triton_test
+python -m pip install git+https://github.com/rapidsai/rapids-triton.git@fea-initial#subdirectory=python
+```
+
+To use it for a basic test, we might execute something like the following
+
+```python
+from rapids_triton import Client
+
+u = np.array([[2, 2, 3, 3]], dtype='float32')
+v = np.array([[-1, 1, 1, -1]], dtype='float32')
+# The value of the c vector specified in c.txt
+c = np.array([[1, 2, 3, 4]], dtype='float32')
+alpha = 2
+
+ground_truth = alpha * u + v + np.repeat(c, u.shape[0], axis=0)
+
+print({'r': ground_truth})
+
+print(client.predict(
+    # Specify name of model to use for prediction
+    'linear_example',
+    # Provide input arrays
+    {'u': u, 'v': v},
+    # Provide size in bytes of expected output(s)
+    {'r': u.shape[0] * u.shape[1] * np.dtype('float32').itemsize},
+    # Optionally submit request with Triton's shared memory mode
+    shared_mem='cuda'
+))
+print(client.predict(
+    'linear_example_cpu',
+    {'u': u, 'v': v},
+    {'r': u.shape[0] * u.shape[1] * np.dtype('float32').itemsize}
+))
+```
+which should give us the following output:
+```
+{'r': array([[ 4.,  7., 10.,  9.]], dtype=float32)}
+{'r': array([[ 4.,  7., 10.,  9.]], dtype=float32)}
+{'r': array([[ 4.,  7., 10.,  9.]], dtype=float32)}
+```
+
+While this suggests that the backend is operating correctly, we probably want
+to offer a more robust test, one that might form the basis for end-to-end
+testing in CI. For this, we can make use of `pytest` to write something like
+```python
+```

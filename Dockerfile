@@ -72,7 +72,7 @@ RUN ninja install
 
 FROM ${BASE_IMAGE}
 
-ARG BACKEND_NAME=rapids_linear
+ARG BACKEND_NAME
 ENV BACKEND_NAME=$BACKEND_NAME
 
 RUN mkdir /models
