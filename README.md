@@ -540,11 +540,12 @@ backend like this, check out the [main Triton
 repo](https://github.com/triton-inference-server/server/). There you will find
 information about many more tools to help you get the most out of Triton,
 including:
-- `perf_analyzer`: A tool to help measure throughput and latency for models
-  deployed with Triton
-- `model_analyzer`: A tool to help determine what parameters will optimize
-  throughput, latency, or any other metric for your deployed models
+- [`perf_analyzer`](https://github.com/triton-inference-server/server/blob/main/docs/perf_analyzer.md):
+  A tool to help measure throughput and latency for models deployed with Triton
+- [`model_analyzer`](https://github.com/triton-inference-server/server/blob/main/docs/model_analyzer.md):
+  A tool to help determine what parameters will optimize throughput, latency,
+  or any other metric for your deployed models
 - [Helm
   charts](https://ngc.nvidia.com/catalog/helm-charts/nvidia:tritoninferenceserver/)
-  and other information to help you easily deploy Triton in any
-  cloud service or orchestration environment
+  and other information to help you easily deploy Triton in any cloud service
+  or orchestration environment
