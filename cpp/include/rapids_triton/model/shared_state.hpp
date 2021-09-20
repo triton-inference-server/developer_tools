@@ -127,7 +127,7 @@ struct SharedModelState {
 
       auto input_stream = std::istringstream{string_repr};
 
-      if (std::is_same<T, bool>::value) {
+      if constexpr (std::is_same_v<T, bool>) {
         input_stream >> std::boolalpha >> result;
       } else {
         input_stream >> result;
