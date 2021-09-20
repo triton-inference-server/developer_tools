@@ -125,8 +125,9 @@ INTERFACE
 
 target_compile_features(rapids_triton INTERFACE cxx_std_17 $<BUILD_INTERFACE:cuda_std_17>)
 
+rapids_cmake_install_lib_dir(lib_dir)
 install(TARGETS rapids_triton
-        DESTINATION lib
+        DESTINATION ${lib_dir}
         EXPORT rapids_triton-exports
         )
 
