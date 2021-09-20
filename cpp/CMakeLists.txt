@@ -61,6 +61,11 @@ message(VERBOSE "RAPIDS_TRITON: Enable kernel resource usage info: ${CUDA_ENABLE
 message(VERBOSE "RAPIDS_TRITON: Enable lineinfo in nvcc: ${CUDA_ENABLE_LINEINFO}")
 message(VERBOSE "RAPIDS_TRITON: Enable nvtx markers: ${NVTX}")
 message(VERBOSE "RAPIDS_TRITON: Statically link the CUDA runtime: ${CUDA_STATIC_RUNTIME}")
+message(VERBOSE "RAPIDS_TRITON: Enable GPU support: ${TRITON_ENABLE_GPU}")
+message(VERBOSE "RAPIDS_TRITON: Enable statistics collection in Triton: ${TRITON_ENABLE_STATS}")
+message(VERBOSE "RAPIDS_TRITON: Triton common repo tag: ${TRITON_COMMON_REPO_TAG}")
+message(VERBOSE "RAPIDS_TRITON: Triton core repo tag: ${TRITON_CORE_REPO_TAG}")
+message(VERBOSE "RAPIDS_TRITON: Triton backend repo tag: ${TRITON_BACKEND_REPO_TAG}")
 
 # Set RMM logging level
 set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
