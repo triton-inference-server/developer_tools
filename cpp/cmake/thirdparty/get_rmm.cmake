@@ -15,33 +15,8 @@
 #=============================================================================
 
 function(find_and_configure_rmm VERSION)
-
-    if(TARGET rmm::rmm)
-        return()
-    endif()
-
-    if(${VERSION} MATCHES [=[([0-9]+)\.([0-9]+)\.([0-9]+)]=])
-        set(MAJOR_AND_MINOR "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}")
-    else()
-        set(MAJOR_AND_MINOR "${VERSION}")
-    endif()
-
-    rapids_cpm_find(rmm ${VERSION}
-        GLOBAL_TARGETS      rmm::rmm
-        BUILD_EXPORT_SET    rapids_triton-exports
-        INSTALL_EXPORT_SET  rapids_triton-exports
-        CPM_ARGS
-            GIT_REPOSITORY  https://github.com/rapidsai/rmm.git
-            GIT_TAG         23bbe745af1d988224b5498f7b8e3fe3720532d4
-            GIT_SHALLOW     FALSE
-            OPTIONS         "BUILD_TESTS OFF"
-                            "BUILD_BENCHMARKS OFF"
-                            "CUDA_STATIC_RUNTIME ${CUDA_STATIC_RUNTIME}"
-                            "DISABLE_DEPRECATION_WARNING ${DISABLE_DEPRECATION_WARNING}"
-    )
-
+  include(${rapids-cmake-dir}/cpm/rmm.cmake)
+  rapids_cpm_rmm()
 endfunction()
 
-set(RAPIDS_TRITON_MIN_VERSION_rmm "${RAPIDS_TRITON_VERSION_MAJOR}.${RAPIDS_TRITON_VERSION_MINOR}.00")
-
-find_and_configure_rmm(${RAPIDS_TRITON_MIN_VERSION_rmm})
+find_and_configure_rmm()
