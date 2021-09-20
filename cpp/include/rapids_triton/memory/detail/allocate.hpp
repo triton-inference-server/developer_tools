@@ -38,7 +38,7 @@ struct dev_deallocater {
       // in a RAII context. If we are deallocating this memory, we allocated it
       // and made it const. Removing the const qualifier allows the
       // deallocation to proceed.
-      cudaFree(reinterpret_cast<void*>(const_cast<typename std::remove_const<T>::type*>(d_ptr)));
+      cudaFree(reinterpret_cast<void*>(const_cast<std::remove_const_t<T>*>(d_ptr)));
     } else {
       log_error(
         __FILE__, __LINE__, "ERROR: device deallocation cannot be performed in non-GPU build!");
