@@ -55,8 +55,8 @@ To contribute code to this project, please follow these steps:
     San Francisco, CA, 94129
     
     Everyone is permitted to copy and distribute verbatim copies of this license document, but changing it is not allowed.
-  ```
-  ```
+  
+  
     Developer's Certificate of Origin 1.1
     
     By making a contribution to this project, I certify that:
