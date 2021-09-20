@@ -77,8 +77,8 @@ struct Batch {
         bool use_pinned_output,
         size_type max_batch_size,
         cudaStream_t stream)
-    : requests_(raw_requests, raw_requests + count),
-      responses_(construct_responses(requests_.begin(), requests_.end())),
+    : requests_{raw_requests, raw_requests + count},
+      responses_{construct_responses(requests_.begin(), requests_.end())},
       get_output_shape_{get_output_shape},
       report_statistics_{report_request_statistics},
       collector_(raw_requests, count, &responses_, &triton_mem_manager, use_pinned_input, stream),
@@ -106,8 +106,6 @@ struct Batch {
       auto input_batch_dim = size_type{};
       if (result.size() > 0) {
         input_batch_dim = result[0];
-      } else {
-        input_batch_dim = size_type{};
       }
 
       if (batch_size_.has_value()) {
