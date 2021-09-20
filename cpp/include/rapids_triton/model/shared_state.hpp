@@ -43,7 +43,7 @@ struct SharedModelState {
 
   explicit SharedModelState(std::unique_ptr<common::TritonJson::Value>&& config)
     : config_{std::move(config)},
-      max_batch_size_(get_max_batch_size(*config_)),
+      max_batch_size_{get_max_batch_size(*config_)},
       output_shapes_([this]() {
         auto result         = std::vector<std::pair<std::string, std::vector<std::int64_t>>>{};
         auto output_entries = triton::common::TritonJson::Value{};
