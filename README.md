@@ -39,14 +39,16 @@ quickly get up and running with a custom backend for Triton.
 
 ### Triton
 
-The NVIDIA Triton Inference Server offers a complete open-source solution for
-deployment of machine learning models from a wide variety of ML frameworks
-(PyTorch, Tensorflow, ONNX, XGBoost, etc.) on both CPU and GPU hardware. It
-allows you to maximize inference performance in production (whether that means
-maximizing throughput, minimizing latency, or optimizing some other metric)
-regardless of how you may have trained your ML model. Through smart batching,
-efficient pipeline handling, and tools to simplify deployments almost anywhere,
-Triton helps make production inference serving simpler and more cost-effective.
+The [NVIDIA Triton Inference
+Server](https://developer.nvidia.com/nvidia-triton-inference-server) offers a
+complete open-source solution for deployment of machine learning models from a
+wide variety of ML frameworks (PyTorch, Tensorflow, ONNX, XGBoost, etc.) on
+both CPU and GPU hardware. It allows you to maximize inference performance in
+production (whether that means maximizing throughput, minimizing latency, or
+optimizing some other metric) regardless of how you may have trained your ML
+model. Through smart batching, efficient pipeline handling, and tools to
+simplify deployments almost anywhere, Triton helps make production inference
+serving simpler and more cost-effective.
 
 ### Custom Backends
 
