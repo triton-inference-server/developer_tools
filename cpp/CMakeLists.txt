@@ -97,6 +97,8 @@ include(cmake/modules/ConfigureCUDA.cmake)
 # add third party dependencies using CPM
 rapids_cpm_init()
 
+# NOTE(wphicks): Thrust is not being properly included by an upstream
+# dependency, so we include it here
 include(cmake/thirdparty/get_thrust.cmake)
 include(cmake/thirdparty/get_rmm.cmake)
 include(cmake/thirdparty/get_raft.cmake)
