@@ -23,7 +23,7 @@ namespace rapids {
 
 template <typename T, typename U>
 using const_agnostic_same_t =
-  std::enable_if_t<std::is_same<std::remove_const_t<T>, std::remove_const_t<U>>::value>;
+  std::enable_if_t<std::is_same_v<std::remove_const_t<T>, std::remove_const_t<U>>>;
 
 }
 }  // namespace backend
