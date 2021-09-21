@@ -479,6 +479,8 @@ To use it for a basic test, we might execute something like the following
 ```python
 from rapids_triton import Client
 
+client = Client()
+
 u = np.array([[2, 2, 3, 3]], dtype='float32')
 v = np.array([[-1, 1, 1, -1]], dtype='float32')
 # The value of the c vector specified in c.txt
