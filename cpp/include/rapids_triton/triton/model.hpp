@@ -77,7 +77,7 @@ void set_model_state(TRITONBACKEND_Model& model, std::unique_ptr<ModelStateType>
 template <typename ModelStateType>
 auto* get_model_state(TRITONBACKEND_Model& model)
 {
-  auto vstate = static_cast<void*>(nullptr);
+  auto* vstate = static_cast<void*>(nullptr);
   triton_check(TRITONBACKEND_ModelState(&model, &vstate));
 
   auto* model_state = reinterpret_cast<ModelStateType*>(vstate);
