@@ -122,7 +122,7 @@ struct Batch {
 
   template <typename T>
   auto get_input(std::string const& name,
-                 std::optional<MemoryType> memory_type,
+                 std::optional<MemoryType> const& memory_type,
                  device_id_t device_id,
                  cudaStream_t stream)
   {
