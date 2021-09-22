@@ -170,7 +170,7 @@ struct Batch {
 
   template <typename T>
   auto get_input(std::string const& name,
-                 std::optional<MemoryType> memory_type,
+                 std::optional<MemoryType> const& memory_type,
                  device_id_t device_id)
   {
     return get_input<T>(name, memory_type, device_id, stream_);
@@ -178,7 +178,7 @@ struct Batch {
 
   template <typename T>
   auto get_output(std::string const& name,
-                  std::optional<MemoryType> memory_type,
+                  std::optional<MemoryType> const& memory_type,
                   device_id_t device_id,
                   cudaStream_t stream)
   {
@@ -202,7 +202,7 @@ struct Batch {
 
   template <typename T>
   auto get_output(std::string const& name,
-                  std::optional<MemoryType> memory_type,
+                  std::optional<MemoryType> const& memory_type,
                   device_id_t device_id)
   {
     return get_output<T>(name, memory_type, device_id, stream_);
