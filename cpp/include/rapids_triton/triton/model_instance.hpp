@@ -28,7 +28,7 @@ namespace rapids {
 /** Get the name of a Triton model instance from the instance itself */
 inline auto get_model_instance_name(TRITONBACKEND_ModelInstance& instance)
 {
-  auto cname = static_cast<char const*>(nullptr);
+  auto* cname = static_cast<char const*>(nullptr);
   triton_check(TRITONBACKEND_ModelInstanceName(&instance, &cname));
   return std::string(cname);
 }
@@ -86,7 +86,7 @@ void set_instance_state(TRITONBACKEND_ModelInstance& instance,
 template <typename ModelInstanceStateType>
 auto* get_instance_state(TRITONBACKEND_ModelInstance& instance)
 {
-  auto instance_state = static_cast<ModelInstanceStateType*>(nullptr);
+  auto* instance_state = static_cast<ModelInstanceStateType*>(nullptr);
   triton_check(
     TRITONBACKEND_ModelInstanceState(&instance, reinterpret_cast<void**>(&instance_state)));
   return instance_state;
