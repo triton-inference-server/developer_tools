@@ -24,7 +24,7 @@ namespace backend {
 namespace rapids {
 inline auto* get_triton_input(TRITONBACKEND_Request* request, std::string const& name)
 {
-  auto result = static_cast<TRITONBACKEND_Input*>(nullptr);
+  auto* result = static_cast<TRITONBACKEND_Input*>(nullptr);
   triton_check(TRITONBACKEND_RequestInput(request, name.c_str(), &result));
   return result;
 }
