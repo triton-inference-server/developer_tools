@@ -139,7 +139,7 @@ struct OutputTensor final : BaseTensor<T> {
    *
    * This method *must* be called by rapids_triton backends on all of their
    * output tensors before returning from their `predict` methods. Because we
-   * cannot known a priori what names backends might have for their tensors
+   * cannot know a priori what names backends might have for their tensors
    * and what types will be stored in those tensors, the rapids_triton
    * library cannot store references to those tensors that might otherwise be
    * used to finalize them.
