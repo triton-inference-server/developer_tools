@@ -46,45 +46,48 @@ auto* execute(TRITONBACKEND_ModelInstance* instance,
     auto* instance_state = get_instance_state<ModelInstanceState>(*instance);
     auto& model          = instance_state->get_model();
     auto max_batch_size  = model.template get_config_param<std::size_t>("max_batch_size");
-    auto batch           = Batch(
-      raw_requests,
-      request_count,
-      *(model_state->TritonMemoryManager()),
-      /* Note: It is safe to keep a reference to the model in htis closure
-       * and a pointer to the instance in the next because the batch goes
-       * out of scope at the end of this block and Triton guarantees that
-       * the liftimes of both the instance and model extend beyond this
-       * function call. */
-      [&model](std::string const& name, Batch::size_type batch_dim) {
-        auto result       = std::vector<Batch::size_type>{};
-        auto config_shape = model.get_output_shape(name);
-        if (config_shape.size() > 0 && config_shape[0] < 0) { config_shape[0] = batch_dim; }
-        std::transform(
-          std::begin(config_shape),
-          std::end(config_shape),
-          std::back_inserter(result),
-          [](auto& coord) {
-            if (coord < 0) {
-              throw TritonException(
-                Error::Internal,
-                "Backends with variable-shape outputs must request desired output shape");
-            } else {
-              return narrow<std::size_t>(coord);
-            }
-          });
-        return result;
-      },
-      [instance](TRITONBACKEND_Request* request,
-                 time_point req_start,
-                 time_point req_comp_start,
-                 time_point req_comp_end,
-                 time_point req_end) {
-        report_statistics(*instance, *request, req_start, req_comp_start, req_comp_end, req_end);
-      },
-      model_state->EnablePinnedInput(),
-      model_state->EnablePinnedOutput(),
-      max_batch_size,
-      model.get_stream());
+
+    /* Note: It is safe to keep a reference to the model in this closure
+     * and a pointer to the instance in the next because the batch goes
+     * out of scope at the end of this block and Triton guarantees that
+     * the liftimes of both the instance and model extend beyond this
+     * function call. */
+    auto output_shape_fetcher = [&model](std::string const& name, Batch::size_type batch_dim) {
+      auto result       = std::vector<Batch::size_type>{};
+      auto config_shape = model.get_output_shape(name);
+      if (config_shape.size() > 0 && config_shape[0] < 0) { config_shape[0] = batch_dim; }
+      std::transform(
+        std::begin(config_shape),
+        std::end(config_shape),
+        std::back_inserter(result),
+        [](auto& coord) {
+          if (coord < 0) {
+            throw TritonException(
+              Error::Internal,
+              "Backends with variable-shape outputs must request desired output shape");
+          } else {
+            return narrow<std::size_t>(coord);
+          }
+        });
+      return result;
+    };
+    auto statistics_reporter = [instance](TRITONBACKEND_Request* request,
+                                          time_point req_start,
+                                          time_point req_comp_start,
+                                          time_point req_comp_end,
+                                          time_point req_end) {
+      report_statistics(*instance, *request, req_start, req_comp_start, req_comp_end, req_end);
+    };
+
+    auto batch = Batch(raw_requests,
+                       request_count,
+                       *(model_state->TritonMemoryManager()),
+                       std::move(output_shape_fetcher),
+                       std::move(statistics_reporter),
+                       model_state->EnablePinnedInput(),
+                       model_state->EnablePinnedOutput(),
+                       max_batch_size,
+                       model.get_stream());
 
     auto predict_err = static_cast<TRITONSERVER_Error*>(nullptr);
     try {

@@ -67,20 +67,20 @@ struct Batch {
   Batch(TRITONBACKEND_Request** raw_requests,
         request_size_t count,
         TRITONBACKEND_MemoryManager& triton_mem_manager,
-        std::function<std::vector<size_type>(std::string const&, size_type)> get_output_shape,
+        std::function<std::vector<size_type>(std::string const&, size_type)>&& get_output_shape,
         std::function<void(TRITONBACKEND_Request*,
                            time_point const&,
                            time_point const&,
                            time_point const&,
-                           time_point const&)> report_request_statistics,
+                           time_point const&)>&& report_request_statistics,
         bool use_pinned_input,
         bool use_pinned_output,
         size_type max_batch_size,
         cudaStream_t stream)
     : requests_{raw_requests, raw_requests + count},
       responses_{construct_responses(requests_.begin(), requests_.end())},
-      get_output_shape_{get_output_shape},
-      report_statistics_{report_request_statistics},
+      get_output_shape_{std::move(get_output_shape)},
+      report_statistics_{std::move(report_request_statistics)},
       collector_(raw_requests, count, &responses_, &triton_mem_manager, use_pinned_input, stream),
       responder_{std::make_shared<BackendOutputResponder>(raw_requests,
                                                           count,
@@ -104,9 +104,7 @@ struct Batch {
       result = get_triton_input_shape<T>(std::begin(requests_), std::end(requests_), name);
 
       auto input_batch_dim = size_type{};
-      if (result.size() > 0) {
-        input_batch_dim = result[0];
-      }
+      if (result.size() > 0) { input_batch_dim = result[0]; }
 
       if (batch_size_.has_value()) {
         if (batch_size_.value() != input_batch_dim) {
