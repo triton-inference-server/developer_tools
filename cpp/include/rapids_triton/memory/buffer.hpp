@@ -221,7 +221,10 @@ struct Buffer {
   // checked
   static void copy(data_ptr const& dst, data_ptr const& src, size_type len, cudaStream_t stream)
   {
-    auto raw_dst = get_raw_ptr(dst);
+    // This function will only be called in constructors, so we allow a
+    // const_cast here to perform the initial copy of data from a
+    // Buffer<T const> to a newly-created Buffer<T const>
+    auto raw_dst = const_cast<std::remove_const_t<T>*>get_raw_ptr(dst);
     auto raw_src = get_raw_ptr(src);
 
     auto dst_mem_type = dst.index() % 2 == 0 ? HostMemory : DeviceMemory;
@@ -242,11 +245,6 @@ struct Buffer {
  * at which to begin copying from.
  * @param src_end The offset from the beginning of the source buffer
  * before which to end copying from.
- *
- * @warning This method is NOT thread-safe. If the stream of the src buffer
- * changes while a copy is in progress, dst may receive incorrect data from
- * src. Avoid interactions between buffers on different streams, *especially*
- * when those buffers may be modified on different host threads as well.
  */
 template <typename T, typename U>
 void copy(Buffer<T>& dst,
