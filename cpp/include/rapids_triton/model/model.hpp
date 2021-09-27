@@ -71,7 +71,7 @@ struct Model {
    * several streams in order to distribute batches across them, but care
    * should be taken to ensure proper synchronization in this case.
    */
-  virtual cudaStream_t get_stream() { return default_stream_; }
+  virtual cudaStream_t get_stream() const { return default_stream_; }
 
   /**
    * @brief Get input tensor of a particular named input for an entire batch
