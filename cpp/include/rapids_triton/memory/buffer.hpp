@@ -224,7 +224,7 @@ struct Buffer {
     // This function will only be called in constructors, so we allow a
     // const_cast here to perform the initial copy of data from a
     // Buffer<T const> to a newly-created Buffer<T const>
-    auto raw_dst = const_cast<std::remove_const_t<T>*>get_raw_ptr(dst);
+    auto raw_dst = const_cast<std::remove_const_t<T>*>(get_raw_ptr(dst));
     auto raw_src = get_raw_ptr(src);
 
     auto dst_mem_type = dst.index() % 2 == 0 ? HostMemory : DeviceMemory;
