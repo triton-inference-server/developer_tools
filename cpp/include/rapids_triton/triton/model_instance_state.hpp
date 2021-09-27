@@ -40,7 +40,7 @@ struct ModelInstanceState : public BackendModelInstance {
   {
   }
 
-  auto& get_model() { return model_; }
+  auto& get_model() const { return model_; }
 
   void load() { model_.load(); }
   void unload() { model_.unload(); }
