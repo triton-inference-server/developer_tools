@@ -36,9 +36,9 @@ step-by-step how to create a backend with RAPIDS-Triton that, when given two
 vectors (**u** and **v**) as input will return a vector **r** according to the
 following equation:
 
-**r** = \alpha * **u** + **v** + **c**
+**r** = &alpha; * **u** + **v** + **c**
 
-where \alpha is a scalar constant read from a configuration file and **c** is a
+where &alpha; is a scalar constant read from a configuration file and **c** is a
 constant vector read from a "model" file. Along the way, we will illustrate a
 variety of useful operations in RAPIDS-Triton, including retrieving data from a
 configuration file and loading model resources.
@@ -104,7 +104,7 @@ different things:
 1. The name of the backend which will be used to serve this model (the name
    chosen in step 2)
 2. The names of the input vectors
-3. The value of \alpha
+3. The value of &alpha;
 4. Where to load **c** from
 
 With this in mind, an example configuration file for the `rapids_linear`
@@ -215,7 +215,7 @@ manages state that is relevant to all instances.
 The most basic state that is shared among instances of a model is the model
 configuration itself (as defined in step 3), but we can also use it to share
 data that is specifically required by our backend. In our particular case, it
-would be useful to cache the value of \alpha so that we do not have to retrieve
+would be useful to cache the value of &alpha; so that we do not have to retrieve
 it from the configuration each time (which may involve additional parsing).
 
 All RAPIDS-Triton backends store their shared state in a class called
@@ -240,7 +240,7 @@ change between backends. Take a look at `src/shared_state.h` to see this
 implementation in context.
 
 Note that we have added a public member variables to this class definition
-which will be used to store \alpha. One could equally well have made
+which will be used to store &alpha;. One could equally well have made
 these private members with getter functions or added arbitrarily complex logic
 to this class definition, but we will leave them as is for simplicity.
 
@@ -248,7 +248,7 @@ to this class definition, but we will leave them as is for simplicity.
 
 Next, we need to actually load a value into this newly-defined member. We can
 do this by filling out the logic for our `load` method. For example, in order
-to load \alpha, we could implement something like:
+to load &alpha;, we could implement something like:
 ```cpp
 void load() { alpha = get_config_param<float>("alpha"); }
 ```
