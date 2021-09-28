@@ -72,7 +72,7 @@ struct SharedModelState {
           // in general, new backends are advised to avoid using it and defer
           // this sort of flattening operation to the consumer.
           if (squeeze_output) {
-            std::remove(shape.begin(), shape.end(), std::int64_t{1});
+            shape.erase(std::remove(shape.begin(), shape.end(), std::int64_t{1}), shape.end());
           }
           result.insert(
             std::upper_bound(std::begin(output_shapes_),
