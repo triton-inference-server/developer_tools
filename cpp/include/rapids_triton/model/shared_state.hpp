@@ -41,10 +41,10 @@ struct SharedModelState {
   virtual void load() {}
   virtual void unload() {}
 
-  explicit SharedModelState(std::unique_ptr<common::TritonJson::Value>&& config)
+  explicit SharedModelState(std::unique_ptr<common::TritonJson::Value>&& config, bool squeeze_output=false)
     : config_{std::move(config)},
       max_batch_size_{get_max_batch_size(*config_)},
-      output_shapes_([this]() {
+      output_shapes_([this, squeeze_output]() {
         auto result         = std::vector<std::pair<std::string, std::vector<std::int64_t>>>{};
         auto output_entries = triton::common::TritonJson::Value{};
         triton_check(config_->MemberAsArray("output", &output_entries));
@@ -66,6 +66,14 @@ struct SharedModelState {
             ParseShape(output_entry, "dims", &shape);
           }
           if (shape[0] != -1) { shape.insert(shape.begin(), -1); }
+          // The squeeze_output option was introduced to handle a bad choice of
+          // convention in the original FIL backend implementation. For legacy
+          // compatibility, we introduced this option into RAPIDS-Triton, but
+          // in general, new backends are advised to avoid using it and defer
+          // this sort of flattening operation to the consumer.
+          if (squeeze_output) {
+            std::remove(shape.begin(), shape.end(), std::int64_t{1});
+          }
           result.insert(
             std::upper_bound(std::begin(output_shapes_),
                              std::end(output_shapes_),
