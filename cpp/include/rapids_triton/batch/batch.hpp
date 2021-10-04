@@ -150,6 +150,12 @@ struct Batch {
                                &reported_mem_type,
                                &reported_device_id));
 
+    std::for_each(std::begin(responses_), std::end(responses_), [](auto* response) {
+      if (response == nullptr) {
+        throw TritonException(Error::Internal, "Input collection failed");
+      }
+    });
+
     auto buffer = Buffer(reinterpret_cast<T*>(raw_buffer),
                          reported_bytes / sizeof(T),
                          reported_mem_type,
