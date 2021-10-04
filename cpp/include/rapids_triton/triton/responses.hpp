@@ -57,11 +57,15 @@ void send_responses(Iter begin, Iter end, TRITONSERVER_Error* err)
       err_copy = err;
     }
 
-    try {
-      triton_check(
-        TRITONBACKEND_ResponseSend(response, TRITONSERVER_RESPONSE_COMPLETE_FINAL, err_copy));
-    } catch (TritonException& err) {
-      log_error(__FILE__, __LINE__, err.what());
+    if (response == nullptr) {
+      log_error(__FILE__, __LINE__) << "Failure in input or output collection");
+    } else {
+      try {
+        triton_check(
+          TRITONBACKEND_ResponseSend(response, TRITONSERVER_RESPONSE_COMPLETE_FINAL, err_copy));
+      } catch (TritonException& err) {
+        log_error(__FILE__, __LINE__, err.what());
+      }
     }
   });
 }
