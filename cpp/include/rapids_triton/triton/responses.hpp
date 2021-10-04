@@ -58,7 +58,7 @@ void send_responses(Iter begin, Iter end, TRITONSERVER_Error* err)
     }
 
     if (response == nullptr) {
-      log_error(__FILE__, __LINE__) << "Failure in input or output collection");
+      log_error(__FILE__, __LINE__) << "Failure in input or output collection";
     } else {
       try {
         triton_check(
