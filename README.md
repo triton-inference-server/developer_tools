@@ -23,6 +23,12 @@ into the NVIDIA Triton Inference Server. Originally developed to assist with
 the integration of RAPIDS algorithms, this library can be used by anyone to
 quickly get up and running with a custom backend for Triton.
 
+**WARNING**: Due to an upstream bug in Triton, backends which make use of
+RAPIDS-Triton may encounter issues with Triton's shared memory mode.
+Specifically, backends deployed on the host or which request input on host
+memory should not be given cuda shared memory inputs and vice versa. A fix for
+this issue in Triton is expected soon.
+
 ## Background
 
 ### Triton
