@@ -23,10 +23,11 @@
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/detail/allocate.hpp>
+#include <rapids_triton/memory/detail/manager.hpp>
 #include <rapids_triton/memory/detail/copy.hpp>
 #include <rapids_triton/memory/types.hpp>
 #include <rapids_triton/triton/device.hpp>
+#include <rmm/device_buffer.hpp>
 
 namespace triton {
 namespace backend {
@@ -36,11 +37,11 @@ struct Buffer {
   using size_type  = std::size_t;
   using value_type = T;
 
-  using h_ptr       = T*;
-  using d_ptr       = T*;
-  using owned_h_ptr = std::unique_ptr<T[]>;
-  using owned_d_ptr = std::unique_ptr<T, detail::dev_deallocater<T>>;
-  using data_ptr    = std::variant<h_ptr, d_ptr, owned_h_ptr, owned_d_ptr>;
+  using h_buffer       = T*;
+  using d_buffer       = T*;
+  using owned_h_buffer = std::unique_ptr<T[]>;
+  using owned_d_buffer = rmm::device_buffer;
+  using data_store    = std::variant<h_buffer, d_buffer, owned_h_buffer, owned_d_buffer>;
 
   Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {}
 
@@ -74,11 +75,11 @@ struct Buffer {
          cudaStream_t stream    = 0)
     : device_{device},
       data_{[&memory_type, &input_data]() {
-        auto result = data_ptr{};
+        auto result = data_store{};
         if (memory_type == HostMemory) {
-          result = data_ptr{std::in_place_index<0>, input_data};
+          result = data_store{std::in_place_index<0>, input_data};
         } else {
-          result = data_ptr{std::in_place_index<1>, input_data};
+          result = data_store{std::in_place_index<1>, input_data};
         }
         return result;
       }()},
@@ -114,7 +115,7 @@ struct Buffer {
   Buffer(Buffer<T>&& other, MemoryType memory_type)
     : device_{other.device()},
       data_{[&other, memory_type]() {
-        data_ptr result;
+        data_store result;
         if (memory_type == other.mem_type()) {
           result = std::move(other.data_);
         } else {
@@ -176,12 +177,13 @@ struct Buffer {
 
  private:
   device_id_t device_;
-  data_ptr data_;
+  data_store data_;
   size_type size_;
   cudaStream_t stream_;
 
-  // Helper function for accessing raw pointer to underlying data of data_ptr
-  static auto* get_raw_ptr(data_ptr const& ptr) noexcept
+  // Helper function for accessing raw pointer to underlying data of
+  // data_store
+  static auto* get_raw_ptr(data_store const& ptr) noexcept
   {
     /* Switch statement is an optimization relative to std::visit to avoid
      * vtable overhead for a small number of alternatives */
@@ -190,7 +192,7 @@ struct Buffer {
       case 0: result = std::get<0>(ptr); break;
       case 1: result = std::get<1>(ptr); break;
       case 2: result = std::get<2>(ptr).get(); break;
-      case 3: result = std::get<3>(ptr).get(); break;
+      case 3: result = reinterpret_cast<T*>(std::get<3>(ptr).data()); break;
     }
     return result;
   }
@@ -201,11 +203,14 @@ struct Buffer {
                        MemoryType memory_type = DeviceMemory,
                        cudaStream_t stream    = 0)
   {
-    auto result = data_ptr{};
+    auto result = data_store{};
     if (memory_type == DeviceMemory) {
       if constexpr (IS_GPU_BUILD) {
-        cuda_check(cudaSetDevice(device));
-        result = data_ptr{owned_d_ptr{detail::dev_allocate<T>(size, stream)}};
+        result = data_store{owned_d_buffer{
+          size * sizeof(T),
+          stream,
+          get_memory_resource(device)
+        }};
       } else {
         throw TritonException(Error::Internal,
                               "DeviceMemory requested in CPU-only build of FIL backend");
@@ -219,7 +224,7 @@ struct Buffer {
   // Helper function for copying memory in constructors, where there are
   // stronger guarantees on conditions that would otherwise need to be
   // checked
-  static void copy(data_ptr const& dst, data_ptr const& src, size_type len, cudaStream_t stream)
+  static void copy(data_store const& dst, data_store const& src, size_type len, cudaStream_t stream)
   {
     // This function will only be called in constructors, so we allow a
     // const_cast here to perform the initial copy of data from a

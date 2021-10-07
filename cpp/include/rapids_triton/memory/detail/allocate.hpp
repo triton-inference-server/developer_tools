@@ -22,6 +22,7 @@
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/memory/detail/manager.hpp>
 #include <rapids_triton/triton/logging.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 
@@ -38,7 +39,7 @@ struct dev_deallocater {
       // in a RAII context. If we are deallocating this memory, we allocated it
       // and made it const. Removing the const qualifier allows the
       // deallocation to proceed.
-      cudaFree(reinterpret_cast<void*>(const_cast<std::remove_const_t<T>*>(d_ptr)));
+      get_memory_resource()->deallocate(reinterpret_cast<void*>(const_cast<std::remove_const_t<T>*>(d_ptr)));
     } else {
       log_error(
         __FILE__, __LINE__, "ERROR: device deallocation cannot be performed in non-GPU build!");
@@ -56,7 +57,7 @@ template <typename T>
     throw TritonException(Error::Internal, "device allocation attempted in non-GPU build");
   }
   auto* ptr_d =
-    static_cast<T*>(rmm::mr::get_current_device_resource()->allocate(sizeof(T) * count, stream));
+    static_cast<T*>(get_memory_resource()->allocate(sizeof(T) * count, stream));
   return ptr_d;
 }
 
