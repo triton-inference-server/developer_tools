@@ -18,7 +18,7 @@
 #include <cuda_runtime_api.h>
 #include <cstddef>
 #include <rapids_triton/batch/batch.hpp>
-#include <rapids_triton/memory/detail/manager.hpp>
+#include <rapids_triton/memory/detail/resource.hpp>
 #include <rapids_triton/model/shared_state.hpp>
 #include <rapids_triton/tensor/tensor.hpp>
 #include <rapids_triton/triton/deployment.hpp>

@@ -23,7 +23,7 @@
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/detail/manager.hpp>
+#include <rapids_triton/memory/detail/resource.hpp>
 #include <rapids_triton/memory/detail/copy.hpp>
 #include <rapids_triton/memory/types.hpp>
 #include <rapids_triton/triton/device.hpp>
