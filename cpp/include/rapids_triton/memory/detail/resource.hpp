@@ -28,13 +28,13 @@ namespace backend {
 namespace rapids {
 namespace detail {
 
-  inline auto& manager_lock() {
+  inline auto& resource_lock() {
     static auto lock = std::mutex{};
     return lock;
   }
 
-  struct manager_data {
-    manager_data() : base_mr_{},
+  struct resource_data {
+    resource_data() : base_mr_{},
                      pool_mr_{&base_mr_} {}
     auto* get_resource() {
       return &pool_mr_;
@@ -44,12 +44,12 @@ namespace detail {
     rmm::mr::pool_memory_resource pool_mr_;
   };
 
-  auto& all_device_managers() {
+  auto& all_device_resources() {
     // This vector keeps the underlying memory resource objects in-scope until
     // the backend is unloaded. This ensures that they will not be destroyed
     // while a model is still making use of them.
-    static auto device_managers = std::vector<manager_data>{};
-    return device_managers;
+    static auto device_resources = std::vector<resource_data>{};
+    return device_resources;
   }
 
   auto is_default_resource (rmm::cuda_device_id const& device_id) {
@@ -57,12 +57,12 @@ namespace detail {
   }
 
   auto setup_memory_resource(rmm::cuda_device_id device_id) {
-    auto lock = std::lock_guard<std::mutex>{manager_lock()};
+    auto lock = std::lock_guard<std::mutex>{resource_lock()};
     if (is_default_resource(device_id)) {
-      auto& device_managers = all_device_managers();
-      device_managers.push_back(manager_data{});
+      auto& device_resources = all_device_resources();
+      device_resources.push_back(resource_data{});
       rmm::mr::set_per_device_resource(
-          rmm::cuda_device_id{device_id}, device_managers.back()->get_resource());
+          rmm::cuda_device_id{device_id}, device_resources.back()->get_resource());
     }
 
     return rmm::get_per_device_resource(rmm_device_id);
