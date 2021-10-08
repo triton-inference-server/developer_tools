@@ -17,14 +17,16 @@
 #pragma once
 #include <cstddef>
 #include <memory>
+#include <stdexcept>
 #include <variant>
 
 #include <cuda_runtime_api.h>
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/detail/resource.hpp>
+#include <rapids_triton/triton/logging.hpp>
 #include <rapids_triton/memory/detail/copy.hpp>
+#include <rapids_triton/memory/resource.hpp>
 #include <rapids_triton/memory/types.hpp>
 #include <rapids_triton/triton/device.hpp>
 
@@ -50,13 +52,19 @@ struct Buffer {
           result = static_cast<non_const_T*>(
             get_memory_resource(device_)->allocate(byte_size_, stream)
           );
-        } catch(rmm::bad_alloc const& err) {
+        } catch(std::bad_alloc const& err) {
           throw TritonException(Error::Internal, err.what());
         }
         return result;
       }()} {}
     ~owned_d_buffer() {
-      get_memory_resource(device_)->deallocate(reinterpret_cast<void*>(data_), byte_size_);
+      try {
+        get_memory_resource(device_)->deallocate(reinterpret_cast<void*>(data_), byte_size_);
+      } catch (TritonException const& err) {
+        log_error(__FILE__, __LINE__) << err.what();
+      } catch (...) {
+        log_error(__FILE__, __LINE__) << "Unknown error in owned_d_buffer destructor!";
+      }
     }
 
     owned_d_buffer(owned_d_buffer const& other) = delete;

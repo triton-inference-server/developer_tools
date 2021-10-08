@@ -42,6 +42,9 @@ auto* instance_initialize(TRITONBACKEND_ModelInstance* instance)
 
     auto* triton_model = get_model_from_instance(*instance);
     auto* model_state  = get_model_state<ModelState>(*triton_model);
+    if constexpr (IS_GPU_BUILD) {
+      setup_memory_resource(device_id, model_state->TritonMemoryManager());
+    }
 
     auto rapids_model = std::make_unique<ModelInstanceState>(*model_state, instance);
     rapids_model->load();

@@ -18,7 +18,7 @@
 #include <cuda_runtime_api.h>
 #include <cstddef>
 #include <rapids_triton/batch/batch.hpp>
-#include <rapids_triton/memory/detail/resource.hpp>
+#include <rapids_triton/memory/resource.hpp>
 #include <rapids_triton/model/shared_state.hpp>
 #include <rapids_triton/tensor/tensor.hpp>
 #include <rapids_triton/triton/deployment.hpp>
@@ -167,9 +167,7 @@ struct Model {
       filepath_{filepath}
   {
     if constexpr (IS_GPU_BUILD) {
-      if (deployment_type_ == GPUDeployment) {
-        setup_memory_resource(device_id);
-      }
+      setup_memory_resource(device_id_);
     }
   }
 
