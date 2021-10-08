@@ -81,7 +81,7 @@ struct triton_memory_resource final : public rmm::mr::device_memory_resource {
   }
 
   std::pair<std::size_t, std::size_t> do_get_mem_info(rmm::cuda_stream_view stream) const override {
-    throw std::runtime_error("Mem info API not supported by triton_memory_resource");
+    return {0, 0};
   }
 
 };
