@@ -84,6 +84,10 @@ namespace detail {
     return rmm::mr::get_per_device_resource(rmm_device_id);
   }
 
+  inline auto* get_memory_resource() {
+    return rmm::mr::get_current_device_resource();
+  }
+
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton

@@ -20,8 +20,9 @@
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/detail/resource.hpp>
+#include <rapids_triton/memory/resource.hpp>
 #include <rmm/cuda_device.hpp>
+#include <rmm/mr/device/cuda_memory_resource.hpp>
 
 namespace triton {
 namespace backend {
@@ -31,9 +32,10 @@ TEST(RapidsTriton, get_memory_resource)
   if constexpr(IS_GPU_BUILD) {
     auto device_id = int{};
     cuda_check(cudaGetDevice(&device_id));
-    auto rmm_device_id = rmm::cuda_device_id{device_id};
-    EXPECT_EQ(get_memory_resource(), get_memory_resource(device_id));
-    EXPECT_EQ(detail::is_default_resource(rmm_device_id), false);
+    EXPECT_EQ(get_memory_resource(device_id)->is_equal(rmm::mr::cuda_memory_resource{}), true);
+    setup_memory_resource(device_id);
+    EXPECT_EQ(get_memory_resource(device_id)->is_equal(rmm::mr::cuda_memory_resource{}), false);
+    EXPECT_EQ(get_memory_resource(device_id), get_memory_resource());
   }
 }
 

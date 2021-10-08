@@ -18,6 +18,7 @@
 
 #include <triton/backend/backend_common.h>
 #include <triton/backend/backend_model_instance.h>
+#include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/logging.hpp>
 #include <rapids_triton/triton/model.hpp>
