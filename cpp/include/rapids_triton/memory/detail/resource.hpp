@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <rapids_triton/exceptions.hpp>
@@ -22,6 +23,7 @@
 #include <rmm/cuda_device.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/device/pool_memory_resource.hpp>
 
 namespace triton {
 namespace backend {
@@ -33,54 +35,58 @@ namespace detail {
     return lock;
   }
 
+  /** A struct used solely to keep memory resources in-scope for the lifetime
+   * of the backend */
   struct resource_data {
     resource_data() : base_mr_{},
-                     pool_mr_{&base_mr_} {}
-    auto* get_resource() {
-      return &pool_mr_;
+                     pool_mrs_{} {}
+    auto* make_new_resource() {
+      pool_mrs_.emplace_back(&base_mr_);
+      return &(pool_mrs_.back());
     }
    private:
     rmm::mr::cuda_memory_resource base_mr_;
-    rmm::mr::pool_memory_resource pool_mr_;
+    std::deque<rmm::mr::pool_memory_resource<rmm::mr::cuda_memory_resource>> pool_mrs_;
   };
 
-  auto& all_device_resources() {
-    // This vector keeps the underlying memory resource objects in-scope until
-    // the backend is unloaded. This ensures that they will not be destroyed
-    // while a model is still making use of them.
-    static auto device_resources = std::vector<resource_data>{};
+  inline auto& get_device_resources() {
+    static auto device_resources = resource_data{};
     return device_resources;
   }
 
-  auto is_default_resource (rmm::cuda_device_id const& device_id) {
-    return rmm::get_per_device_resource(device_id)->is_equal(rmm::cuda_memory_resource{});
+  inline auto is_default_resource (rmm::cuda_device_id const& device_id) {
+    return rmm::mr::get_per_device_resource(device_id)->is_equal(rmm::mr::cuda_memory_resource{});
   }
 
-  auto setup_memory_resource(rmm::cuda_device_id device_id) {
+  inline auto setup_memory_resource(rmm::cuda_device_id device_id) {
     auto lock = std::lock_guard<std::mutex>{resource_lock()};
     if (is_default_resource(device_id)) {
-      auto& device_resources = all_device_resources();
-      device_resources.push_back(resource_data{});
+      auto& device_resources = get_device_resources();
       rmm::mr::set_per_device_resource(
-          rmm::cuda_device_id{device_id}, device_resources.back()->get_resource());
+          rmm::cuda_device_id{device_id}, device_resources.make_new_resource());
     }
 
-    return rmm::get_per_device_resource(rmm_device_id);
+    return rmm::mr::get_per_device_resource(device_id);
   }
 }  // namespace detail
 
-auto* get_memory_resource(device_id_t device_id) {
-  auto result = static_cast<rmm::device_memory_resource*>(nullptr);
+inline auto setup_memory_resource(device_id_t device_id) {
   auto rmm_device_id = rmm::cuda_device_id{device_id};
-  if (is_default_resource(rmm_device_id)) {
-    result = setup_memory_resource(rmm_device_id);
+  return detail::setup_memory_resource(rmm_device_id);
+}
+
+inline auto* get_memory_resource(device_id_t device_id) {
+  auto result = static_cast<rmm::mr::device_memory_resource*>(nullptr);
+  auto rmm_device_id = rmm::cuda_device_id{device_id};
+  if (detail::is_default_resource(rmm_device_id)) {
+    result = detail::setup_memory_resource(rmm_device_id);
   } else {
-    result = rmm::get_per_device_resource(rmm_device_id);
+    result = rmm::mr::get_per_device_resource(rmm_device_id);
   }
   return result;
 }
 
-auto* get_memory_resource() {
+inline auto* get_memory_resource() {
   auto device_id = int{};
   cuda_check(cudaGetDevice(&device_id));
 

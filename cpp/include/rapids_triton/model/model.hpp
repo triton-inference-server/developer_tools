@@ -167,8 +167,8 @@ struct Model {
       filepath_{filepath}
   {
     if constexpr (IS_GPU_BUILD) {
-      if (deplyment_type_ == GPUDeployment) {
-        detail::setup_memory_resource(device_id);
+      if (deployment_type_ == GPUDeployment) {
+        setup_memory_resource(device_id);
       }
     }
   }

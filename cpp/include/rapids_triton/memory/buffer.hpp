@@ -27,7 +27,6 @@
 #include <rapids_triton/memory/detail/copy.hpp>
 #include <rapids_triton/memory/types.hpp>
 #include <rapids_triton/triton/device.hpp>
-#include <rmm/device_buffer.hpp>
 
 namespace triton {
 namespace backend {
@@ -40,7 +39,37 @@ struct Buffer {
   using h_buffer       = T*;
   using d_buffer       = T*;
   using owned_h_buffer = std::unique_ptr<T[]>;
-  using owned_d_buffer = rmm::device_buffer;
+  struct owned_d_buffer {
+    using non_const_T = std::remove_const_t<T>;
+    owned_d_buffer(device_id_t device_id, std::size_t size, cudaStream_t stream) :
+      device_{device_id},
+      byte_size_{size * sizeof(non_const_T)},
+      data_{[this, &stream]() {
+        auto* result = static_cast<non_const_T*>(nullptr);
+        try {
+          result = static_cast<non_const_T*>(
+            get_memory_resource(device_)->allocate(byte_size_, stream)
+          );
+        } catch(rmm::bad_alloc const& err) {
+          throw TritonException(Error::Internal, err.what());
+        }
+        return result;
+      }()} {}
+    ~owned_d_buffer() {
+      get_memory_resource(device_)->deallocate(reinterpret_cast<void*>(data_), byte_size_);
+    }
+
+    owned_d_buffer(owned_d_buffer const& other) = delete;
+    owned_d_buffer(owned_d_buffer&& other) noexcept = default;
+    owned_d_buffer& operator=(owned_d_buffer const& other) = delete;
+    owned_d_buffer& operator=(owned_d_buffer&& other) = default;
+
+    auto* get() const { return data_; }
+   private:
+    device_id_t device_;
+    std::size_t byte_size_;
+    non_const_T* data_;
+  };
   using data_store    = std::variant<h_buffer, d_buffer, owned_h_buffer, owned_d_buffer>;
 
   Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {}
@@ -192,7 +221,7 @@ struct Buffer {
       case 0: result = std::get<0>(ptr); break;
       case 1: result = std::get<1>(ptr); break;
       case 2: result = std::get<2>(ptr).get(); break;
-      case 3: result = reinterpret_cast<T*>(std::get<3>(ptr).data()); break;
+      case 3: result = std::get<3>(ptr).get(); break;
     }
     return result;
   }
@@ -207,9 +236,9 @@ struct Buffer {
     if (memory_type == DeviceMemory) {
       if constexpr (IS_GPU_BUILD) {
         result = data_store{owned_d_buffer{
-          size * sizeof(T),
+          device,
+          size,
           stream,
-          get_memory_resource(device)
         }};
       } else {
         throw TritonException(Error::Internal,
