@@ -58,29 +58,48 @@ struct Buffer {
         return result;
       }()} {}
     ~owned_d_buffer() {
-      try {
-        get_memory_resource(device_)->deallocate(reinterpret_cast<void*>(data_), byte_size_);
-      } catch (TritonException const& err) {
-        log_error(__FILE__, __LINE__) << err.what();
-      } catch (...) {
-        log_error(__FILE__, __LINE__) << "Unknown error in owned_d_buffer destructor!";
-      }
+      free_memory();
     }
 
     owned_d_buffer(owned_d_buffer const& other) = delete;
-    owned_d_buffer(owned_d_buffer&& other) noexcept = default;
+    owned_d_buffer(owned_d_buffer&& other) noexcept : device_{other.device_}, byte_size_{other.byte_size_}, data_{nullptr} {
+      data_ = other.data_;
+      other.data_ = nullptr;
+    }
     owned_d_buffer& operator=(owned_d_buffer const& other) = delete;
-    owned_d_buffer& operator=(owned_d_buffer&& other) = default;
+    owned_d_buffer& operator=(owned_d_buffer&& other) {
+      if (this != &other) {
+        device_ = other.device_;
+        byte_size_ = other.byte_size_;
+        free_memory();
+        data_ = other.data_;
+        other.data_ = nullptr;
+      }
+      return *this;
+    }
 
     auto* get() const { return data_; }
    private:
     device_id_t device_;
     std::size_t byte_size_;
     non_const_T* data_;
+    void free_memory() {
+      if (data_ != nullptr) {
+        try {
+          get_memory_resource(device_)->deallocate(reinterpret_cast<void*>(data_), byte_size_);
+        } catch (TritonException const& err) {
+          log_error(__FILE__, __LINE__) << err.what();
+        } catch (...) {
+          log_error(__FILE__, __LINE__) << "Unknown error in owned_d_buffer destructor!";
+        }
+      }
+      data_ = nullptr;
+    }
   };
   using data_store    = std::variant<h_buffer, d_buffer, owned_h_buffer, owned_d_buffer>;
 
-  Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {}
+  Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {
+  }
 
   /**
    * @brief Construct buffer of given size in given memory location (either
@@ -147,7 +166,8 @@ struct Buffer {
    * @brief Create owning copy of existing buffer
    * The memory type of this new buffer will be the same as the original
    */
-  Buffer(Buffer<T> const& other) : Buffer(other, other.mem_type(), other.device()) {}
+  Buffer(Buffer<T> const& other) : Buffer(other, other.mem_type(), other.device()) {
+  }
 
   Buffer(Buffer<T>&& other, MemoryType memory_type)
     : device_{other.device()},
@@ -170,7 +190,8 @@ struct Buffer {
 
   Buffer<T>& operator=(Buffer<T>&& other) = default;
 
-  ~Buffer() = default;
+  ~Buffer() {
+  }
 
   /**
    * @brief Return where memory for this buffer is located (host or device)
