@@ -29,7 +29,7 @@ namespace backend {
 namespace rapids {
 TEST(RapidsTriton, get_memory_resource)
 {
-  if constexpr(IS_GPU_BUILD) {
+  if constexpr (IS_GPU_BUILD) {
     auto device_id = int{};
     cuda_check(cudaGetDevice(&device_id));
     EXPECT_EQ(get_memory_resource(device_id)->is_equal(rmm::mr::cuda_memory_resource{}), true);

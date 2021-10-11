@@ -41,7 +41,8 @@ struct SharedModelState {
   virtual void load() {}
   virtual void unload() {}
 
-  explicit SharedModelState(std::unique_ptr<common::TritonJson::Value>&& config, bool squeeze_output=false)
+  explicit SharedModelState(std::unique_ptr<common::TritonJson::Value>&& config,
+                            bool squeeze_output = false)
     : config_{std::move(config)},
       max_batch_size_{get_max_batch_size(*config_)},
       output_shapes_([this, squeeze_output]() {

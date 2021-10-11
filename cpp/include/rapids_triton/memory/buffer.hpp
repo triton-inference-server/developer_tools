@@ -24,11 +24,11 @@
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/triton/logging.hpp>
 #include <rapids_triton/memory/detail/copy.hpp>
 #include <rapids_triton/memory/resource.hpp>
 #include <rapids_triton/memory/types.hpp>
 #include <rapids_triton/triton/device.hpp>
+#include <rapids_triton/triton/logging.hpp>
 
 namespace triton {
 namespace backend {
@@ -43,47 +43,49 @@ struct Buffer {
   using owned_h_buffer = std::unique_ptr<T[]>;
   struct owned_d_buffer {
     using non_const_T = std::remove_const_t<T>;
-    owned_d_buffer(device_id_t device_id, std::size_t size, cudaStream_t stream) :
-      device_{device_id},
-      byte_size_{size * sizeof(non_const_T)},
-      data_{[this, &stream]() {
-        auto* result = static_cast<non_const_T*>(nullptr);
-        try {
-          result = static_cast<non_const_T*>(
-            get_memory_resource(device_)->allocate(byte_size_, stream)
-          );
-        } catch(std::bad_alloc const& err) {
-          throw TritonException(Error::Internal, err.what());
-        }
-        return result;
-      }()} {}
-    ~owned_d_buffer() {
-      free_memory();
+    owned_d_buffer(device_id_t device_id, std::size_t size, cudaStream_t stream)
+      : device_{device_id}, byte_size_{size * sizeof(non_const_T)}, data_{[this, &stream]() {
+          auto* result = static_cast<non_const_T*>(nullptr);
+          try {
+            result =
+              static_cast<non_const_T*>(get_memory_resource(device_)->allocate(byte_size_, stream));
+          } catch (std::bad_alloc const& err) {
+            throw TritonException(Error::Internal, err.what());
+          }
+          return result;
+        }()}
+    {
     }
+    ~owned_d_buffer() { free_memory(); }
 
     owned_d_buffer(owned_d_buffer const& other) = delete;
-    owned_d_buffer(owned_d_buffer&& other) noexcept : device_{other.device_}, byte_size_{other.byte_size_}, data_{nullptr} {
-      data_ = other.data_;
+    owned_d_buffer(owned_d_buffer&& other) noexcept
+      : device_{other.device_}, byte_size_{other.byte_size_}, data_{nullptr}
+    {
+      data_       = other.data_;
       other.data_ = nullptr;
     }
     owned_d_buffer& operator=(owned_d_buffer const& other) = delete;
-    owned_d_buffer& operator=(owned_d_buffer&& other) {
+    owned_d_buffer& operator                               =(owned_d_buffer&& other)
+    {
       if (this != &other) {
-        device_ = other.device_;
+        device_    = other.device_;
         byte_size_ = other.byte_size_;
         free_memory();
-        data_ = other.data_;
+        data_       = other.data_;
         other.data_ = nullptr;
       }
       return *this;
     }
 
     auto* get() const { return data_; }
+
    private:
     device_id_t device_;
     std::size_t byte_size_;
     non_const_T* data_;
-    void free_memory() {
+    void free_memory()
+    {
       if (data_ != nullptr) {
         try {
           get_memory_resource(device_)->deallocate(reinterpret_cast<void*>(data_), byte_size_);
@@ -96,10 +98,9 @@ struct Buffer {
       data_ = nullptr;
     }
   };
-  using data_store    = std::variant<h_buffer, d_buffer, owned_h_buffer, owned_d_buffer>;
+  using data_store = std::variant<h_buffer, d_buffer, owned_h_buffer, owned_d_buffer>;
 
-  Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {
-  }
+  Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {}
 
   /**
    * @brief Construct buffer of given size in given memory location (either
@@ -166,8 +167,7 @@ struct Buffer {
    * @brief Create owning copy of existing buffer
    * The memory type of this new buffer will be the same as the original
    */
-  Buffer(Buffer<T> const& other) : Buffer(other, other.mem_type(), other.device()) {
-  }
+  Buffer(Buffer<T> const& other) : Buffer(other, other.mem_type(), other.device()) {}
 
   Buffer(Buffer<T>&& other, MemoryType memory_type)
     : device_{other.device()},
@@ -190,8 +190,7 @@ struct Buffer {
 
   Buffer<T>& operator=(Buffer<T>&& other) = default;
 
-  ~Buffer() {
-  }
+  ~Buffer() {}
 
   /**
    * @brief Return where memory for this buffer is located (host or device)

@@ -166,9 +166,7 @@ struct Model {
       deployment_type_{deployment_type},
       filepath_{filepath}
   {
-    if constexpr (IS_GPU_BUILD) {
-      setup_memory_resource(device_id_);
-    }
+    if constexpr (IS_GPU_BUILD) { setup_memory_resource(device_id_); }
   }
 
   auto get_device_id() const { return device_id_; }

@@ -20,10 +20,10 @@
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/memory/resource.hpp>
 #include <rapids_triton/triton/backend.hpp>
 #include <rapids_triton/triton/device.hpp>
 #include <rapids_triton/triton/logging.hpp>
-#include <rapids_triton/memory/resource.hpp>
 #include <string>
 
 namespace triton {
@@ -44,19 +44,14 @@ inline auto* initialize(TRITONBACKEND_Backend* backend)
     }
     if constexpr (IS_GPU_BUILD) {
       auto device_count = int{};
-      auto cuda_err = cudaGetDeviceCount(&device_count);
+      auto cuda_err     = cudaGetDeviceCount(&device_count);
       if (device_count > 0 && cuda_err == cudaSuccess) {
         auto device_id = int{};
         cuda_check(cudaGetDevice(&device_id));
-        auto* triton_manager = static_cast<TRITONBACKEND_MemoryManager*>(
-          nullptr
-        );
+        auto* triton_manager = static_cast<TRITONBACKEND_MemoryManager*>(nullptr);
         triton_check(TRITONBACKEND_BackendMemoryManager(backend, &triton_manager));
 
-        setup_memory_resource(
-          static_cast<device_id_t>(device_id),
-          triton_manager
-        );
+        setup_memory_resource(static_cast<device_id_t>(device_id), triton_manager);
       }
     }
   } catch (TritonException& err) {

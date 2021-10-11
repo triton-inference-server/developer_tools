@@ -16,25 +16,27 @@
 
 #pragma once
 
+#include <triton/core/tritonbackend.h>
+#include <triton/core/tritonserver.h>
 #include <cstddef>
 #include <cstdint>
-#include <stdexcept>
-#include <utility>
 #include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/triton/device.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/mr/device/device_memory_resource.hpp>
-#include <triton/core/tritonbackend.h>
-#include <triton/core/tritonserver.h>
+#include <stdexcept>
+#include <utility>
 
 namespace triton {
 namespace backend {
 namespace rapids {
 struct triton_memory_resource final : public rmm::mr::device_memory_resource {
-  triton_memory_resource(
-    TRITONBACKEND_MemoryManager* manager,
-    device_id_t device_id,
-    rmm::mr::device_memory_resource* fallback) : manager_{manager}, device_id_{device_id}, fallback_{fallback} {}
+  triton_memory_resource(TRITONBACKEND_MemoryManager* manager,
+                         device_id_t device_id,
+                         rmm::mr::device_memory_resource* fallback)
+    : manager_{manager}, device_id_{device_id}, fallback_{fallback}
+  {
+  }
 
   bool supports_streams() const noexcept override { return false; }
   bool supports_get_mem_info() const noexcept override { return false; }
@@ -45,32 +47,25 @@ struct triton_memory_resource final : public rmm::mr::device_memory_resource {
   std::int64_t device_id_;
   rmm::mr::device_memory_resource* fallback_;
 
-  void* do_allocate(std::size_t bytes, rmm::cuda_stream_view stream) override {
+  void* do_allocate(std::size_t bytes, rmm::cuda_stream_view stream) override
+  {
     auto* ptr = static_cast<void*>(nullptr);
     if (manager_ == nullptr) {
       ptr = fallback_->allocate(bytes, stream);
     } else {
       triton_check(TRITONBACKEND_MemoryManagerAllocate(
-        manager_,
-        &ptr,
-        TRITONSERVER_MEMORY_GPU,
-        device_id_,
-        static_cast<std::uint64_t>(bytes)
-      ));
+        manager_, &ptr, TRITONSERVER_MEMORY_GPU, device_id_, static_cast<std::uint64_t>(bytes)));
     }
     return ptr;
   }
 
-  void do_deallocate(void* ptr, std::size_t bytes, rmm::cuda_stream_view stream) {
+  void do_deallocate(void* ptr, std::size_t bytes, rmm::cuda_stream_view stream)
+  {
     if (manager_ == nullptr) {
       fallback_->deallocate(ptr, bytes, stream);
     } else {
-      triton_check(TRITONBACKEND_MemoryManagerFree(
-        manager_,
-        ptr,
-        TRITONSERVER_MEMORY_GPU,
-        device_id_
-      ));
+      triton_check(
+        TRITONBACKEND_MemoryManagerFree(manager_, ptr, TRITONSERVER_MEMORY_GPU, device_id_));
     }
   }
 
@@ -80,10 +75,12 @@ struct triton_memory_resource final : public rmm::mr::device_memory_resource {
     return (other_triton_mr != nullptr && other_triton_mr->get_triton_manager() == manager_);
   }
 
-  std::pair<std::size_t, std::size_t> do_get_mem_info(rmm::cuda_stream_view stream) const override {
+  std::pair<std::size_t, std::size_t> do_get_mem_info(rmm::cuda_stream_view stream) const override
+  {
     return {0, 0};
   }
-
 };
 
-}}}
+}  // namespace rapids
+}  // namespace backend
+}  // namespace triton

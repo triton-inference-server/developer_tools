@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <triton/core/tritonbackend.h>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -24,69 +25,72 @@
 #include <rmm/cuda_device.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
-#include <triton/core/tritonbackend.h>
 
 namespace triton {
 namespace backend {
 namespace rapids {
 namespace detail {
 
-  inline auto& resource_lock() {
-    static auto lock = std::mutex{};
-    return lock;
-  }
+inline auto& resource_lock()
+{
+  static auto lock = std::mutex{};
+  return lock;
+}
 
-  /** A struct used solely to keep memory resources in-scope for the lifetime
-   * of the backend */
-  struct resource_data {
-    resource_data() : base_mr_{},
-                      triton_mrs_{} {}
-    auto* make_new_resource(device_id_t device_id, TRITONBACKEND_MemoryManager* manager) {
-      if (manager == nullptr && triton_mrs_.size() != 0) {
-        manager = triton_mrs_.back().get_triton_manager();
-      }
-      triton_mrs_.emplace_back(manager, device_id, &base_mr_);
-      return &(triton_mrs_.back());
+/** A struct used solely to keep memory resources in-scope for the lifetime
+ * of the backend */
+struct resource_data {
+  resource_data() : base_mr_{}, triton_mrs_{} {}
+  auto* make_new_resource(device_id_t device_id, TRITONBACKEND_MemoryManager* manager)
+  {
+    if (manager == nullptr && triton_mrs_.size() != 0) {
+      manager = triton_mrs_.back().get_triton_manager();
     }
-   private:
-    rmm::mr::cuda_memory_resource base_mr_;
-    std::deque<triton_memory_resource> triton_mrs_;
-  };
-
-  inline auto& get_device_resources() {
-    static auto device_resources = resource_data{};
-    return device_resources;
+    triton_mrs_.emplace_back(manager, device_id, &base_mr_);
+    return &(triton_mrs_.back());
   }
 
-  inline auto is_triton_resource (rmm::cuda_device_id const& device_id) {
-    auto* triton_mr = dynamic_cast<triton_memory_resource*>(
-      rmm::mr::get_per_device_resource(device_id)
-    );
-    return (triton_mr != nullptr && triton_mr->get_triton_manager() != nullptr);
-  }
+ private:
+  rmm::mr::cuda_memory_resource base_mr_;
+  std::deque<triton_memory_resource> triton_mrs_;
+};
+
+inline auto& get_device_resources()
+{
+  static auto device_resources = resource_data{};
+  return device_resources;
+}
+
+inline auto is_triton_resource(rmm::cuda_device_id const& device_id)
+{
+  auto* triton_mr =
+    dynamic_cast<triton_memory_resource*>(rmm::mr::get_per_device_resource(device_id));
+  return (triton_mr != nullptr && triton_mr->get_triton_manager() != nullptr);
+}
 }  // namespace detail
 
-  inline auto* setup_memory_resource(device_id_t device_id, TRITONBACKEND_MemoryManager* triton_manager=nullptr) {
-    auto lock = std::lock_guard<std::mutex>{detail::resource_lock()};
-    auto rmm_device_id = rmm::cuda_device_id{device_id};
+inline auto* setup_memory_resource(device_id_t device_id,
+                                   TRITONBACKEND_MemoryManager* triton_manager = nullptr)
+{
+  auto lock          = std::lock_guard<std::mutex>{detail::resource_lock()};
+  auto rmm_device_id = rmm::cuda_device_id{device_id};
 
-    if (!detail::is_triton_resource(rmm_device_id)) {
-      auto& device_resources = detail::get_device_resources();
-      rmm::mr::set_per_device_resource(
-        rmm_device_id, device_resources.make_new_resource(device_id, triton_manager));
-    }
-
-    return rmm::mr::get_per_device_resource(rmm_device_id);
+  if (!detail::is_triton_resource(rmm_device_id)) {
+    auto& device_resources = detail::get_device_resources();
+    rmm::mr::set_per_device_resource(rmm_device_id,
+                                     device_resources.make_new_resource(device_id, triton_manager));
   }
 
-  inline auto* get_memory_resource(device_id_t device_id) {
-    auto rmm_device_id = rmm::cuda_device_id{device_id};
-    return rmm::mr::get_per_device_resource(rmm_device_id);
-  }
+  return rmm::mr::get_per_device_resource(rmm_device_id);
+}
 
-  inline auto* get_memory_resource() {
-    return rmm::mr::get_current_device_resource();
-  }
+inline auto* get_memory_resource(device_id_t device_id)
+{
+  auto rmm_device_id = rmm::cuda_device_id{device_id};
+  return rmm::mr::get_per_device_resource(rmm_device_id);
+}
+
+inline auto* get_memory_resource() { return rmm::mr::get_current_device_resource(); }
 
 }  // namespace rapids
 }  // namespace backend
