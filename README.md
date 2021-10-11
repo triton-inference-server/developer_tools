@@ -74,7 +74,7 @@ backend is defining the `predict` function for your model as shown below:
     rapids::Tensor<float> input = get_input<float>(batch, "input__0");
     rapids::Tensor<float> output = get_output<float>(batch, "output__0");
 
-    rapids::copy<float const>(output, input);
+    rapids::copy(output, input);
 
     output.finalize();
   }

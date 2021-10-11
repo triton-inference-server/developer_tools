@@ -83,7 +83,7 @@ TEST(RapidsTriton, tensor_copy)
   auto data2   = std::vector<int>(data1.size());
   auto tensor2 = Tensor<int>(shape, Buffer<int>{data.data(), data.size(), HostMemory});
 
-  copy(tensor2, tensor1);
+  rapids::copy(tensor2, tensor1);
 
   auto data_out = std::vector<int>(tensor2.data(), tensor2.data() + tensor2.size());
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
@@ -93,7 +93,7 @@ TEST(RapidsTriton, tensor_copy)
   auto tensor3 =
     Tensor<int>(small_shape, Buffer<int>{small_data.data(), small_data.size(), HostMemory});
 
-  EXPECT_THROW(copy(tensor3, tensor1), TritonException);
+  EXPECT_THROW(rapids::copy(tensor3, tensor1), TritonException);
 }
 
 TEST(RapidsTriton, tensor_multi_copy)

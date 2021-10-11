@@ -87,7 +87,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     // 3. Perform inference. In this example, we simply copy the data from the
     // input to the output tensor.
-    rapids::copy<float const>(output, input);
+    rapids::copy(output, input);
 
     // 4. Call finalize on all output tensors. In this case, we have just one
     // output, so we call finalize on it.

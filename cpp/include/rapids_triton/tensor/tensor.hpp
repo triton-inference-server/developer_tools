@@ -171,8 +171,8 @@ struct OutputTensor final : BaseTensor<T> {
   std::shared_ptr<BackendOutputResponder> responder_;
 };
 
-template <typename T>
-void copy(BaseTensor<std::remove_const_t<T>>& dst, BaseTensor<T>& src)
+template <typename T, typename U, typename = std::enable_if_t<std::is_same_v<std::remove_const_t<U>, T>>>
+void copy(BaseTensor<T>& dst, BaseTensor<U>& src)
 {
   copy(dst.buffer(), src.buffer());
 }
