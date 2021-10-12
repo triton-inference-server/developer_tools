@@ -35,8 +35,8 @@ To contribute code to this project, please follow these steps:
 1. Find an issue to work on or submit an issue documenting the problem you
    would like to work on.
 2. Comment on the issue saying that you plan to work on it.
-3. Review the implementation details section below for information to help you
-   make your changes in a way that is consistent with the rest of the codebase.
+3. Review the conventions below for information to help you make your changes
+   in a way that is consistent with the rest of the codebase.
 4. Code!
 5. Create your pull request.
 6. Wait for other developers to review your code and update your PR as needed.
@@ -45,8 +45,15 @@ To contribute code to this project, please follow these steps:
 ### Coding Conventions
 * RAPIDS-Triton follows [Almost Always Auto
   (AAA)](https://herbsutter.com/2013/08/12/gotw-94-solution-aaa-style-almost-always-auto/)
-  style. Please maintain this style in any contributions.
-* Avoid raw loops where possible
+  style. Please maintain this style in any contributions, with the possible
+  exception of some docs, where type information may be helpful for new users
+  trying to understand a snippet in isolation.
+* Avoid raw loops where possible.
+* C++ versions of types should be used instead of C versions except when
+  interfacing with C code (e.g. use `std::size_t` instead of `size_t`).
+* Avoid using output pointers in function signatures. Prefer instead to
+  actually return the value computed by the function and take advantage of
+  return value optimization and move semantics.
 
 ### Signing Your Work
 * We require that all contributors "sign-off" on their commits. This certifies that the contribution is your original work, or you have rights to submit it under the same license, or a compatible license.
