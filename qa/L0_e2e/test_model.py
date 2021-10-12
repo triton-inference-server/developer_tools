@@ -48,9 +48,9 @@ def get_ground_truth(inputs):
 def test_model(model_name, model_inputs, model_output_sizes):
     client = Client()
     result = client.predict(model_name, model_inputs, model_output_sizes)
-    shm_result = client.predict(
-        model_name, model_inputs, model_output_sizes, shared_mem='cuda'
-    )
+    # shm_result = client.predict(
+    #     model_name, model_inputs, model_output_sizes, shared_mem='cuda'
+    # )
     ground_truth = get_ground_truth(model_inputs)
 
     for output_name in sorted(ground_truth.keys()):
@@ -60,9 +60,9 @@ def test_model(model_name, model_inputs, model_output_sizes):
             atol=1e-5,
             assert_close=True
         )
-        arrays_close(
-            shm_result[output_name],
-            ground_truth[output_name],
-            atol=1e-5,
-            assert_close=True
-        )
+        # arrays_close(
+        #     shm_result[output_name],
+        #     ground_truth[output_name],
+        #     atol=1e-5,
+        #     assert_close=True
+        # )
