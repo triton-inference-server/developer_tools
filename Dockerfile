@@ -67,6 +67,9 @@ RUN cmake \
       -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
       -DBUILD_TESTS="${BUILD_TESTS}" \
       -DCMAKE_INSTALL_PREFIX=/rapids_triton/install \
+      -DTRITON_COMMON_REPO_TAG="r${TRITON_VERSION}" \
+      -DTRITON_CORE_REPO_TAG="r${TRITON_VERSION}" \
+      -DTRITON_BACKEND_REPO_TAG="r${TRITON_VERSION}" \
       ..
 
 RUN ninja install
