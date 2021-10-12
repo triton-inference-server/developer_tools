@@ -56,7 +56,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     auto alpha = get_shared_state()->alpha;
     if (u.mem_type() == rapids::HostMemory) {
-      for (std::size_t i{}; i < u.size(); ++i) {
+      for (auto i = std::size_t{}; i < u.size(); ++i) {
         r.data()[i] =
             alpha * u.data()[i] + v.data()[i] + c.data()[i % c.size()];
       }
