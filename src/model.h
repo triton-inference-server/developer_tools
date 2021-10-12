@@ -61,8 +61,9 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
             alpha * u.data()[i] + v.data()[i] + c.data()[i % c.size()];
       }
     } else {
+      rapids::cuda_check(cudaSetDevice(get_device_id()));
       gpu_infer(r.data(), u.data(), v.data(), c.data(), alpha, c.size(),
-                u.size());
+                u.size(), r.stream());
     }
 
     r.finalize();
@@ -92,13 +93,19 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     // Construct buffer to hold c based on details of this model deployment
     auto memory_type = rapids::MemoryType{};
-    if (get_deployment_type() == rapids::GPUDeployment) {
-      memory_type = rapids::DeviceMemory;
+    if constexpr (rapids::IS_GPU_BUILD) {
+      if (get_deployment_type() == rapids::GPUDeployment) {
+        memory_type = rapids::DeviceMemory;
+        rapids::cuda_check(cudaSetDevice(get_device_id()));
+      } else {
+        memory_type = rapids::HostMemory;
+      }
     } else {
       memory_type = rapids::HostMemory;
     }
 
-    c = rapids::Buffer<float>(model_vec.size(), memory_type, get_device_id());
+    c = rapids::Buffer<float>(model_vec.size(), memory_type, get_device_id(),
+                              get_stream());
 
     /* Use a Buffer view on model_vec to safely copy data to its final
      * location. Making use of rapids::copy here provides additional safety

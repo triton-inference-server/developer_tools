@@ -404,20 +404,22 @@ __global__ void cu_gpu_infer(float* r, float const* u, float const* v,
     r[id] = alpha * u[id] + v[id] + c[id % features];
   }
 }
+
 void gpu_infer(float* r, float const* u, float const* v, float* c, float alpha,
-               std::size_t features, std::size_t length) {
+               std::size_t features, std::size_t length, cudaStream_t stream) {
   auto constexpr block_size = 1024;
   auto grid_size = static_cast<int>(std::max(1.0f, std::ceil(length /
           static_cast<float>(block_size))));;
-  cu_gpu_infer<<<grid_size, block_size>>>(r, u, v, c, alpha, features, length);
+  cu_gpu_infer<<<grid_size, block_size, 0, stream>>>(r, u, v, c, alpha, features, length);
 }
 ```
 
 and then call it within our RapidsModel `predict` method via:
 
 ```cpp
+rapids::cuda_check(cudaSetDevice(get_device_id()));
 gpu_infer(r.data(), u.data(), v.data(), c.data(), alpha, c.size(),
-        u.size());
+        u.size(), r.stream());
 ```
 
 After the actual inference has been performed, the one remaining task is to

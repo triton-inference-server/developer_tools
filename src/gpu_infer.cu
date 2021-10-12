@@ -16,6 +16,7 @@
 
 #include <cstddef>
 
+#include <cuda_runtime_api.h>
 #include <names.h>
 #include <gpu_infer.h>
 #include <rapids_triton/batch/batch.hpp>
@@ -35,11 +36,11 @@ __global__ void cu_gpu_infer(float* r, float const* u, float const* v,
 }
 
 void gpu_infer(float* r, float const* u, float const* v, float* c, float alpha,
-               std::size_t features, std::size_t length) {
+               std::size_t features, std::size_t length, cudaStream_t stream) {
   auto constexpr block_size = 1024;
   auto grid_size = static_cast<int>(std::max(1.0f, std::ceil(length /
           static_cast<float>(block_size))));;
-  cu_gpu_infer<<<grid_size, block_size>>>(r, u, v, c, alpha, features, length);
+  cu_gpu_infer<<<grid_size, block_size, 0, stream>>>(r, u, v, c, alpha, features, length);
 }
 
 }}}

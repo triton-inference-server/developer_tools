@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cuda_runtime_api.h>
 #include <names.h>
 
 #include <cstddef>
@@ -27,7 +28,7 @@ namespace backend {
 namespace NAMESPACE {
 
 void gpu_infer(float* r, float const* u, float const* v, float* c, float alpha,
-               std::size_t features, std::size_t length);
+               std::size_t features, std::size_t length, cudaStream_t stream);
 }
 }  // namespace backend
 }  // namespace triton
