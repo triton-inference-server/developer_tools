@@ -89,6 +89,12 @@ auto* execute(TRITONBACKEND_ModelInstance* instance,
                        max_batch_size,
                        model.get_stream());
 
+    if constexpr (IS_GPU_BUILD) {
+      if (model.get_deployment_type() == GPUDeployment) {
+        cuda_check(cudaSetDevice(model.get_device_id()));
+      }
+    }
+
     auto predict_err = static_cast<TRITONSERVER_Error*>(nullptr);
     try {
       model.predict(batch);
