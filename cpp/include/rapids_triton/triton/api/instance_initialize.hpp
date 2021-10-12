@@ -20,6 +20,7 @@
 #include <triton/backend/backend_model_instance.h>
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
+#include <rapids_triton/triton/deployment.hpp>
 #include <rapids_triton/triton/logging.hpp>
 #include <rapids_triton/triton/model.hpp>
 #include <rapids_triton/triton/model_instance.hpp>
@@ -48,6 +49,12 @@ auto* instance_initialize(TRITONBACKEND_ModelInstance* instance)
     }
 
     auto rapids_model = std::make_unique<ModelInstanceState>(*model_state, instance);
+    if constexpr (IS_GPU_BUILD) {
+      auto& model = rapids_model->get_model();
+      if (model.get_deployment_type() == GPUDeployment) {
+        cuda_check(cudaSetDevice(model.get_device_id()));
+      }
+    }
     rapids_model->load();
 
     set_instance_state<ModelInstanceState>(*instance, std::move(rapids_model));
