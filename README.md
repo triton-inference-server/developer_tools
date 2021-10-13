@@ -46,7 +46,7 @@ configuration file and loading model resources.
 This example is intended to provide a fair amount of depth about backend
 development with RAPIDS-Triton. For a simpler example, check out the
 pass-through backend in the main [RAPIDS-Triton
-repo](https://github.com/rapidsai/rapids-triton/tree/fea-initial#simple-example).
+repo](https://github.com/rapidsai/rapids-triton#simple-example).
 For even more detail on RAPIDS-Triton features introduced here, check out the
 API documentation.
 
@@ -473,7 +473,7 @@ environment as follows:
 ```bash
 conda env create -f conda/environments/rapids_triton_test.yml
 conda activate rapids_triton_test
-python -m pip install git+https://github.com/rapidsai/rapids-triton.git@fea-initial#subdirectory=python
+python -m pip install git+https://github.com/rapidsai/rapids-triton.git#subdirectory=python
 ```
 
 To use it for a basic test, we might execute something like the following
@@ -529,12 +529,14 @@ steps, you should be able to integrate almost any algorithm for deployment with
 Triton.
 
 While we have tried to cover a wide variety of possible use cases with this
-example, there is much more to explore in the RAPIDS-Triton API documentation.
-If there is something you would like to do with RAPIDS-Triton which does not
-seem to be covered by the available API or if something is not working as
-expected, please submit a feature request or bug report to the [RAPIDS-Triton
-issue tracker](https://github.com/rapidsai/rapids-triton/issues). If you think
-this example could be improved or expanded in some way, please [submit a pull
+example, there is more to explore in the [RAPIDS-Triton
+documentation](https://github.com/rapidsai/rapids-triton/blob/main/docs/usage.md)
+itself.  If there is something you would like to do with RAPIDS-Triton which
+does not seem to be covered by the available API or if something is not working
+as expected, please submit a feature request or bug report to the
+[RAPIDS-Triton issue
+tracker](https://github.com/rapidsai/rapids-triton/issues). If you think this
+example could be improved or expanded in some way, please [submit a pull
 request](https://github.com/rapidsai/rapids-triton-linear-example/pulls) or
 [issue](https://github.com/rapidsai/rapids-triton-linear-example/issues) to
 this repo.
