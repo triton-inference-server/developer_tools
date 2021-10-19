@@ -26,6 +26,8 @@
 #include <iterator>
 #include <memory>
 #include <numeric>
+#include <rapids_triton/build_control.hpp>
+#include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/buffer.hpp>
 #include <rapids_triton/memory/types.hpp>
 #include <rapids_triton/tensor/tensor.hpp>
@@ -149,6 +151,14 @@ struct Batch {
                                &reported_bytes,
                                &reported_mem_type,
                                &reported_device_id));
+
+    if(collector_.Finalize()){
+      if constexpr (IS_GPU_BUILD) {
+        cuda_check(cudaStreamSynchronize(stream_));
+      } else {
+        throw TritonException(Error::Internal, "stream synchronization required in non-GPU build");
+      }
+    }
 
     std::for_each(std::begin(responses_), std::end(responses_), [](auto* response) {
       if (response == nullptr) {
