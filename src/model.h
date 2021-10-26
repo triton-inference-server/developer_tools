@@ -61,7 +61,6 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
             alpha * u.data()[i] + v.data()[i] + c.data()[i % c.size()];
       }
     } else {
-      rapids::cuda_check(cudaSetDevice(get_device_id()));
       gpu_infer(r.data(), u.data(), v.data(), c.data(), alpha, c.size(),
                 u.size(), r.stream());
     }
@@ -96,7 +95,6 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
     if constexpr (rapids::IS_GPU_BUILD) {
       if (get_deployment_type() == rapids::GPUDeployment) {
         memory_type = rapids::DeviceMemory;
-        rapids::cuda_check(cudaSetDevice(get_device_id()));
       } else {
         memory_type = rapids::HostMemory;
       }
