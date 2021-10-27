@@ -417,7 +417,6 @@ void gpu_infer(float* r, float const* u, float const* v, float* c, float alpha,
 and then call it within our RapidsModel `predict` method via:
 
 ```cpp
-rapids::cuda_check(cudaSetDevice(get_device_id()));
 gpu_infer(r.data(), u.data(), v.data(), c.data(), alpha, c.size(),
         u.size(), r.stream());
 ```
