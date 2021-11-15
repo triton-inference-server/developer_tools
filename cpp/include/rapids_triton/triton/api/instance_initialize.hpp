@@ -37,6 +37,11 @@ auto* instance_initialize(TRITONBACKEND_ModelInstance* instance)
     auto name            = get_model_instance_name(*instance);
     auto device_id       = get_device_id(*instance);
     auto deployment_type = get_deployment_type(*instance);
+    if constexpr (!IS_GPU_BUILD) {
+      if (deployment_type == GPUDeployment) {
+        throw TritonException(Error::Unsupported, "KIND_GPU cannot be used in CPU-only build");
+      }
+    }
 
     log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelInstanceInitialize: " << name << " ("
                                  << TRITONSERVER_InstanceGroupKindString(deployment_type)

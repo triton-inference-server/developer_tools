@@ -2,12 +2,14 @@
 # Arguments for controlling build details
 ###########################################################################################
 # Version of Triton to use
-ARG TRITON_VERSION=21.09
+ARG TRITON_VERSION=21.10
 # Base container image
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 # Whether or not to build indicated components
 ARG BUILD_TESTS=OFF
 ARG BUILD_EXAMPLE=ON
+# Whether or not to enable GPU build
+ARG TRITON_ENABLE_GPU=ON
 
 FROM ${BASE_IMAGE} as base
 
@@ -53,6 +55,8 @@ ARG BUILD_TESTS
 ENV BUILD_TESTS=$BUILD_TESTS
 ARG BUILD_EXAMPLE
 ENV BUILD_EXAMPLE=$BUILD_EXAMPLE
+ARG TRITON_ENABLE_GPU
+ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 
 RUN mkdir /rapids_triton/build
 
@@ -63,6 +67,7 @@ RUN cmake \
       -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
       -DBUILD_TESTS="${BUILD_TESTS}" \
       -DBUILD_EXAMPLE="${BUILD_EXAMPLE}" \
+      -DTRITON_ENABLE_GPU="${TRITON_ENABLE_GPU}" \
       ..
 
 RUN ninja install

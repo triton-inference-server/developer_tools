@@ -24,7 +24,11 @@ include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
 
-rapids_cuda_init_architectures(RAPIDS_TRITON)
+option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
+
+if(TRITON_ENABLE_GPU)
+  rapids_cuda_init_architectures(RAPIDS_TRITON)
+endif()
 
 project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX CUDA)
 
@@ -48,7 +52,6 @@ option(CUDA_STATIC_RUNTIME "Statically link the CUDA runtime" OFF)
 option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies" ON)
 option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
 option(NVTX "Enable nvtx markers" OFF)
-option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
 option(TRITON_ENABLE_STATS "Enable statistics collection in Triton" ON)
 set(TRITON_COMMON_REPO_TAG "r21.08" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "r21.08" CACHE STRING "Tag for triton-inference-server/core repo")
@@ -102,8 +105,11 @@ include(cmake/modules/ConfigureCUDA.cmake)
 # add third party dependencies using CPM
 rapids_cpm_init()
 
-include(cmake/thirdparty/get_rmm.cmake)
-include(cmake/thirdparty/get_raft.cmake)
+if(TRITON_ENABLE_GPU)
+  include(cmake/thirdparty/get_rmm.cmake)
+  include(cmake/thirdparty/get_raft.cmake)
+endif()
+
 include(cmake/thirdparty/get_rapidjson.cmake)
 include(cmake/thirdparty/get_triton.cmake)
 
@@ -119,15 +125,26 @@ add_library(rapids_triton::rapids_triton ALIAS rapids_triton)
 target_include_directories(rapids_triton INTERFACE "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/include>"
                                           "$<INSTALL_INTERFACE:include>")
 
-target_link_libraries(rapids_triton
-INTERFACE
-  rmm::rmm
-  raft::raft
-  triton-core-serverstub
-  triton-backend-utils
+if(TRITON_ENABLE_GPU)
+  target_link_libraries(rapids_triton
+  INTERFACE
+    rmm::rmm
+    raft::raft
+    triton-core-serverstub
+    triton-backend-utils
   )
+else()
+  target_link_libraries(rapids_triton
+  INTERFACE
+    triton-core-serverstub
+    triton-backend-utils
+  )
+endif()
 
-target_compile_features(rapids_triton INTERFACE cxx_std_17 $<BUILD_INTERFACE:cuda_std_17>)
+target_compile_features(
+  rapids_triton INTERFACE cxx_std_17
+  $<$<AND:BUILD_INTERFACE,TRITON_ENABLE_GPU>:cuda_std_17>
+)
 
 rapids_cmake_install_lib_dir(lib_dir)
 install(TARGETS rapids_triton

@@ -15,25 +15,39 @@
  */
 
 #pragma once
-#include <triton/core/tritonbackend.h>
-
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/memory/detail/resource.hpp>
-#include <rapids_triton/triton/device.hpp>
 #ifdef TRITON_ENABLE_GPU
-#include <rapids_triton/memory/detail/gpu_only/resource.hpp>
+#include <cuda_runtime_api.h>
 #else
-#include <rapids_triton/memory/detail/cpu_only/resource.hpp>
-#endif
 
 namespace triton {
 namespace backend {
 namespace rapids {
 
-inline void setup_memory_resource(device_id_t device_id, TRITONBACKEND_MemoryManager* triton_manager = nullptr) {
-  detail::setup_memory_resource<IS_GPU_BUILD>(device_id, triton_manager);
+using cudaStream_t = void*;
+
+enum struct cudaError_t {cudaSuccess, cudaNonGpuBuildError};
+auto constexpr cudaSuccess = cudaError_t::cudaSuccess;
+
+inline void cudaGetLastError() {}
+
+inline auto const * cudaGetErrorString(cudaError_t err) {
+  return "CUDA function used in non-GPU build";
 }
+
+inline auto cudaStreamSynchronize(cudaStream_t stream) {
+  return cudaError_t::cudaNonGpuBuildError;
+}
+
+inline auto cudaGetDevice(int* device_id) {
+  return cudaError_t::cudaNonGpuBuildError;
+}
+
+inline auto cudaGetDeviceCount(int* count) {
+  return cudaError_t::cudaNonGpuBuildError;
+}
+
 
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton
+#endif

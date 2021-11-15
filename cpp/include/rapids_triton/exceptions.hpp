@@ -15,9 +15,14 @@
  */
 
 #pragma once
+#ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+#else
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#endif
 #include <triton/core/tritonserver.h>
 #include <exception>
+#include <rapids_triton/build_control.hpp>
 #include <string>
 
 namespace triton {
@@ -74,9 +79,13 @@ inline void triton_check(TRITONSERVER_Error* err)
 
 inline void cuda_check(cudaError_t const& err)
 {
-  if (err != cudaSuccess) {
-    cudaGetLastError();
-    throw TritonException(Error::Internal, cudaGetErrorString(err));
+  if constexpr (IS_GPU_BUILD) {
+    if (err != cudaSuccess) {
+      cudaGetLastError();
+      throw TritonException(Error::Internal, cudaGetErrorString(err));
+    }
+  } else {
+    throw TritonException(Error::Internal, "cuda_check used in non-GPU build");
   }
 }
 

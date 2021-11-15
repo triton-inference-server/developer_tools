@@ -15,25 +15,35 @@
  */
 
 #pragma once
-#include <triton/core/tritonbackend.h>
+#include <cstddef>
+#include <cstring>
 
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/memory/detail/resource.hpp>
-#include <rapids_triton/triton/device.hpp>
-#ifdef TRITON_ENABLE_GPU
-#include <rapids_triton/memory/detail/gpu_only/resource.hpp>
-#else
-#include <rapids_triton/memory/detail/cpu_only/resource.hpp>
+#ifndef TRITON_ENABLE_GPU
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
 #endif
+#include <rapids_triton/memory/types.hpp>
 
 namespace triton {
 namespace backend {
 namespace rapids {
+namespace detail {
 
-inline void setup_memory_resource(device_id_t device_id, TRITONBACKEND_MemoryManager* triton_manager = nullptr) {
-  detail::setup_memory_resource<IS_GPU_BUILD>(device_id, triton_manager);
+template <typename T>
+void copy(T* dst,
+          T const* src,
+          std::size_t len,
+          cudaStream_t stream,
+          MemoryType dst_type,
+          MemoryType src_type)
+{
+  if (dst_type == DeviceMemory || src_type == DeviceMemory) {
+    throw TritonException(Error::Internal, "Cannot copy device memory in non-GPU build");
+  } else {
+    std::memcpy(dst, src, len * sizeof(T));
+  }
 }
 
+}  // namespace detail
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton

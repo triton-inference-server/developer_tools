@@ -20,16 +20,27 @@ add_library(
   src/api.cc
 )
 
-set_target_properties(triton_rapids-identity
-PROPERTIES BUILD_RPATH                         "\$ORIGIN"
-           # set target compile options
-           CXX_STANDARD                        17
-           CXX_STANDARD_REQUIRED               ON
-           CUDA_STANDARD                       17
-           CUDA_STANDARD_REQUIRED              ON
-           POSITION_INDEPENDENT_CODE           ON
-           INTERFACE_POSITION_INDEPENDENT_CODE ON
-)
+if(TRITON_ENABLE_GPU)
+  set_target_properties(triton_rapids-identity
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             CUDA_STANDARD                       17
+             CUDA_STANDARD_REQUIRED              ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
+else()
+  set_target_properties(triton_rapids-identity
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
+endif()
 
 target_compile_options(triton_rapids-identity
         PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_CXX_FLAGS}>"
@@ -41,15 +52,25 @@ target_include_directories(triton_rapids-identity
             "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
-target_link_libraries(triton_rapids-identity
-PRIVATE
-  rmm::rmm
-  raft::raft
-  triton-core-serverstub
-  triton-backend-utils
-  "${TRITONSERVER_LIB}"
-  $<TARGET_NAME_IF_EXISTS:conda_env>
-)
+if(TRITON_ENABLE_GPU)
+  target_link_libraries(triton_rapids-identity
+  PRIVATE
+    rmm::rmm
+    raft::raft
+    triton-core-serverstub
+    triton-backend-utils
+    "${TRITONSERVER_LIB}"
+    $<TARGET_NAME_IF_EXISTS:conda_env>
+  )
+else()
+  target_link_libraries(triton_rapids-identity
+  PRIVATE
+    triton-core-serverstub
+    triton-backend-utils
+    "${TRITONSERVER_LIB}"
+    $<TARGET_NAME_IF_EXISTS:conda_env>
+  )
+endif()
 
 install(
   TARGETS triton_rapids-identity

@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
+// TODO(wphicks) <<<<<
 #include <cuda_runtime_api.h>
+#else
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
@@ -30,12 +33,12 @@ namespace rapids {
 TEST(RapidsTriton, get_memory_resource)
 {
   if constexpr (IS_GPU_BUILD) {
-    auto device_id = int{};
+    /* auto device_id = int{};
     cuda_check(cudaGetDevice(&device_id));
     EXPECT_EQ(get_memory_resource(device_id)->is_equal(rmm::mr::cuda_memory_resource{}), true);
     setup_memory_resource(device_id);
     EXPECT_EQ(get_memory_resource(device_id)->is_equal(rmm::mr::cuda_memory_resource{}), false);
-    EXPECT_EQ(get_memory_resource(device_id), get_memory_resource());
+    EXPECT_EQ(get_memory_resource(device_id), get_memory_resource()); */
   }
 }
 

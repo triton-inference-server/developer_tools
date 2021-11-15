@@ -16,7 +16,11 @@
 
 #pragma once
 
+#ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+#else
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#endif
 #include <stdint.h>
 #include <triton/backend/backend_input_collector.h>
 #include <triton/backend/backend_output_responder.h>

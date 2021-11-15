@@ -315,22 +315,10 @@ many instances of a given model are created.
 
 ## Other Memory Allocations
 For most device memory allocations, it is strongly recommended that you simply
-construct a `Buffer` of the correct size and type. However, if you do not wish
-to use a `Buffer` in a particular context, you are encouraged to allocate and
-deallocate device memory using [RMM](https://github.com/rapidsai/rmm). Any
+construct a `Buffer` of the correct size and type. However, if you absolutely
+cannot use a `Buffer` in a particular context, you are encouraged to allocate
+and deallocate device memory using [RMM](https://github.com/rapidsai/rmm). Any
 memory managed in this way will make use of Triton's CUDA memory pool, which
-will be faster than performing individual allocations. Memory can be allocated
-and deallocated using RMM as follows:
-
-```cpp
-#include <rmm/mr/device/per_device_resource.hpp>
-
-void rmm_example(std::size_t number_of_bytes, cudaStream_t stream) {
-  void* data = rmm::get_current_device_resource()->allocate(number_of_bytes, stream);
-  rmm::get_current_device_resource()->deallocate(data, number_of_bytes);
-}
-```
-
-It is strongly recommended that you not change the RMM device resource in your
-backend, since doing so will cause allocations to no longer make use of
-Triton's memory pool.
+will be faster than performing individual allocations. It is strongly
+recommended that you not change the RMM device resource in your backend, since
+doing so will cause allocations to no longer make use of Triton's memory pool.

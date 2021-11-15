@@ -15,25 +15,29 @@
  */
 
 #pragma once
-#include <triton/core/tritonbackend.h>
-
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/memory/detail/resource.hpp>
+#include <cstddef>
+#include <type_traits>
+#include <rapids_triton/memory/detail/owned_device_buffer.hpp>
 #include <rapids_triton/triton/device.hpp>
-#ifdef TRITON_ENABLE_GPU
-#include <rapids_triton/memory/detail/gpu_only/resource.hpp>
-#else
-#include <rapids_triton/memory/detail/cpu_only/resource.hpp>
-#endif
 
 namespace triton {
 namespace backend {
 namespace rapids {
+namespace detail {
 
-inline void setup_memory_resource(device_id_t device_id, TRITONBACKEND_MemoryManager* triton_manager = nullptr) {
-  detail::setup_memory_resource<IS_GPU_BUILD>(device_id, triton_manager);
-}
+template<typename T>
+struct owned_device_buffer<T, false> {
+  using non_const_T = std::remove_const_t<T>;
+  owned_device_buffer(device_id_t device_id, std::size_t size, cudaStream_t stream)
+  {
+    throw TritonException(Error::Internal,
+                          "Attempted to use device buffer in non-GPU build");
+  }
 
+  auto* get() const { return static_cast<T*>(nullptr); }
+};
+
+}  // namespace detail
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton
