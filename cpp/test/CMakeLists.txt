@@ -47,16 +47,27 @@ add_executable(test_rapids_triton
     test/utils/narrow.cpp
 )
 
-set_target_properties(test_rapids_triton
-PROPERTIES BUILD_RPATH                         "\$ORIGIN"
-           # set target compile options
-           CXX_STANDARD                        17
-           CXX_STANDARD_REQUIRED               ON
-           CUDA_STANDARD                       17
-           CUDA_STANDARD_REQUIRED              ON
-           POSITION_INDEPENDENT_CODE           ON
-           INTERFACE_POSITION_INDEPENDENT_CODE ON
-)
+IF(TRITON_ENABLE_GPU)
+  set_target_properties(test_rapids_triton
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             CUDA_STANDARD                       17
+             CUDA_STANDARD_REQUIRED              ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
+else()
+  set_target_properties(test_rapids_triton
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
+endif()
 
 target_compile_options(test_rapids_triton
         PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_CXX_FLAGS}>"
@@ -75,16 +86,30 @@ find_library(
   PATHS /opt/tritonserver/lib
 )
 
-target_link_libraries(test_rapids_triton
-PRIVATE
-  rmm::rmm
-  raft::raft
-  triton-core-serverstub
-  triton-backend-utils
-  gmock
-  gmock_main
-  GTest::gtest
-  GTest::gtest_main
-  "${TRITONSERVER_LIB}"
-  $<TARGET_NAME_IF_EXISTS:conda_env>
-)
+IF(TRITON_ENABLE_GPU)
+  target_link_libraries(test_rapids_triton
+  PRIVATE
+    rmm::rmm
+    raft::raft
+    triton-core-serverstub
+    triton-backend-utils
+    gmock
+    gmock_main
+    GTest::gtest
+    GTest::gtest_main
+    "${TRITONSERVER_LIB}"
+    $<TARGET_NAME_IF_EXISTS:conda_env>
+  )
+else()
+  target_link_libraries(test_rapids_triton
+  PRIVATE
+    triton-core-serverstub
+    triton-backend-utils
+    gmock
+    gmock_main
+    GTest::gtest
+    GTest::gtest_main
+    "${TRITONSERVER_LIB}"
+    $<TARGET_NAME_IF_EXISTS:conda_env>
+  )
+endif()

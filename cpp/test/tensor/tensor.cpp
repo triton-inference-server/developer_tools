@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+#ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+#else
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#endif
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -62,6 +66,7 @@ TEST(RapidsTriton, multi_buffer_tensor)
   std::transform(data.begin(), data.end(), std::back_inserter(all_buffers), [](auto& elem) {
     return Buffer<int>{&elem, 1, DeviceMemory};
   });
+#ifdef TRITON_ENABLE_GPU
   auto tensor =
     Tensor<int>(shape, all_buffers.begin(), all_buffers.end(), DeviceMemory, 0, cudaStream_t{});
 
@@ -71,6 +76,7 @@ TEST(RapidsTriton, multi_buffer_tensor)
              sizeof(int) * tensor.size(),
              cudaMemcpyDeviceToHost);
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+#endif
 }
 
 TEST(RapidsTriton, tensor_copy)

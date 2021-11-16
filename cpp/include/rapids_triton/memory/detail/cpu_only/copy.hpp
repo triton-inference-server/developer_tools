@@ -21,6 +21,7 @@
 #ifndef TRITON_ENABLE_GPU
 #include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
 #endif
+#include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/types.hpp>
 
 namespace triton {

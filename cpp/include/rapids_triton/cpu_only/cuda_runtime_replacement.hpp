@@ -25,7 +25,8 @@ namespace rapids {
 
 using cudaStream_t = void*;
 
-enum struct cudaError_t {cudaSuccess, cudaNonGpuBuildError};
+enum struct cudaError_t {cudaSuccess, cudaErrorNonGpuBuild};
+using cudaError = cudaError_t;
 auto constexpr cudaSuccess = cudaError_t::cudaSuccess;
 
 inline void cudaGetLastError() {}
@@ -35,15 +36,15 @@ inline auto const * cudaGetErrorString(cudaError_t err) {
 }
 
 inline auto cudaStreamSynchronize(cudaStream_t stream) {
-  return cudaError_t::cudaNonGpuBuildError;
+  return cudaError_t::cudaErrorNonGpuBuild;
 }
 
 inline auto cudaGetDevice(int* device_id) {
-  return cudaError_t::cudaNonGpuBuildError;
+  return cudaError_t::cudaErrorNonGpuBuild;
 }
 
 inline auto cudaGetDeviceCount(int* count) {
-  return cudaError_t::cudaNonGpuBuildError;
+  return cudaError_t::cudaErrorNonGpuBuild;
 }
 
 
