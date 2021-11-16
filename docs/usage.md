@@ -123,6 +123,26 @@ conditional inclusion of headers:
 #endif
 ```
 
+Sometimes, having a CUDA symbol available in a CPU-only build can avoid layers
+of indirection which would otherwise be required to allow for compilation of
+both GPU and CPU versions of particular code. RAPIDS-Triton includes a header
+which has some placeholders for CUDA symbols used internally by the library,
+and which may be useful for backends which implement CPU-only builds as well.
+Note that all placeholder symbols are namespaced within
+`triton::backend::rapids`. Note that not all symbols from the CUDA runtime API
+are included, but additional symbols will be added over time. All placeholder
+symbols will be implemented in a way that is consistent with similar
+placeholders in the main Triton codebase. A typical usage is shown below:
+```cpp
+#ifdef TRITON_ENABLE_GPU
+#include <cuda_runtime_api.h>
+#else
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#endif
+// E.g. cudaStream_t is now defined regardless of whether or not this is a
+// CPU-only build.
+```
+
 ## Buffers
 Within a backend, it is often useful to process data in a way that is agnostic
 to whether the underlying memory is on the host or on device and whether that
