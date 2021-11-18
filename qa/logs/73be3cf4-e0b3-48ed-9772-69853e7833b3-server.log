@@ -1,5 +1,0 @@
-I1117 22:19:53.638353 1 metrics.cc:298] Collecting metrics for GPU 0: Quadro RTX 8000
-I1117 22:19:53.638528 1 metrics.cc:298] Collecting metrics for GPU 1: Quadro RTX 8000
-I1117 22:19:53.928328 1 libtorch.cc:1092] TRITONBACKEND_Initialize: pytorch
-I1117 22:19:53.928356 1 libtorch.cc:1102] Triton TRITONBACKEND API version: 1.6
-I1117 22:19:53.928361 1 libtorch.cc:1108] 'pytorch' TRITONBACKEND API version: 1.6
