@@ -1,0 +1,77 @@
+W1118 16:37:43.979175 59 metrics.cc:282] Cannot get CUDA device count, GPU metrics will not be available
+I1118 16:37:44.225688 59 libtorch.cc:1092] TRITONBACKEND_Initialize: pytorch
+I1118 16:37:44.225720 59 libtorch.cc:1102] Triton TRITONBACKEND API version: 1.6
+I1118 16:37:44.225728 59 libtorch.cc:1108] 'pytorch' TRITONBACKEND API version: 1.6
+2021-11-18 16:37:44.506800: I tensorflow/stream_executor/platform/default/dso_loader.cc:49] Successfully opened dynamic library libcudart.so.11.0
+I1118 16:37:44.621643 59 tensorflow.cc:2170] TRITONBACKEND_Initialize: tensorflow
+I1118 16:37:44.621689 59 tensorflow.cc:2180] Triton TRITONBACKEND API version: 1.6
+I1118 16:37:44.621696 59 tensorflow.cc:2186] 'tensorflow' TRITONBACKEND API version: 1.6
+I1118 16:37:44.621702 59 tensorflow.cc:2210] backend configuration:
+{}
+I1118 16:37:44.623264 59 onnxruntime.cc:1999] TRITONBACKEND_Initialize: onnxruntime
+I1118 16:37:44.623283 59 onnxruntime.cc:2009] Triton TRITONBACKEND API version: 1.6
+I1118 16:37:44.623289 59 onnxruntime.cc:2015] 'onnxruntime' TRITONBACKEND API version: 1.6
+I1118 16:37:44.645064 59 openvino.cc:1193] TRITONBACKEND_Initialize: openvino
+I1118 16:37:44.645082 59 openvino.cc:1203] Triton TRITONBACKEND API version: 1.6
+I1118 16:37:44.645088 59 openvino.cc:1209] 'openvino' TRITONBACKEND API version: 1.6
+W1118 16:37:44.645107 59 pinned_memory_manager.cc:236] Unable to allocate pinned system memory, pinned memory pool will not be available: no CUDA-capable device is detected
+I1118 16:37:44.645120 59 cuda_memory_manager.cc:115] CUDA memory pool disabled
+I1118 16:37:44.645843 59 model_repository_manager.cc:1022] loading: identity:1
+I1118 16:37:44.747655 59 initialize.hpp:43] TRITONBACKEND_Initialize: rapids-identity
+I1118 16:37:44.747707 59 backend.hpp:47] Triton TRITONBACKEND API version: 1.6
+I1118 16:37:44.747727 59 backend.hpp:52] 'rapids-identity' TRITONBACKEND API version: 1.4
+I1118 16:37:44.747788 59 model_initialize.hpp:37] TRITONBACKEND_ModelInitialize: identity (version 1)
+I1118 16:37:44.751099 59 instance_initialize.hpp:46] TRITONBACKEND_ModelInstanceInitialize: identity_0 (CPU device 0)
+I1118 16:37:44.751549 59 model_repository_manager.cc:1183] successfully loaded 'identity' version 1
+I1118 16:37:44.751697 59 server.cc:522] 
++------------------+------+
+| Repository Agent | Path |
++------------------+------+
++------------------+------+
+
+I1118 16:37:44.751845 59 server.cc:549] 
++-----------------+-------------------------------------------------------------------------+--------+
+| Backend         | Path                                                                    | Config |
++-----------------+-------------------------------------------------------------------------+--------+
+| pytorch         | /opt/tritonserver/backends/pytorch/libtriton_pytorch.so                 | {}     |
+| tensorflow      | /opt/tritonserver/backends/tensorflow1/libtriton_tensorflow1.so         | {}     |
+| onnxruntime     | /opt/tritonserver/backends/onnxruntime/libtriton_onnxruntime.so         | {}     |
+| openvino        | /opt/tritonserver/backends/openvino/libtriton_openvino.so               | {}     |
+| rapids-identity | /opt/tritonserver/backends/rapids-identity/libtriton_rapids-identity.so | {}     |
++-----------------+-------------------------------------------------------------------------+--------+
+
+I1118 16:37:44.751905 59 server.cc:592] 
++----------+---------+--------+
+| Model    | Version | Status |
++----------+---------+--------+
+| identity | 1       | READY  |
++----------+---------+--------+
+
+I1118 16:37:44.752133 59 tritonserver.cc:1920] 
++----------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Option                           | Value                                                                                                                                                                                  |
++----------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| server_id                        | triton                                                                                                                                                                                 |
+| server_version                   | 2.15.0                                                                                                                                                                                 |
+| server_extensions                | classification sequence model_repository model_repository(unload_dependents) schedule_policy model_configuration system_shared_memory cuda_shared_memory binary_tensor_data statistics |
+| model_repository_path[0]         | /qa/L0_e2e/cpu_model_repository                                                                                                                                                        |
+| model_control_mode               | MODE_NONE                                                                                                                                                                              |
+| strict_model_config              | 1                                                                                                                                                                                      |
+| rate_limit                       | OFF                                                                                                                                                                                    |
+| pinned_memory_pool_byte_size     | 268435456                                                                                                                                                                              |
+| response_cache_byte_size         | 0                                                                                                                                                                                      |
+| min_supported_compute_capability | 6.0                                                                                                                                                                                    |
+| strict_readiness                 | 1                                                                                                                                                                                      |
+| exit_timeout                     | 30                                                                                                                                                                                     |
++----------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+I1118 16:37:44.754118 59 grpc_server.cc:4117] Started GRPCInferenceService at 0.0.0.0:8001
+I1118 16:37:44.754645 59 http_server.cc:2815] Started HTTPService at 0.0.0.0:8000
+I1118 16:37:44.796860 59 http_server.cc:167] Started Metrics Service at 0.0.0.0:8002
+Signal (15) received.
+I1118 16:37:45.303881 59 server.cc:252] Waiting for in-flight requests to complete.
+I1118 16:37:45.303923 59 model_repository_manager.cc:1055] unloading: identity:1
+I1118 16:37:45.304111 59 server.cc:267] Timeout 30: Found 1 live models and 0 in-flight non-inference requests
+I1118 16:37:45.304341 59 instance_finalize.hpp:36] TRITONBACKEND_ModelInstanceFinalize: delete instance state
+I1118 16:37:45.304389 59 model_finalize.hpp:36] TRITONBACKEND_ModelFinalize: delete model state
+I1118 16:37:45.304418 59 model_repository_manager.cc:1166] successfully unloaded 'identity' version 1

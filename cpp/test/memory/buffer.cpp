@@ -162,7 +162,11 @@ TEST(RapidsTriton, move_assignment_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
 
+#ifdef TRITON_ENABLE_GPU
   auto buffer = Buffer<int>{data.data(), data.size() - 1, DeviceMemory};
+#else
+  auto buffer = Buffer<int>{data.data(), data.size() - 1, HostMemory};
+#endif
   buffer      = Buffer<int>{data.size(), HostMemory};
 
   ASSERT_EQ(buffer.mem_type(), HostMemory);

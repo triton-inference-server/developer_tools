@@ -21,6 +21,7 @@ add_executable(test_rapids_triton
     test/exceptions.cpp
     test/memory/buffer.cpp
     test/memory/detail/copy.cpp
+    test/memory/detail/owned_device_buffer.cpp
     test/memory/resource.cpp
     test/memory/types.cpp
     test/tensor/dtype.cpp

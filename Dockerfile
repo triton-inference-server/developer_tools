@@ -38,13 +38,11 @@ RUN conda env update -f /environment.yml \
 
 ENV PYTHONDONTWRITEBYTECODE=false
 
-COPY ./cpp /rapids_triton
-
-WORKDIR /rapids_triton
-
 SHELL ["conda", "run", "--no-capture-output", "-n", "rapids_triton_dev", "/bin/bash", "-c"]
 
 FROM base as build-stage
+
+COPY ./cpp /rapids_triton
 
 ARG TRITON_VERSION
 ENV TRITON_VERSION=$TRITON_VERSION
@@ -72,7 +70,25 @@ RUN cmake \
 
 RUN ninja install
 
-ENTRYPOINT ["/rapids_triton/build/test_rapids_triton"]
+FROM base as test-install
+
+COPY ./conda/environments/rapids_triton_test.yml /environment.yml
+
+RUN conda env update -f /environment.yml \
+    && rm /environment.yml \
+    && conda clean -afy \
+    && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
+    && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete
+
+FROM build-stage as test-stage
+
+COPY --from=test-install /root/miniconda3 /root/miniconda3
+
+ENV TEST_EXE=/rapids_triton/build/test_rapids_triton
+
+COPY qa /qa
+
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "rapids_triton_test", "/bin/bash", "/qa/entrypoint.sh"]
 
 FROM ${BASE_IMAGE}
 

@@ -17,6 +17,8 @@
 #pragma once
 #include <cstddef>
 #include <type_traits>
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <rapids_triton/exceptions.hpp>
 #include <rapids_triton/memory/detail/owned_device_buffer.hpp>
 #include <rapids_triton/triton/device.hpp>
 

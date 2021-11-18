@@ -63,20 +63,26 @@ TEST(RapidsTriton, multi_buffer_tensor)
 
   auto all_buffers = std::vector<Buffer<int>>{};
   all_buffers.reserve(data.size());
-  std::transform(data.begin(), data.end(), std::back_inserter(all_buffers), [](auto& elem) {
-    return Buffer<int>{&elem, 1, DeviceMemory};
+  auto mem_type = HostMemory;
+  if constexpr (IS_GPU_BUILD) { mem_type = DeviceMemory; }
+  std::transform(data.begin(), data.end(), std::back_inserter(all_buffers), [mem_type](auto& elem) {
+    return Buffer<int>{&elem, 1, mem_type};
   });
-#ifdef TRITON_ENABLE_GPU
   auto tensor =
-    Tensor<int>(shape, all_buffers.begin(), all_buffers.end(), DeviceMemory, 0, cudaStream_t{});
+    Tensor<int>(shape, all_buffers.begin(), all_buffers.end(), mem_type, 0, cudaStream_t{});
 
   auto data_out = std::vector<int>(data.size());
+#ifdef TRITON_ENABLE_GPU
   cudaMemcpy(static_cast<void*>(data_out.data()),
              static_cast<void*>(tensor.data()),
              sizeof(int) * tensor.size(),
              cudaMemcpyDeviceToHost);
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+#else
+  std::memcpy(static_cast<void*>(data_out.data()),
+              static_cast<void*>(tensor.data()),
+              sizeof(int) * tensor.size());
 #endif
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
 TEST(RapidsTriton, tensor_copy)

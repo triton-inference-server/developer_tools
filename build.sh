@@ -36,12 +36,15 @@ HELP="$0 [<target> ...] [<flag> ...]
  The following environment variables are also accepted to allow further customization:
    BASE_IMAGE       - Base image for Docker images
    TRITON_VERSION   - Triton version to use for build
+   EXAMPLE_TAG      - The tag to use for the server image
+   TEST_TAG         - The tag to use for the test image
 "
 
 BUILD_TYPE=Release
-IMAGE_TAG=""
-TRITON_ENABLE_GPU=OFF
+TRITON_ENABLE_GPU=ON
 DOCKER_ARGS=""
+
+export DOCKER_BUILDKIT=1
 
 function hasArg {
     (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
@@ -95,7 +98,12 @@ do
       TRITON_ENABLE_GPU=OFF
       ;;
     --tag-commit )
-      IMAGE_TAG=":$(cd $REPODIR; git rev-parse --short HEAD)"
+      [ -z $EXAMPLE_TAG ] \
+        && EXAMPLE_TAG="rapids_triton_identity:$(cd $REPODIR; git rev-parse --short HEAD)" \
+        || true
+      [ -z $TEST_TAG ] \
+        && TEST_TAG="rapids_triton_identity_test:$(cd $REPODIR; git rev-parse --short HEAD)" \
+        || true
       ;;
     --)
       shift
@@ -104,6 +112,15 @@ do
   esac
   shift
 done
+
+if [ -z $EXAMPLE_TAG ]
+then
+  EXAMPLE_TAG='rapids_triton_identity'
+fi
+if [ -z $TEST_TAG ]
+then
+  TEST_TAG='rapids_triton_identity_test'
+fi
 
 DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TYPE=${BUILD_TYPE}"
 DOCKER_ARGS="$DOCKER_ARGS --build-arg TRITON_ENABLE_GPU=${TRITON_ENABLE_GPU}"
@@ -133,7 +150,7 @@ if [ $BACKEND -eq 1 ]
 then
   docker build \
     $DOCKER_ARGS \
-    -t "rapids_triton_identity${IMAGE_TAG}" \
+    -t "$EXAMPLE_TAG" \
     $REPODIR
 fi
 
@@ -141,7 +158,7 @@ if [ $TESTS -eq 1 ]
 then
   docker build \
     $DOCKER_ARGS \
-    --target build-stage \
-    -t "rapids_triton_identity_test${IMAGE_TAG}" \
+    --target test-stage \
+    -t "$TEST_TAG" \
     $REPODIR
 fi

@@ -68,6 +68,14 @@ struct Buffer {
       size_{size},
       stream_{stream}
   {
+    if constexpr (!IS_GPU_BUILD) {
+      if (memory_type == DeviceMemory) {
+        throw TritonException(
+          Error::Internal,
+          "Cannot use device buffer in non-GPU build"
+        );
+      }
+    }
   }
 
   /**
@@ -87,6 +95,12 @@ struct Buffer {
         if (memory_type == HostMemory) {
           result = data_store{std::in_place_index<0>, input_data};
         } else {
+          if constexpr (!IS_GPU_BUILD) {
+            throw TritonException(
+              Error::Internal,
+              "Cannot use device buffer in non-GPU build"
+            );
+          }
           result = data_store{std::in_place_index<1>, input_data};
         }
         return result;
