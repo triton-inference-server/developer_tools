@@ -1,10 +1,9 @@
 ---
 name: rapids_triton_dev
 channels:
-  - nvidia
   - conda-forge
 dependencies:
+  - ccache
   - cmake>=3.21
-  - cudatoolkit=11.2
   - ninja
   - rapidjson

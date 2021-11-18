@@ -28,7 +28,7 @@ RUN wget \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \
     && rm -f Miniconda3-latest-Linux-x86_64.sh 
 
-COPY ./conda/environments/rapids_triton_dev_cuda11.4.yml /environment.yml
+COPY ./conda/environments/rapids_triton_dev.yml /environment.yml
 
 RUN conda env update -f /environment.yml \
     && rm /environment.yml \
@@ -68,7 +68,9 @@ RUN cmake \
       -DTRITON_ENABLE_GPU="${TRITON_ENABLE_GPU}" \
       ..
 
-RUN ninja install
+ENV CCACHE_DIR=/ccache
+
+RUN --mount=type=cache,target=/ccache/ ninja install && ccache -s
 
 FROM base as test-install
 

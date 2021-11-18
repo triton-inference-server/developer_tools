@@ -88,6 +88,9 @@ endif()
 
 ##############################################################################
 # - compiler options ---------------------------------------------------------
+set(CMAKE_C_COMPILER_LAUNCHER ccache)
+set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+set(CMAKE_CUDA_COMPILER_LAUNCHER ccache)
 
 # * find CUDAToolkit package
 # * determine GPU architectures
