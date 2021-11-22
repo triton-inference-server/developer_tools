@@ -87,30 +87,16 @@ find_library(
   PATHS /opt/tritonserver/lib
 )
 
-IF(TRITON_ENABLE_GPU)
-  target_link_libraries(test_rapids_triton
-  PRIVATE
-    rmm::rmm
-    raft::raft
-    triton-core-serverstub
-    triton-backend-utils
-    gmock
-    gmock_main
-    GTest::gtest
-    GTest::gtest_main
-    "${TRITONSERVER_LIB}"
-    $<TARGET_NAME_IF_EXISTS:conda_env>
-  )
-else()
-  target_link_libraries(test_rapids_triton
-  PRIVATE
-    triton-core-serverstub
-    triton-backend-utils
-    gmock
-    gmock_main
-    GTest::gtest
-    GTest::gtest_main
-    "${TRITONSERVER_LIB}"
-    $<TARGET_NAME_IF_EXISTS:conda_env>
-  )
-endif()
+target_link_libraries(test_rapids_triton
+PRIVATE
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>
+  triton-core-serverstub
+  triton-backend-utils
+  gmock
+  gmock_main
+  GTest::gtest
+  GTest::gtest_main
+  "${TRITONSERVER_LIB}"
+  $<TARGET_NAME_IF_EXISTS:conda_env>
+)

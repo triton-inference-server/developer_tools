@@ -24,26 +24,10 @@ include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
 
-option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
-
-if(TRITON_ENABLE_GPU)
-  rapids_cuda_init_architectures(RAPIDS_TRITON)
-endif()
-
-project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX CUDA)
-
-##############################################################################
-# - build type ---------------------------------------------------------------
-
-# Set a default build type if none was specified
-rapids_cmake_build_type(Release)
-
-# this is needed for clang-tidy runs
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 ##############################################################################
 # - User Options  ------------------------------------------------------------
 
+option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
 option(BUILD_TESTS "Build rapids_triton unit-tests" ON)
 option(BUILD_EXAMPLE "Build rapids_identity example backend" OFF)
 option(CUDA_ENABLE_KERNELINFO "Enable kernel resource usage info" OFF)
@@ -69,6 +53,24 @@ message(VERBOSE "RAPIDS_TRITON: Enable statistics collection in Triton: ${TRITON
 message(VERBOSE "RAPIDS_TRITON: Triton common repo tag: ${TRITON_COMMON_REPO_TAG}")
 message(VERBOSE "RAPIDS_TRITON: Triton core repo tag: ${TRITON_CORE_REPO_TAG}")
 message(VERBOSE "RAPIDS_TRITON: Triton backend repo tag: ${TRITON_BACKEND_REPO_TAG}")
+
+##############################################################################
+# - Project Initialization ---------------------------------------------------
+
+if(TRITON_ENABLE_GPU)
+  rapids_cuda_init_architectures(RAPIDS_TRITON)
+endif()
+
+project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX CUDA)
+
+##############################################################################
+# - build type ---------------------------------------------------------------
+
+# Set a default build type if none was specified
+rapids_cmake_build_type(Release)
+
+# this is needed for clang-tidy runs
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Set RMM logging level
 set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
@@ -128,21 +130,13 @@ add_library(rapids_triton::rapids_triton ALIAS rapids_triton)
 target_include_directories(rapids_triton INTERFACE "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/include>"
                                           "$<INSTALL_INTERFACE:include>")
 
-if(TRITON_ENABLE_GPU)
-  target_link_libraries(rapids_triton
-  INTERFACE
-    rmm::rmm
-    raft::raft
-    triton-core-serverstub
-    triton-backend-utils
-  )
-else()
-  target_link_libraries(rapids_triton
-  INTERFACE
-    triton-core-serverstub
-    triton-backend-utils
-  )
-endif()
+target_link_libraries(rapids_triton
+INTERFACE
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>
+  triton-core-serverstub
+  triton-backend-utils
+)
 
 target_compile_features(
   rapids_triton INTERFACE cxx_std_17

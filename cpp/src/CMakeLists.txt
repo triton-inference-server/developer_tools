@@ -52,25 +52,15 @@ target_include_directories(triton_rapids-identity
             "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
-if(TRITON_ENABLE_GPU)
-  target_link_libraries(triton_rapids-identity
-  PRIVATE
-    rmm::rmm
-    raft::raft
-    triton-core-serverstub
-    triton-backend-utils
-    "${TRITONSERVER_LIB}"
-    $<TARGET_NAME_IF_EXISTS:conda_env>
-  )
-else()
-  target_link_libraries(triton_rapids-identity
-  PRIVATE
-    triton-core-serverstub
-    triton-backend-utils
-    "${TRITONSERVER_LIB}"
-    $<TARGET_NAME_IF_EXISTS:conda_env>
-  )
-endif()
+target_link_libraries(triton_rapids-identity
+PRIVATE
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>
+  triton-core-serverstub
+  triton-backend-utils
+  "${TRITONSERVER_LIB}"
+  $<TARGET_NAME_IF_EXISTS:conda_env>
+)
 
 install(
   TARGETS triton_rapids-identity
