@@ -29,12 +29,6 @@ template<>
 inline void setup_memory_resource<false>(device_id_t device_id,
                                          TRITONBACKEND_MemoryManager* triton_manager) { }
 
-/* namespace rmm {
-namespace mr {
-using device_memory_resource = void;
-}
-} */
-
 }  // namespace detail
 }  // namespace rapids
 }  // namespace backend
