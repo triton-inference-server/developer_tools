@@ -24,7 +24,11 @@
 #include <utility>
 #include <vector>
 
+#ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+#else
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#endif
 
 #include <triton/backend/backend_output_responder.h>
 #include <rapids_triton/build_control.hpp>

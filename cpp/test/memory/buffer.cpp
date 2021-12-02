@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+#ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+#endif
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -36,68 +38,68 @@ TEST(RapidsTriton, default_buffer)
   EXPECT_EQ(buffer.data(), nullptr);
   EXPECT_EQ(buffer.device(), 0);
   EXPECT_EQ(buffer.stream(), cudaStream_t{});
-  if constexpr (IS_GPU_BUILD) {
-    auto stream = cudaStream_t{};
-    cudaStreamCreate(&stream);
-    buffer.set_stream(stream);
-    EXPECT_EQ(buffer.stream(), stream);
-    cudaStreamDestroy(stream);
-  }
+#ifdef TRITON_ENABLE_GPU
+  auto stream = cudaStream_t{};
+  cudaStreamCreate(&stream);
+  buffer.set_stream(stream);
+  EXPECT_EQ(buffer.stream(), stream);
+  cudaStreamDestroy(stream);
+#endif
 }
 
 TEST(RapidsTriton, device_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
-  if (IS_GPU_BUILD) {
-    auto buffer = Buffer<int>(data.size(), DeviceMemory, 0, 0);
+#ifdef TRITON_ENABLE_GPU
+  auto buffer = Buffer<int>(data.size(), DeviceMemory, 0, 0);
 
-    ASSERT_EQ(buffer.mem_type(), DeviceMemory);
-    ASSERT_EQ(buffer.size(), data.size());
-    ASSERT_NE(buffer.data(), nullptr);
+  ASSERT_EQ(buffer.mem_type(), DeviceMemory);
+  ASSERT_EQ(buffer.size(), data.size());
+  ASSERT_NE(buffer.data(), nullptr);
 
-    auto data_out = std::vector<int>(data.size());
-    cudaMemcpy(static_cast<void*>(buffer.data()),
-               static_cast<void*>(data.data()),
-               sizeof(int) * data.size(),
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(static_cast<void*>(data_out.data()),
-               static_cast<void*>(buffer.data()),
-               sizeof(int) * data.size(),
-               cudaMemcpyDeviceToHost);
-    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  auto data_out = std::vector<int>(data.size());
+  cudaMemcpy(static_cast<void*>(buffer.data()),
+             static_cast<void*>(data.data()),
+             sizeof(int) * data.size(),
+             cudaMemcpyHostToDevice);
+  cudaMemcpy(static_cast<void*>(data_out.data()),
+             static_cast<void*>(buffer.data()),
+             sizeof(int) * data.size(),
+             cudaMemcpyDeviceToHost);
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 
-  } else {
-    EXPECT_THROW(Buffer<int>(data.size(), DeviceMemory, 0, 0), TritonException);
-  }
+#else
+  EXPECT_THROW(Buffer<int>(data.size(), DeviceMemory, 0, 0), TritonException);
+#endif
 }
 
 TEST(RapidsTriton, non_owning_device_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
-  if constexpr (IS_GPU_BUILD) {
-    auto* ptr_d = static_cast<int*>(nullptr);
-    cudaMalloc(reinterpret_cast<void**>(&ptr_d), sizeof(int) * data.size());
-    cudaMemcpy(static_cast<void*>(ptr_d),
-               static_cast<void*>(data.data()),
-               sizeof(int) * data.size(),
-               cudaMemcpyHostToDevice);
-    auto buffer = Buffer<int>(ptr_d, data.size(), DeviceMemory);
+#ifdef TRITON_ENABLE_GPU
+  auto* ptr_d = static_cast<int*>(nullptr);
+  cudaMalloc(reinterpret_cast<void**>(&ptr_d), sizeof(int) * data.size());
+  cudaMemcpy(static_cast<void*>(ptr_d),
+             static_cast<void*>(data.data()),
+             sizeof(int) * data.size(),
+             cudaMemcpyHostToDevice);
+  auto buffer = Buffer<int>(ptr_d, data.size(), DeviceMemory);
 
-    ASSERT_EQ(buffer.mem_type(), DeviceMemory);
-    ASSERT_EQ(buffer.size(), data.size());
-    ASSERT_EQ(buffer.data(), ptr_d);
+  ASSERT_EQ(buffer.mem_type(), DeviceMemory);
+  ASSERT_EQ(buffer.size(), data.size());
+  ASSERT_EQ(buffer.data(), ptr_d);
 
-    auto data_out = std::vector<int>(data.size());
-    cudaMemcpy(static_cast<void*>(data_out.data()),
-               static_cast<void*>(buffer.data()),
-               sizeof(int) * data.size(),
-               cudaMemcpyDeviceToHost);
-    EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
+  auto data_out = std::vector<int>(data.size());
+  cudaMemcpy(static_cast<void*>(data_out.data()),
+             static_cast<void*>(buffer.data()),
+             sizeof(int) * data.size(),
+             cudaMemcpyDeviceToHost);
+  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 
-    cudaFree(reinterpret_cast<void*>(ptr_d));
-  } else {
-    ASSERT_THROW(Buffer<int>(data.data(), data.size(), DeviceMemory), TritonException);
-  }
+  cudaFree(reinterpret_cast<void*>(ptr_d));
+#else
+  ASSERT_THROW(Buffer<int>(data.data(), data.size(), DeviceMemory), TritonException);
+#endif
 }
 
 TEST(RapidsTriton, host_buffer)
@@ -160,7 +162,11 @@ TEST(RapidsTriton, move_assignment_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
 
+#ifdef TRITON_ENABLE_GPU
   auto buffer = Buffer<int>{data.data(), data.size() - 1, DeviceMemory};
+#else
+  auto buffer = Buffer<int>{data.data(), data.size() - 1, HostMemory};
+#endif
   buffer      = Buffer<int>{data.size(), HostMemory};
 
   ASSERT_EQ(buffer.mem_type(), HostMemory);

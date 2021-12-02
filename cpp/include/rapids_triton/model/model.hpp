@@ -15,7 +15,11 @@
  */
 
 #pragma once
+#ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+#else
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#endif
 #include <cstddef>
 #include <rapids_triton/batch/batch.hpp>
 #include <rapids_triton/memory/resource.hpp>

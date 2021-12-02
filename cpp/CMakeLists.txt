@@ -24,22 +24,10 @@ include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
 
-rapids_cuda_init_architectures(RAPIDS_TRITON)
-
-project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX CUDA)
-
-##############################################################################
-# - build type ---------------------------------------------------------------
-
-# Set a default build type if none was specified
-rapids_cmake_build_type(Release)
-
-# this is needed for clang-tidy runs
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
 ##############################################################################
 # - User Options  ------------------------------------------------------------
 
+option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
 option(BUILD_TESTS "Build rapids_triton unit-tests" ON)
 option(BUILD_EXAMPLE "Build rapids_identity example backend" OFF)
 option(CUDA_ENABLE_KERNELINFO "Enable kernel resource usage info" OFF)
@@ -48,7 +36,6 @@ option(CUDA_STATIC_RUNTIME "Statically link the CUDA runtime" OFF)
 option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies" ON)
 option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
 option(NVTX "Enable nvtx markers" OFF)
-option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
 option(TRITON_ENABLE_STATS "Enable statistics collection in Triton" ON)
 set(TRITON_COMMON_REPO_TAG "r21.08" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "r21.08" CACHE STRING "Tag for triton-inference-server/core repo")
@@ -66,6 +53,24 @@ message(VERBOSE "RAPIDS_TRITON: Enable statistics collection in Triton: ${TRITON
 message(VERBOSE "RAPIDS_TRITON: Triton common repo tag: ${TRITON_COMMON_REPO_TAG}")
 message(VERBOSE "RAPIDS_TRITON: Triton core repo tag: ${TRITON_CORE_REPO_TAG}")
 message(VERBOSE "RAPIDS_TRITON: Triton backend repo tag: ${TRITON_BACKEND_REPO_TAG}")
+
+##############################################################################
+# - Project Initialization ---------------------------------------------------
+
+if(TRITON_ENABLE_GPU)
+  rapids_cuda_init_architectures(RAPIDS_TRITON)
+endif()
+
+project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX CUDA)
+
+##############################################################################
+# - build type ---------------------------------------------------------------
+
+# Set a default build type if none was specified
+rapids_cmake_build_type(Release)
+
+# this is needed for clang-tidy runs
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Set RMM logging level
 set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
@@ -85,6 +90,9 @@ endif()
 
 ##############################################################################
 # - compiler options ---------------------------------------------------------
+set(CMAKE_C_COMPILER_LAUNCHER ccache)
+set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+set(CMAKE_CUDA_COMPILER_LAUNCHER ccache)
 
 # * find CUDAToolkit package
 # * determine GPU architectures
@@ -102,8 +110,11 @@ include(cmake/modules/ConfigureCUDA.cmake)
 # add third party dependencies using CPM
 rapids_cpm_init()
 
-include(cmake/thirdparty/get_rmm.cmake)
-include(cmake/thirdparty/get_raft.cmake)
+if(TRITON_ENABLE_GPU)
+  include(cmake/thirdparty/get_rmm.cmake)
+  include(cmake/thirdparty/get_raft.cmake)
+endif()
+
 include(cmake/thirdparty/get_rapidjson.cmake)
 include(cmake/thirdparty/get_triton.cmake)
 
@@ -121,13 +132,16 @@ target_include_directories(rapids_triton INTERFACE "$<BUILD_INTERFACE:${RAPIDS_T
 
 target_link_libraries(rapids_triton
 INTERFACE
-  rmm::rmm
-  raft::raft
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>
   triton-core-serverstub
   triton-backend-utils
-  )
+)
 
-target_compile_features(rapids_triton INTERFACE cxx_std_17 $<BUILD_INTERFACE:cuda_std_17>)
+target_compile_features(
+  rapids_triton INTERFACE cxx_std_17
+  $<BUILD_INTERFACE:cuda_std_17>
+)
 
 rapids_cmake_install_lib_dir(lib_dir)
 install(TARGETS rapids_triton

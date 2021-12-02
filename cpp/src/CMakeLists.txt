@@ -20,16 +20,27 @@ add_library(
   src/api.cc
 )
 
-set_target_properties(triton_rapids-identity
-PROPERTIES BUILD_RPATH                         "\$ORIGIN"
-           # set target compile options
-           CXX_STANDARD                        17
-           CXX_STANDARD_REQUIRED               ON
-           CUDA_STANDARD                       17
-           CUDA_STANDARD_REQUIRED              ON
-           POSITION_INDEPENDENT_CODE           ON
-           INTERFACE_POSITION_INDEPENDENT_CODE ON
-)
+if(TRITON_ENABLE_GPU)
+  set_target_properties(triton_rapids-identity
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             CUDA_STANDARD                       17
+             CUDA_STANDARD_REQUIRED              ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
+else()
+  set_target_properties(triton_rapids-identity
+  PROPERTIES BUILD_RPATH                         "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD                        17
+             CXX_STANDARD_REQUIRED               ON
+             POSITION_INDEPENDENT_CODE           ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+  )
+endif()
 
 target_compile_options(triton_rapids-identity
         PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_CXX_FLAGS}>"
@@ -43,8 +54,8 @@ target_include_directories(triton_rapids-identity
 
 target_link_libraries(triton_rapids-identity
 PRIVATE
-  rmm::rmm
-  raft::raft
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
+  $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>
   triton-core-serverstub
   triton-backend-utils
   "${TRITONSERVER_LIB}"

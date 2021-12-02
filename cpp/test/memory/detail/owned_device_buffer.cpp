@@ -16,44 +16,46 @@
 
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
-#include <rapids_triton/memory/detail/gpu_only/copy.hpp>
+#include <rapids_triton/memory/detail/gpu_only/owned_device_buffer.hpp>
 #else
-#include <rapids_triton/memory/detail/cpu_only/copy.hpp>
+#include <rapids_triton/memory/detail/cpu_only/owned_device_buffer.hpp>
 #endif
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <rapids_triton/build_control.hpp>
-#include <rapids_triton/memory/types.hpp>
+#include <rapids_triton/exceptions.hpp>
 #include <vector>
 
 namespace triton {
 namespace backend {
 namespace rapids {
-TEST(RapidsTriton, copy)
+TEST(RapidsTriton, owned_device_buffer)
 {
-  auto data     = std::vector<int>{1, 2, 3};
-  auto data_out = std::vector<int>(data.size());
-  detail::copy(data_out.data(), data.data(), data.size(), 0, HostMemory, HostMemory);
-  EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
-
-  data_out = std::vector<int>(data.size());
+  auto data = std::vector<int>{1, 2, 3};
 #ifdef TRITON_ENABLE_GPU
-  auto* ptr_d = static_cast<int*>(nullptr);
-  cudaMalloc(reinterpret_cast<void**>(&ptr_d), sizeof(int) * data.size());
-  detail::copy(ptr_d, data.data(), data.size(), 0, DeviceMemory, HostMemory);
+  auto device_id = 0;
+  cudaGetDevice(&device_id);
+  auto stream = cudaStream_t{};
+  cudaStreamCreate(&stream);
 
+  auto buffer   = detail::owned_device_buffer<int, IS_GPU_BUILD>(device_id, data.size(), stream);
+  auto data_out = std::vector<int>(data.size());
+  cudaMemcpy(static_cast<void*>(buffer.get()),
+             static_cast<void*>(data.data()),
+             sizeof(int) * data.size(),
+             cudaMemcpyHostToDevice);
   cudaMemcpy(static_cast<void*>(data_out.data()),
-             static_cast<void*>(ptr_d),
+             static_cast<void*>(buffer.get()),
              sizeof(int) * data.size(),
              cudaMemcpyDeviceToHost);
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
-  cudaFree(reinterpret_cast<void*>(ptr_d));
+  cudaStreamDestroy(stream);
 #else
-  EXPECT_THROW(detail::copy(data_out.data(), data.data(), data.size(), 0, HostMemory, DeviceMemory),
-               TritonException);
-  EXPECT_THROW(detail::copy(data_out.data(), data.data(), data.size(), 0, DeviceMemory, HostMemory),
-               TritonException);
+  // Workaround for ungraceful handling of multiple template parameters in
+  // EXPECT_THROW
+  using dev_buffer = detail::owned_device_buffer<int, IS_GPU_BUILD>;
+  EXPECT_THROW(dev_buffer(0, data.size(), 0), TritonException);
 #endif
 }
 

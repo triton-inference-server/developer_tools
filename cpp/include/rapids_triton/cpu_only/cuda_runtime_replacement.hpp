@@ -14,39 +14,41 @@
  * limitations under the License.
  */
 
+#pragma once
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
-#include <rmm/cuda_device.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include <rmm/mr/device/per_device_resource.hpp>
-#endif
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/resource.hpp>
+#else
 
 namespace triton {
 namespace backend {
 namespace rapids {
 
-TEST(RapidsTriton, set_memory_resource)
-{
-#ifdef TRITON_ENABLE_GPU
-  auto device_id = int{};
-  cuda_check(cudaGetDevice(&device_id));
-  EXPECT_EQ(rmm::mr::get_current_device_resource()->is_equal(rmm::mr::cuda_memory_resource{}),
-            true);
-  setup_memory_resource(device_id);
-  EXPECT_EQ(rmm::mr::get_current_device_resource()->is_equal(rmm::mr::cuda_memory_resource{}),
-            false);
-#else
-  setup_memory_resource(0);
-#endif
+using cudaStream_t = void*;
+
+enum struct cudaError_t {cudaSuccess, cudaErrorNonGpuBuild};
+using cudaError = cudaError_t;
+auto constexpr cudaSuccess = cudaError_t::cudaSuccess;
+
+inline void cudaGetLastError() {}
+
+inline auto const * cudaGetErrorString(cudaError_t err) {
+  return "CUDA function used in non-GPU build";
 }
+
+inline auto cudaStreamSynchronize(cudaStream_t stream) {
+  return cudaError_t::cudaErrorNonGpuBuild;
+}
+
+inline auto cudaGetDevice(int* device_id) {
+  return cudaError_t::cudaErrorNonGpuBuild;
+}
+
+inline auto cudaGetDeviceCount(int* count) {
+  return cudaError_t::cudaErrorNonGpuBuild;
+}
+
 
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton
+#endif

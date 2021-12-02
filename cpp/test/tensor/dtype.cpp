@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <cuda_runtime_api.h>
 #include <gtest/gtest.h>
 
 #include <rapids_triton/tensor/dtype.hpp>

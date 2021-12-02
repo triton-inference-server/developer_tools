@@ -20,11 +20,18 @@
 #include <stdexcept>
 #include <variant>
 
+#ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+#include <rapids_triton/memory/detail/gpu_only/copy.hpp>
+#include <rapids_triton/memory/detail/gpu_only/owned_device_buffer.hpp>
+#else
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <rapids_triton/memory/detail/cpu_only/copy.hpp>
+#include <rapids_triton/memory/detail/cpu_only/owned_device_buffer.hpp>
+#endif
 
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/detail/copy.hpp>
 #include <rapids_triton/memory/resource.hpp>
 #include <rapids_triton/memory/types.hpp>
 #include <rapids_triton/triton/device.hpp>
@@ -41,63 +48,7 @@ struct Buffer {
   using h_buffer       = T*;
   using d_buffer       = T*;
   using owned_h_buffer = std::unique_ptr<T[]>;
-  struct owned_d_buffer {
-    using non_const_T = std::remove_const_t<T>;
-    owned_d_buffer(device_id_t device_id, std::size_t size, cudaStream_t stream)
-      : device_{device_id}, byte_size_{size * sizeof(non_const_T)}, data_{[this, &stream]() {
-          auto* result = static_cast<non_const_T*>(nullptr);
-          try {
-            result =
-              static_cast<non_const_T*>(get_memory_resource(device_)->allocate(byte_size_, stream));
-          } catch (std::bad_alloc const& err) {
-            throw TritonException(Error::Internal, err.what());
-          }
-          return result;
-        }()}
-    {
-    }
-    ~owned_d_buffer() { free_memory(); }
-
-    owned_d_buffer(owned_d_buffer const& other) = delete;
-    owned_d_buffer(owned_d_buffer&& other) noexcept
-      : device_{other.device_}, byte_size_{other.byte_size_}, data_{nullptr}
-    {
-      data_       = other.data_;
-      other.data_ = nullptr;
-    }
-    owned_d_buffer& operator=(owned_d_buffer const& other) = delete;
-    owned_d_buffer& operator                               =(owned_d_buffer&& other)
-    {
-      if (this != &other) {
-        device_    = other.device_;
-        byte_size_ = other.byte_size_;
-        free_memory();
-        data_       = other.data_;
-        other.data_ = nullptr;
-      }
-      return *this;
-    }
-
-    auto* get() const { return data_; }
-
-   private:
-    device_id_t device_;
-    std::size_t byte_size_;
-    non_const_T* data_;
-    void free_memory()
-    {
-      if (data_ != nullptr) {
-        try {
-          get_memory_resource(device_)->deallocate(reinterpret_cast<void*>(data_), byte_size_);
-        } catch (TritonException const& err) {
-          log_error(__FILE__, __LINE__) << err.what();
-        } catch (...) {
-          log_error(__FILE__, __LINE__) << "Unknown error in owned_d_buffer destructor!";
-        }
-      }
-      data_ = nullptr;
-    }
-  };
+  using owned_d_buffer = detail::owned_device_buffer<T, IS_GPU_BUILD>;
   using data_store = std::variant<h_buffer, d_buffer, owned_h_buffer, owned_d_buffer>;
 
   Buffer() noexcept : device_{}, data_{std::in_place_index<0>, nullptr}, size_{}, stream_{} {}
@@ -117,6 +68,14 @@ struct Buffer {
       size_{size},
       stream_{stream}
   {
+    if constexpr (!IS_GPU_BUILD) {
+      if (memory_type == DeviceMemory) {
+        throw TritonException(
+          Error::Internal,
+          "Cannot use device buffer in non-GPU build"
+        );
+      }
+    }
   }
 
   /**
@@ -136,6 +95,12 @@ struct Buffer {
         if (memory_type == HostMemory) {
           result = data_store{std::in_place_index<0>, input_data};
         } else {
+          if constexpr (!IS_GPU_BUILD) {
+            throw TritonException(
+              Error::Internal,
+              "Cannot use device buffer in non-GPU build"
+            );
+          }
           result = data_store{std::in_place_index<1>, input_data};
         }
         return result;

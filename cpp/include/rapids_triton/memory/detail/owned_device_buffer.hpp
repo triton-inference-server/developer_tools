@@ -15,25 +15,16 @@
  */
 
 #pragma once
-#include <triton/core/tritonbackend.h>
-
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/memory/detail/resource.hpp>
-#include <rapids_triton/triton/device.hpp>
-#ifdef TRITON_ENABLE_GPU
-#include <rapids_triton/memory/detail/gpu_only/resource.hpp>
-#else
-#include <rapids_triton/memory/detail/cpu_only/resource.hpp>
-#endif
-
 namespace triton {
 namespace backend {
 namespace rapids {
+namespace detail {
 
-inline void setup_memory_resource(device_id_t device_id, TRITONBACKEND_MemoryManager* triton_manager = nullptr) {
-  detail::setup_memory_resource<IS_GPU_BUILD>(device_id, triton_manager);
-}
+template<typename T, bool enable_gpu>
+struct owned_device_buffer {
+};
 
+}  // namespace detail
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton

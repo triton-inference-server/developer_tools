@@ -14,38 +14,36 @@
  * limitations under the License.
  */
 
+#pragma once
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
-#include <rmm/cuda_device.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include <rmm/mr/device/per_device_resource.hpp>
 #endif
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <rapids_triton/build_control.hpp>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/resource.hpp>
 
 namespace triton {
 namespace backend {
 namespace rapids {
 
-TEST(RapidsTriton, set_memory_resource)
-{
-#ifdef TRITON_ENABLE_GPU
-  auto device_id = int{};
-  cuda_check(cudaGetDevice(&device_id));
-  EXPECT_EQ(rmm::mr::get_current_device_resource()->is_equal(rmm::mr::cuda_memory_resource{}),
-            true);
-  setup_memory_resource(device_id);
-  EXPECT_EQ(rmm::mr::get_current_device_resource()->is_equal(rmm::mr::cuda_memory_resource{}),
-            false);
-#else
-  setup_memory_resource(0);
-#endif
-}
+/** Struct for setting cuda device within a code block */
+struct device_setter {
+  device_setter(device_id_t device) : prev_device_{} {
+    if constexpr(IS_GPU_BUILD) {
+      cuda_check(cudaGetDevice(&prev_device_));
+      cuda_check(cudaSetDevice(device));
+    } else {
+      throw TritonException(Error::Internal, "Device setter used in non-GPU build");
+    }
+  }
+
+  ~device_setter() {
+    if constexpr(IS_GPU_BUILD) {
+      cudaSetDevice(prev_device_);
+    }
+  }
+ private:
+  device_id_t prev_device_;
+};
 
 }  // namespace rapids
 }  // namespace backend

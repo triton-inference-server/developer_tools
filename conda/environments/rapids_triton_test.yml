@@ -3,10 +3,11 @@ name: rapids_triton_test
 channels:
   - conda-forge
 dependencies:
-  - clang-tools=11.0.0
   - flake8
   - pip
   - python
+  - pytest
   - numpy
   - pip:
-      - nvidia-pyindex
+      - tritonclient[all]
+      - git+https://github.com/rapidsai/rapids-triton.git#subdirectory=python

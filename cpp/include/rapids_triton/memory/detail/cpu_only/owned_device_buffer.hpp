@@ -14,39 +14,32 @@
  * limitations under the License.
  */
 
-#ifdef TRITON_ENABLE_GPU
-#include <cuda_runtime_api.h>
-#include <rmm/cuda_device.hpp>
-#include <rmm/mr/device/cuda_memory_resource.hpp>
-#include <rmm/mr/device/per_device_resource.hpp>
-#endif
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
-#include <rapids_triton/build_control.hpp>
+#pragma once
+#include <cstddef>
+#include <type_traits>
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
 #include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/resource.hpp>
+#include <rapids_triton/memory/detail/owned_device_buffer.hpp>
+#include <rapids_triton/triton/device.hpp>
 
 namespace triton {
 namespace backend {
 namespace rapids {
+namespace detail {
 
-TEST(RapidsTriton, set_memory_resource)
-{
-#ifdef TRITON_ENABLE_GPU
-  auto device_id = int{};
-  cuda_check(cudaGetDevice(&device_id));
-  EXPECT_EQ(rmm::mr::get_current_device_resource()->is_equal(rmm::mr::cuda_memory_resource{}),
-            true);
-  setup_memory_resource(device_id);
-  EXPECT_EQ(rmm::mr::get_current_device_resource()->is_equal(rmm::mr::cuda_memory_resource{}),
-            false);
-#else
-  setup_memory_resource(0);
-#endif
-}
+template<typename T>
+struct owned_device_buffer<T, false> {
+  using non_const_T = std::remove_const_t<T>;
+  owned_device_buffer(device_id_t device_id, std::size_t size, cudaStream_t stream)
+  {
+    throw TritonException(Error::Internal,
+                          "Attempted to use device buffer in non-GPU build");
+  }
 
+  auto* get() const { return static_cast<T*>(nullptr); }
+};
+
+}  // namespace detail
 }  // namespace rapids
 }  // namespace backend
 }  // namespace triton

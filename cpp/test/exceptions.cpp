@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+#ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
+#else
+#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#endif
 #include <gtest/gtest.h>
 
 #include <rapids_triton/exceptions.hpp>
@@ -66,8 +70,12 @@ TEST(RapidsTriton, triton_check)
 
 TEST(RapidsTriton, cuda_check)
 {
+#ifdef TRITON_ENABLE_GPU
   EXPECT_THROW(cuda_check(cudaError::cudaErrorMissingConfiguration), TritonException);
   cuda_check(cudaError::cudaSuccess);
+#else
+  EXPECT_THROW(cuda_check(cudaError::cudaErrorNonGpuBuild), TritonException);
+#endif
 }
 
 }  // namespace rapids
