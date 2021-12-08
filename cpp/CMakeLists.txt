@@ -144,7 +144,7 @@ INTERFACE
 
 target_compile_features(
   rapids_triton INTERFACE cxx_std_17
-  $<BUILD_INTERFACE:cuda_std_17>
+  $<$<AND:BUILD_INTERFACE,$<BOOL:TRITON_ENABLE_GPU>>:cuda_std_17>
 )
 
 rapids_cmake_install_lib_dir(lib_dir)
