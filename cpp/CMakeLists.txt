@@ -142,10 +142,16 @@ INTERFACE
   triton-backend-utils
 )
 
-target_compile_features(
-  rapids_triton INTERFACE cxx_std_17
-  $<$<AND:$<BOOL:BUILD_INTERFACE>,$<BOOL:TRITON_ENABLE_GPU>>:cuda_std_17>
-)
+if (TRITON_ENABLE_GPU)
+  target_compile_features(
+    rapids_triton INTERFACE cxx_std_17
+    $<BUILD_INTERFACE>:cuda_std_17>
+  )
+else()
+  target_compile_features(
+    rapids_triton INTERFACE cxx_std_17
+  )
+endif()
 
 rapids_cmake_install_lib_dir(lib_dir)
 install(TARGETS rapids_triton
