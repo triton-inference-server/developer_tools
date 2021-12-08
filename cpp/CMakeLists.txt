@@ -145,7 +145,7 @@ INTERFACE
 if (TRITON_ENABLE_GPU)
   target_compile_features(
     rapids_triton INTERFACE cxx_std_17
-    $<BUILD_INTERFACE>:cuda_std_17>
+    $<BUILD_INTERFACE:cuda_std_17>
   )
 else()
   target_compile_features(
