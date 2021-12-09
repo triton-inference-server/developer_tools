@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tritonclient.utils.cuda_shared_memory as shm
+try:
+    import tritonclient.utils.cuda_shared_memory as shm
+except OSError:
+    shm = None
 from tritonclient import utils as triton_utils
 
 from rapids_triton.triton.message import TritonMessage
