@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-    import tritonclient.utils.cuda_shared_memory as shm
-except OSError:
-    shm = None
 from tritonclient import utils as triton_utils
 
 from rapids_triton.triton.message import TritonMessage
+from rapids_triton.utils.safe_import import ImportReplacement
+try:
+    import tritonclient.utils.cuda_shared_memory as shm
+except OSError:  # CUDA libraries not available
+    shm = ImportReplacement('tritonclient.utils.cuda_shared_memory')
 
 
 def get_response_data(response, output_handle, output_name):
