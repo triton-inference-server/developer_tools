@@ -17,8 +17,12 @@ from uuid import uuid4
 
 import tritonclient.http as triton_http
 import tritonclient.grpc as triton_grpc
-import tritonclient.utils.cuda_shared_memory as shm
+from rapids_triton.utils.safe_import import ImportReplacement
 from tritonclient import utils as triton_utils
+try:
+    import tritonclient.utils.cuda_shared_memory as shm
+except OSError:  # CUDA libraries not available
+    shm = ImportReplacement('tritonclient.utils.cuda_shared_memory')
 
 
 TritonInput = namedtuple('TritonInput', ('name', 'input'))

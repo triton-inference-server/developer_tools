@@ -59,9 +59,11 @@ message(VERBOSE "RAPIDS_TRITON: Triton backend repo tag: ${TRITON_BACKEND_REPO_T
 
 if(TRITON_ENABLE_GPU)
   rapids_cuda_init_architectures(RAPIDS_TRITON)
+  project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX CUDA)
+else()
+  project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX)
 endif()
 
-project(RAPIDS_TRITON VERSION 21.10.00 LANGUAGES CXX CUDA)
 
 ##############################################################################
 # - build type ---------------------------------------------------------------
@@ -92,17 +94,19 @@ endif()
 # - compiler options ---------------------------------------------------------
 set(CMAKE_C_COMPILER_LAUNCHER ccache)
 set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
-set(CMAKE_CUDA_COMPILER_LAUNCHER ccache)
+if(TRITON_ENABLE_GPU)
+  set(CMAKE_CUDA_COMPILER_LAUNCHER ccache)
 
-# * find CUDAToolkit package
-# * determine GPU architectures
-# * enable the CMake CUDA language
-# * set other CUDA compilation flags
-rapids_find_package(CUDAToolkit REQUIRED
-    BUILD_EXPORT_SET rapids_triton-exports
-    INSTALL_EXPORT_SET rapids_triton-exports
-    )
-include(cmake/modules/ConfigureCUDA.cmake)
+  # * find CUDAToolkit package
+  # * determine GPU architectures
+  # * enable the CMake CUDA language
+  # * set other CUDA compilation flags
+  rapids_find_package(CUDAToolkit REQUIRED
+      BUILD_EXPORT_SET rapids_triton-exports
+      INSTALL_EXPORT_SET rapids_triton-exports
+      )
+  include(cmake/modules/ConfigureCUDA.cmake)
+endif()
 
 ##############################################################################
 # - Requirements -------------------------------------------------------------
@@ -138,10 +142,16 @@ INTERFACE
   triton-backend-utils
 )
 
-target_compile_features(
-  rapids_triton INTERFACE cxx_std_17
-  $<BUILD_INTERFACE:cuda_std_17>
-)
+if (TRITON_ENABLE_GPU)
+  target_compile_features(
+    rapids_triton INTERFACE cxx_std_17
+    $<BUILD_INTERFACE:cuda_std_17>
+  )
+else()
+  target_compile_features(
+    rapids_triton INTERFACE cxx_std_17
+  )
+endif()
 
 rapids_cmake_install_lib_dir(lib_dir)
 install(TARGETS rapids_triton
