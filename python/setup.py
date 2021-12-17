@@ -17,7 +17,7 @@ from setuptools import setup, find_packages
 setup(
     name='rapids_triton',
     description="Tools for clients to RAPIDS-Triton backends",
-    version='21.10.00',  # TODO(wphicks): versioneer
+    version='21.12.00',  # TODO(wphicks): versioneer
     author='NVIDIA Corporation',
     license='Apache',
     packages=find_packages(),
