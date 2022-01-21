@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ from setuptools import setup, find_packages
 setup(
     name='rapids_triton',
     description="Tools for clients to RAPIDS-Triton backends",
-    version='21.12.00',  # TODO(wphicks): versioneer
+    version='22.02.00',  # TODO(wphicks): versioneer
     author='NVIDIA Corporation',
     license='Apache',
     packages=find_packages(),

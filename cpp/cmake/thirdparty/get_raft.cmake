@@ -30,6 +30,7 @@ function(find_and_configure_raft)
             SOURCE_SUBDIR  cpp
             OPTIONS
               "BUILD_TESTS OFF"
+              "RAFT_COMPILE_LIBRARIES OFF"
     )
 
     message(VERBOSE "RAPIDS_TRITON: Using RAFT located in ${raft_SOURCE_DIR}")

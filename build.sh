@@ -150,6 +150,7 @@ if [ $BACKEND -eq 1 ]
 then
   docker build \
     $DOCKER_ARGS \
+    --no-cache \
     -t "$EXAMPLE_TAG" \
     $REPODIR
 fi
@@ -158,6 +159,8 @@ if [ $TESTS -eq 1 ]
 then
   docker build \
     $DOCKER_ARGS \
+    --no-cache \
+    -t "$EXAMPLE_TAG" \
     --target test-stage \
     -t "$TEST_TAG" \
     $REPODIR
