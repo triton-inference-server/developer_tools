@@ -158,6 +158,7 @@ if [ $TESTS -eq 1 ]
 then
   docker build \
     $DOCKER_ARGS \
+    -t "$EXAMPLE_TAG" \
     --target test-stage \
     -t "$TEST_TAG" \
     $REPODIR
