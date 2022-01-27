@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import concurrent
 import os
 
 import numpy as np
@@ -67,3 +68,40 @@ def test_model(client, model_name, shared_mem, model_inputs, model_output_sizes)
             atol=1e-5,
             assert_close=True
         )
+
+
+@pytest.mark.parametrize("model_name", ['identity'])
+@pytest.mark.parametrize("shared_mem", valid_shm_modes())
+@pytest.mark.parametrize(
+    "batch_size",
+    [1, TOTAL_SAMPLES // 3, TOTAL_SAMPLES // 2]
+)
+def test_model_async(client, model_name, shared_mem, model_inputs, batch_size):
+    results = []
+    gt_results = []
+    for i in range(
+        0,
+        TOTAL_SAMPLES // batch_size + int(bool(TOTAL_SAMPLES % batch_size))
+    ):
+        min_index = i * batch_size
+        max_index = min((i + 1) * batch_size, TOTAL_SAMPLES)
+        cur_input = {name: arr[min_index: max_index] for name, arr in
+                model_inputs.items()}
+        cur_output_size = {
+            'output__0': (max_index - min_index) * np.dtype('float32').itemsize
+        }
+        results.append(client.predict_async(
+            model_name, cur_input, cur_output_size, shared_mem=shared_mem
+        ))
+        gt_results.append(get_ground_truth(cur_input))
+    concurrent.futures.wait(results, timeout=60)
+    results = [result_.result() for result_ in results]
+
+    for result, ground_truth in zip(results, gt_results):
+        for output_name in sorted(ground_truth.keys()):
+            arrays_close(
+                result[output_name],
+                ground_truth[output_name],
+                atol=1e-5,
+                assert_close=True
+            )

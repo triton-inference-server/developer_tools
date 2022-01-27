@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import time
+from concurrent.futures import Future
 
 from rapids_triton.triton.client import get_triton_client
 from rapids_triton.triton.io import create_triton_input, create_triton_output
@@ -139,3 +140,71 @@ class Client(object):
                     name=output_.name
                 )
         return result
+
+    def predict_async(
+            self,
+            model_name,
+            input_data,
+            output_sizes,
+            model_version='1',
+            shared_mem=None,
+            attempts=1):
+
+        model_version = str(model_version)
+
+        inputs = [
+            self.create_input(
+                arr,
+                name,
+                dtype_to_triton_name(arr.dtype),
+                shared_mem=shared_mem
+            )
+            for name, arr in input_data.items()
+        ]
+
+        outputs = {
+            name: self.create_output(size, name, shared_mem=shared_mem)
+            for name, size in output_sizes.items()
+        }
+
+        future_result = Future()
+        def callback(result, error):
+            if error is None:
+                output_arrays = {
+                    name: get_response_data(result, handle, name)
+                    for name, (_, handle, _) in outputs.items()
+                }
+
+                future_result.set_result(output_arrays)
+
+                for input_ in inputs:
+                    if input_.name is not None:
+                        self.triton_client.unregister_cuda_shared_memory(
+                            name=input_.name
+                        )
+                for output_ in outputs.values():
+                    if output_.name is not None:
+                        self.triton_client.unregister_cuda_shared_memory(
+                            name=output_.name
+                        )
+            else:
+                if isinstance(error, triton_utils.InferenceServerException):
+                    if attempts > 1:
+                        return self.predict(
+                            model_name,
+                            input_data,
+                            output_sizes,
+                            model_version=model_version,
+                            shared_mem=shared_mem,
+                            attempts=attempts - 1
+                        )
+                future_result.set_exception(error)
+
+        self.triton_client.async_infer(
+            model_name,
+            model_version=model_version,
+            inputs=[input_.input for input_ in inputs],
+            outputs=[output_.output for output_ in outputs.values()],
+            callback=callback
+        )
+        return future_result

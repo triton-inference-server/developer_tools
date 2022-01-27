@@ -96,6 +96,11 @@ RUN conda env update -f /environment.yml \
     && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
     && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete
 
+COPY ./python /rapids_triton
+
+RUN conda run -n rapids_triton_test pip install /rapids_triton \
+ && rm -rf /rapids_triton
+
 FROM build-stage as test-stage
 
 COPY --from=test-install /root/miniconda3 /root/miniconda3
