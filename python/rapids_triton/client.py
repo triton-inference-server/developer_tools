@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import namedtuple
 import concurrent.futures
 import time
 
@@ -26,6 +27,8 @@ from tritonclient import utils as triton_utils
 
 
 # TODO(wphicks): Propagate device ids for cuda shared memory
+
+MultiModelOutput = namedtuple('MultiModelOutput', ('name', 'version', 'output'))
 
 
 class Client(object):
@@ -227,7 +230,9 @@ class Client(object):
                         }
 
                         future_result.set_result(
-                            (model_name, version, output_arrays)
+                            MultiModelOutput(
+                                name=model_name, version=version, output=output_arrays
+                            )
                         )
 
                         self.release_io(outputs.values())

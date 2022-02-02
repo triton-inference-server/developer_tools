@@ -14,6 +14,7 @@ output [
     dims: [ 1 ]
   }
 ]
+version_policy: { all { }}
 instance_group [{ kind: KIND_GPU }]
 parameters [ ]
 dynamic_batching {

@@ -31,6 +31,10 @@ def valid_shm_modes():
 
 
 @pytest.fixture(scope='session')
+def model_versions():
+    return (1, 2)
+
+@pytest.fixture(scope='session')
 def client():
     client = Client()
     client.wait_for_server(60)
@@ -76,7 +80,7 @@ def test_model(client, model_name, shared_mem, model_inputs, model_output_sizes)
     "batch_size",
     [1, TOTAL_SAMPLES // 3, TOTAL_SAMPLES // 2]
 )
-def test_model_async(client, model_name, shared_mem, model_inputs, batch_size):
+def test_predict_async(client, model_name, shared_mem, model_inputs, batch_size):
     results = []
     gt_results = []
     for i in range(
@@ -101,6 +105,28 @@ def test_model_async(client, model_name, shared_mem, model_inputs, batch_size):
         for output_name in sorted(ground_truth.keys()):
             arrays_close(
                 result[output_name],
+                ground_truth[output_name],
+                atol=1e-5,
+                assert_close=True
+            )
+
+
+@pytest.mark.parametrize("model_name", ['identity'])
+@pytest.mark.parametrize("shared_mem", valid_shm_modes())
+def test_predict_multimodel(
+        client, model_name, shared_mem, model_inputs, model_output_sizes,
+        model_versions):
+    all_results = client.predict_multimodel(
+        [model_name], model_inputs, model_output_sizes,
+        model_versions=model_versions, shared_mem=shared_mem
+    )
+    ground_truth = get_ground_truth(model_inputs)
+
+    all_results = all_results.result(timeout=60)
+    for result in all_results:
+        for output_name in sorted(ground_truth.keys()):
+            arrays_close(
+                result.output[output_name],
                 ground_truth[output_name],
                 atol=1e-5,
                 assert_close=True
