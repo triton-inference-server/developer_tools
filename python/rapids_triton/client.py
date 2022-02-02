@@ -110,7 +110,6 @@ class Client(object):
             output_sizes,
             model_version='1',
             shared_mem=None,
-            device_id=0,
             attempts=1):
         model_version = str(model_version)
 
@@ -151,7 +150,6 @@ class Client(object):
             output_sizes,
             model_version='1',
             shared_mem=None,
-            device_id=0,
             attempts=1):
 
         model_version = str(model_version)
@@ -204,7 +202,6 @@ class Client(object):
             output_sizes,
             model_versions=('1',),
             shared_mem=None,
-            device_ids=(0,),
             executor=None,
             attempts=1):
 
