@@ -18,6 +18,7 @@ from uuid import uuid4
 import tritonclient.http as triton_http
 import tritonclient.grpc as triton_grpc
 from rapids_triton.utils.safe_import import ImportReplacement
+from rapids_triton.exceptions import IncompatibleSharedMemory
 from tritonclient import utils as triton_utils
 try:
     import tritonclient.utils.cuda_shared_memory as shm
@@ -25,7 +26,7 @@ except OSError:  # CUDA libraries not available
     shm = ImportReplacement('tritonclient.utils.cuda_shared_memory')
 
 
-TritonInput = namedtuple('TritonInput', ('name', 'input'))
+TritonInput = namedtuple('TritonInput', ('name', 'handle', 'input'))
 TritonOutput = namedtuple('TritonOutput', ('name', 'handle', 'output'))
 
 def set_unshared_input_data(triton_input, data, protocol='grpc'):
@@ -34,7 +35,7 @@ def set_unshared_input_data(triton_input, data, protocol='grpc'):
     else:
         triton_input.set_data_from_numpy(data, binary_data=True)
 
-    return None
+    return TritonInput(None, None, triton_input)
 
 
 def set_shared_input_data(triton_client, triton_input, data, protocol='grpc'):
@@ -54,7 +55,7 @@ def set_shared_input_data(triton_client, triton_input, data, protocol='grpc'):
 
     triton_input.set_shared_memory(input_name, input_size)
 
-    return input_name
+    return TritonInput(input_name, input_handle, triton_input)
 
 
 def set_input_data(
@@ -81,15 +82,13 @@ def create_triton_input(
     else:
         triton_input = triton_http.InferInput(name, data.shape, dtype)
 
-    input_name = set_input_data(
+    return set_input_data(
         triton_client,
         triton_input,
         data,
         protocol=protocol,
         shared_mem=shared_mem
     )
-
-    return TritonInput(name=input_name, input=triton_input)
 
 
 def create_output_handle(triton_client, triton_output, size, shared_mem=None):
@@ -141,3 +140,31 @@ def create_triton_output(
         handle=output_handle,
         output=triton_output
     )
+
+
+def destroy_shared_memory_region(handle, shared_mem='cuda'):
+    """Release memory from a given shared memory handle
+
+    Parameters
+    ----------
+    handle : c_void_p
+        The handle (as returned by the Triton client) for the region to be
+        released.
+    shared_mem : 'cuda' or 'system' or None
+        The type of shared memory region to release. If None, an exception will
+        be thrown.
+    """
+    if shared_mem is None:
+        raise IncompatibleSharedMemory(
+            "Attempting to release non-shared memory"
+        )
+    elif shared_mem == 'system':
+        raise NotImplementedError(
+            "System shared memory not yet supported"
+        )
+    elif shared_mem == 'cuda':
+        shm.destroy_shared_memory_region(handle)
+    else:
+        raise NotImplementedError(
+            f"Unrecognized memory type {shared_mem}"
+        )
