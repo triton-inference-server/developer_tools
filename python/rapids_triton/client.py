@@ -37,8 +37,7 @@ class Client(object):
             protocol='grpc',
             host='localhost',
             port=None,
-            concurrency=4,
-            reuse_shared_memory=False):
+            concurrency=4)
         self.triton_client = get_triton_client(
             protocol=protocol,
             host=host,
