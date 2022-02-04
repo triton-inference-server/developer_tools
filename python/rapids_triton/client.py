@@ -189,10 +189,11 @@ class Client(object):
             callback=callback
         )
 
-        def release_callback(fut):
-            self.release_io(inputs)
+        if shared_mem is not None:
+            def release_callback(fut):
+                self.release_io(inputs)
 
-        future_result.add_done_callback(release_callback)
+            future_result.add_done_callback(release_callback)
         return future_result
 
     def predict_multimodel(
