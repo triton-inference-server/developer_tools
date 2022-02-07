@@ -32,7 +32,7 @@ class ImportReplacement:
         self._msg = f'{symbol} could not be imported'
 
     def __getattr__(self, name):
-        raise UnavailableError(self._msg)
+        raise ImportUnavailableError(self._msg)
 
     def __call__(self, *args, **kwargs):
         raise ImportUnavailableError(self._msg)
