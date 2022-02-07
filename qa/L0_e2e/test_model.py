@@ -113,10 +113,10 @@ def test_predict_async(client, model_name, shared_mem, model_inputs, batch_size)
 
 @pytest.mark.parametrize("model_name", ['identity'])
 @pytest.mark.parametrize("shared_mem", valid_shm_modes())
-def test_predict_multimodel(
+def test_predict_multimodel_async(
         client, model_name, shared_mem, model_inputs, model_output_sizes,
         model_versions):
-    all_results = client.predict_multimodel(
+    all_results = client.predict_multimodel_async(
         [model_name], model_inputs, model_output_sizes,
         model_versions=model_versions, shared_mem=shared_mem
     )

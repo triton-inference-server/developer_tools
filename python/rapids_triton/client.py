@@ -196,7 +196,7 @@ class Client(object):
             future_result.add_done_callback(release_callback)
         return future_result
 
-    def predict_multimodel(
+    def predict_multimodel_async(
             self,
             model_names,
             input_data,
