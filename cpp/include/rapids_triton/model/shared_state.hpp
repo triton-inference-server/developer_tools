@@ -110,7 +110,7 @@ struct SharedModelState {
       std::begin(output_shapes_), std::end(output_shapes_), name, [](auto& entry, auto& value) {
         return entry.first < value;
       });
-    if (cached_shape == std::end(output_shapes_)) {
+    if (cached_shape == std::end(output_shapes_) || name != cached_shape->first) {
       auto log_stream = std::stringstream{};
       log_stream << "No output with name " << name << " in configuration.";
       throw TritonException(Error::Internal, log_stream.str());
