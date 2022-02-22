@@ -120,19 +120,19 @@ struct SharedModelState {
   }
 
   auto get_output_names() const {
-    auto output_names = std::vector<std::string>{output_shapes_.size()};
-    std::for_each(std::begin(output_shapes_), std::end(output_shapes_), [&output_names](auto& output_shape) {
-      output_names.push_back(output_shape.first);
+    auto output_names = std::vector<std::string>{};
+    output_names.reserve(output_shapes_.size());
+    std::transform(std::begin(output_shapes_), std::end(output_shapes_), std::back_inserter(output_names), [](auto& output_shape) {
+      return output_shape.first;
     });
     return output_names;
   }
 
   auto check_output_name(std::string const& name) const -> bool {
-    auto cached_shape = std::lower_bound(
+    return std::binary_search(
       std::begin(output_shapes_), std::end(output_shapes_), name, [](auto& entry, auto& value) {
         return entry.first < value;
       });
-    return cached_shape != std::end(output_shapes_);
   }
 
  private:
