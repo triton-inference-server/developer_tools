@@ -128,7 +128,8 @@ struct SharedModelState {
     return output_names;
   }
 
-  auto check_output_name(std::string const& name) const -> bool {
+  auto check_output_name(std::string const& name) const {
+    // #TODO: Figure out a way to use std::binary_search here
     auto cached_shape = std::lower_bound(
       std::begin(output_shapes_), std::end(output_shapes_), name, [](auto& entry, auto& value) {
         return entry.first < value;
