@@ -263,7 +263,7 @@ TritonServer::ClearCompletedResponses()
 }
 
 Error
-TritonServer::InitializeAllocator(InferRequest* request)
+TritonServer::InitializeAllocator()
 {
   allocator_ = nullptr;
   if (custom_allocator_ == nullptr) {
@@ -466,7 +466,7 @@ TritonServer::AsyncInfer(InferResult* infer_result, InferRequest infer_request)
               .c_str());
     }
 
-    THROW_IF_ERROR(InitializeAllocator(&infer_request));
+    THROW_IF_ERROR(InitializeAllocator());
     THROW_IF_ERROR(PrepareInferenceRequest(&irequest, &infer_request));
     THROW_IF_ERROR(PrepareInferenceInput(irequest, &infer_request));
     THROW_IF_ERROR(PrepareInferenceOutput(irequest, &infer_request));

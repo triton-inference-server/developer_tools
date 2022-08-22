@@ -240,7 +240,7 @@ class TritonServer {
   /// application.
   //==============================================================================
  private:
-  Error InitializeAllocator(InferRequest* request);
+  Error InitializeAllocator();
 
   Error PrepareInferenceRequest(
       TRITONSERVER_InferenceRequest** irequest, InferRequest* request);
