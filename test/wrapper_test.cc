@@ -26,6 +26,7 @@
 #include "gtest/gtest.h"
 
 #include "triton/develop/server_api.h"
+#include "triton/core/tritonserver.h"
 
 namespace ths = triton::high_level::server_api;
 
@@ -34,8 +35,19 @@ namespace {
 class ServerWrapperTest : public ::testing::Test {
 };
 
+TEST_F(ServerWrapperTest, SanityCheck)
+{
+  // Sanity check that proper 'libtritonserver.so' is used
+  uint32_t major = 0, minor = 0;
+  auto err = TRITONSERVER_ApiVersion(&major, &minor);
+  ASSERT_TRUE(err == nullptr) << "Unexpected error from API version call";
+  ASSERT_EQ(major, TRITONSERVER_API_VERSION_MAJOR) << "Mismatch major version";
+  ASSERT_GE(minor, TRITONSERVER_API_VERSION_MINOR) << "Older minor version";
+}
+
 TEST_F(ServerWrapperTest, StartServer)
 {
+  // [WIP] fix below for real implementation
   try {
     ths::TritonServer(ths::ServerParams({}));
   } catch (ths::TritonException ex) {
