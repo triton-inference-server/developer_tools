@@ -32,7 +32,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "common.h"
+#include "../src/common.h"
 #include "triton/core/tritonserver.h"
 
 namespace triton { namespace triton_developer_tools { namespace server {
