@@ -25,7 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "gtest/gtest.h"
 
-#include "triton/develop/server_api.h"
+#include "server_api.h"
 #include "triton/core/tritonserver.h"
 
 namespace ths = triton::high_level::server_api;

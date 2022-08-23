@@ -1,6 +1,6 @@
 // [DO NOT MERGE] mock for testing setup
 
-#include "triton/develop/server_api.h"
+#include "server_api.h"
 #include "triton/core/tritonserver.h"
 
 namespace triton { namespace high_level { namespace server_api {
