@@ -221,35 +221,39 @@ class TritonServer {
 
   /// Run asynchronous inference on server.
   /// \param result_future Returns the result of inference as a future of
-  /// InferResult object. \param infer_request The InferRequest object contains
-  /// the inputs, outputs and infer options for an inference request. \return
-  /// Error object indicating success or failure.
+  /// InferResult object.
+  /// \param infer_request The InferRequest object contains
+  /// the inputs, outputs and infer options for an inference request.
+  /// \return Error object indicating success or failure.
   Error AsyncInfer(
-      std::future<InferResult*>* result_future, InferRequest infer_request);
+      std::future<InferResult*>* result_future,
+      const InferRequest& infer_request);
 
   /// Run asynchronous inference on server.
   /// \param buffer_result_future Returns the result of inference as a future of
-  /// BufferResult object. \param infer_request The InferRequest object contains
-  /// the inputs, outputs and infer options for an inference request. \return
-  /// Error object indicating success or failure.
+  /// BufferResult object.
+  /// \param infer_request The InferRequest object contains
+  /// the inputs, outputs and infer options for an inference request.
+  /// \return Error object indicating success or failure.
   Error AsyncInfer(
       std::future<BufferResult*>* buffer_result_future,
-      InferRequest infer_request);
+      const InferRequest& infer_request);
 
  private:
   Error InitializeAllocator();
 
   Error PrepareInferenceRequest(
-      TRITONSERVER_InferenceRequest** irequest, InferRequest* request);
+      TRITONSERVER_InferenceRequest** irequest, const InferRequest& request);
 
   Error PrepareInferenceInput(
-      TRITONSERVER_InferenceRequest* irequest, InferRequest* request);
+      TRITONSERVER_InferenceRequest* irequest, const InferRequest& request);
 
   Error PrepareInferenceOutput(
-      TRITONSERVER_InferenceRequest* irequest, InferRequest* request);
+      TRITONSERVER_InferenceRequest* irequest, const InferRequest& request);
 
   Error AsyncInferHelper(
-      TRITONSERVER_InferenceRequest** irequest, InferRequest infer_request);
+      TRITONSERVER_InferenceRequest** irequest,
+      const InferRequest& infer_request);
 
   // Helper function for parsing data type and shape of an input tensor from
   // model configuration when 'data_type' or 'shape' field is missing.

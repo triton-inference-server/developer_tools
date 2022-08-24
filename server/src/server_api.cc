@@ -706,38 +706,38 @@ TritonServer::InitializeAllocator()
 
 Error
 TritonServer::PrepareInferenceRequest(
-    TRITONSERVER_InferenceRequest** irequest, InferRequest* request)
+    TRITONSERVER_InferenceRequest** irequest, const InferRequest& request)
 {
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestNew(
-      irequest, server_, request->infer_options_.model_name_.c_str(),
-      request->infer_options_.model_version_));
+      irequest, server_, request.infer_options_.model_name_.c_str(),
+      request.infer_options_.model_version_));
 
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetId(
-      *irequest, request->infer_options_.request_id_.c_str()));
-  if (request->infer_options_.correlation_id_str_.empty()) {
+      *irequest, request.infer_options_.request_id_.c_str()));
+  if (request.infer_options_.correlation_id_str_.empty()) {
     RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetCorrelationId(
-        *irequest, request->infer_options_.correlation_id_));
+        *irequest, request.infer_options_.correlation_id_));
   } else {
     RETURN_ERR_IF_TRITON_ERR(
         TRITONSERVER_InferenceRequestSetCorrelationIdString(
-            *irequest, request->infer_options_.correlation_id_str_.c_str()));
+            *irequest, request.infer_options_.correlation_id_str_.c_str()));
   }
 
   uint32_t flags = 0;
-  if (request->infer_options_.sequence_start_) {
+  if (request.infer_options_.sequence_start_) {
     flags |= TRITONSERVER_REQUEST_FLAG_SEQUENCE_START;
   }
-  if (request->infer_options_.sequence_end_) {
+  if (request.infer_options_.sequence_end_) {
     flags |= TRITONSERVER_REQUEST_FLAG_SEQUENCE_END;
   }
   RETURN_ERR_IF_TRITON_ERR(
       TRITONSERVER_InferenceRequestSetFlags(*irequest, flags));
 
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetPriority(
-      *irequest, request->infer_options_.priority_));
+      *irequest, request.infer_options_.priority_));
 
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetTimeoutMicroseconds(
-      *irequest, request->infer_options_.request_timeout_));
+      *irequest, request.infer_options_.request_timeout_));
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetReleaseCallback(
       *irequest, InferRequestComplete, nullptr /* request_release_userp */));
 
@@ -802,17 +802,17 @@ TritonServer::ParseDataTypeAndShape(
 
 Error
 TritonServer::PrepareInferenceInput(
-    TRITONSERVER_InferenceRequest* irequest, InferRequest* request)
+    TRITONSERVER_InferenceRequest* irequest, const InferRequest& request)
 {
-  for (auto& infer_input : request->inputs_) {
+  for (auto& infer_input : request.inputs_) {
     TRITONSERVER_DataType input_dtype = infer_input->DataType();
     std::vector<int64_t> input_shape = infer_input->Shape();
     if ((input_dtype == TRITONSERVER_TYPE_INVALID) || input_shape.empty()) {
       TRITONSERVER_DataType dtype;
       std::vector<int64_t> shape;
       RETURN_IF_ERR(ParseDataTypeAndShape(
-          request->infer_options_.model_name_,
-          request->infer_options_.model_version_, infer_input->Name(), &dtype,
+          request.infer_options_.model_name_,
+          request.infer_options_.model_version_, infer_input->Name(), &dtype,
           &shape));
       if (input_dtype == TRITONSERVER_TYPE_INVALID) {
         input_dtype = dtype;
@@ -837,9 +837,9 @@ TritonServer::PrepareInferenceInput(
 
 Error
 TritonServer::PrepareInferenceOutput(
-    TRITONSERVER_InferenceRequest* irequest, InferRequest* request)
+    TRITONSERVER_InferenceRequest* irequest, const InferRequest& request)
 {
-  for (auto& infer_output : request->outputs_) {
+  for (auto& infer_output : request.outputs_) {
     const char* name = infer_output->Name().c_str();
     RETURN_ERR_IF_TRITON_ERR(
         TRITONSERVER_InferenceRequestAddRequestedOutput(irequest, name));
@@ -850,7 +850,7 @@ TritonServer::PrepareInferenceOutput(
 
 Error
 TritonServer::AsyncInferHelper(
-    TRITONSERVER_InferenceRequest** irequest, InferRequest infer_request)
+    TRITONSERVER_InferenceRequest** irequest, const InferRequest& infer_request)
 {
   bool is_ready = false;
   std::string model_name = infer_request.infer_options_.model_name_.c_str();
@@ -866,16 +866,16 @@ TritonServer::AsyncInferHelper(
   }
 
   RETURN_IF_ERR(InitializeAllocator());
-  RETURN_IF_ERR(PrepareInferenceRequest(irequest, &infer_request));
-  RETURN_IF_ERR(PrepareInferenceInput(*irequest, &infer_request));
-  RETURN_IF_ERR(PrepareInferenceOutput(*irequest, &infer_request));
+  RETURN_IF_ERR(PrepareInferenceRequest(irequest, infer_request));
+  RETURN_IF_ERR(PrepareInferenceInput(*irequest, infer_request));
+  RETURN_IF_ERR(PrepareInferenceOutput(*irequest, infer_request));
 
   return Error::Success;
 }
 
 Error
 TritonServer::AsyncInfer(
-    std::future<InferResult*>* result_future, InferRequest infer_request)
+    std::future<InferResult*>* result_future, const InferRequest& infer_request)
 {
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
@@ -905,7 +905,7 @@ TritonServer::AsyncInfer(
 Error
 TritonServer::AsyncInfer(
     std::future<BufferResult*>* buffer_result_future,
-    InferRequest infer_request)
+    const InferRequest& infer_request)
 {
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
