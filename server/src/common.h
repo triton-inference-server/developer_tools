@@ -169,13 +169,13 @@ struct Exception : std::exception {
 struct ResponseParameters {
   explicit ResponseParameters(
       const char* name, TRITONSERVER_ParameterType type, const void* vvalue)
-      : name(name), type(type), vvalue(vvalue)
+      : name_(name), type_(type), vvalue_(vvalue)
   {
   }
 
-  const char* name;
-  TRITONSERVER_ParameterType type;
-  const void* vvalue;
+  const char* name_;
+  TRITONSERVER_ParameterType type_;
+  const void* vvalue_;
 };
 
 //==============================================================================

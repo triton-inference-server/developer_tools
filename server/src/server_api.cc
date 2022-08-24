@@ -314,8 +314,8 @@ InferResponseCompleteBuffer(
     result->FinalizeResponse(response);
     BufferResult* buffer_result = new BufferResult();
     if (result->HasError()) {
-      buffer_result->has_error = true;
-      buffer_result->error_msg = result->ErrorMsg();
+      buffer_result->has_error_ = true;
+      buffer_result->error_msg_ = result->ErrorMsg();
     } else {
       for (auto& output : result->Outputs()) {
         std::string name = output.first;
@@ -325,14 +325,14 @@ InferResponseCompleteBuffer(
         int64_t memory_type_id;
         Error err = result->RawData(name, &buf, &byte_size);
         if (!err.IsOk()) {
-          buffer_result->has_error = true;
-          buffer_result->error_msg = err.Message();
+          buffer_result->has_error_ = true;
+          buffer_result->error_msg_ = err.Message();
           break;
         }
         memory_type =
             TRITONSERVER_MemoryTypeString(output.second->MemoryType());
         memory_type_id = output.second->MemoryTypeId();
-        buffer_result->buffer_map.insert(std::pair<std::string, Buffer>(
+        buffer_result->buffer_map_.insert(std::pair<std::string, Buffer>(
             name, Buffer(buf, byte_size, memory_type, memory_type_id)));
       }
     }
@@ -353,7 +353,142 @@ OutputBufferQuery(
   return nullptr;  // Success
 }
 
-TritonServer::TritonServer(ServerParams server_params)
+LoggingOptions::LoggingOptions()
+{
+  verbose_ = 0;
+  info_ = true;
+  warn_ = true;
+  error_ = true;
+  format_ = LOG_DEFAULT;
+  log_file_ = "";
+}
+
+LoggingOptions::LoggingOptions(
+    bool verbose, bool info, bool warn, bool error, LogFormat format,
+    std::string log_file)
+{
+  verbose_ = verbose;
+  info_ = info;
+  warn_ = warn;
+  error_ = error;
+  format_ = format;
+  log_file_ = log_file;
+}
+
+MetricsOptions::MetricsOptions()
+{
+  allow_metrics_ = true;
+  allow_gpu_metrics_ = true;
+  metrics_interval_ms_ = 2000;
+}
+
+MetricsOptions::MetricsOptions(
+    bool allow_metrics, bool allow_gpu_metrics, uint64_t metrics_interval_ms)
+{
+  allow_metrics_ = allow_metrics;
+  allow_gpu_metrics_ = allow_gpu_metrics;
+  metrics_interval_ms_ = metrics_interval_ms;
+}
+
+BackendConfig::BackendConfig()
+{
+  backend_name_ = "";
+  setting_ = "";
+  value_ = "";
+}
+
+BackendConfig::BackendConfig(
+    std::string backend_name, std::string setting, std::string value)
+{
+  backend_name_ = backend_name;
+  setting_ = setting;
+  value_ = value;
+}
+
+ServerOptions::ServerOptions(std::vector<std::string> model_repository_paths)
+{
+  model_repository_paths_ = model_repository_paths;
+  logging_ = LoggingOptions();
+  metrics_ = MetricsOptions();
+  be_config_.clear();
+  server_id_ = "triton";
+  backend_dir_ = "/opt/tritonserver/backends";
+  repo_agent_dir_ = "/opt/tritonserver/repoagents";
+  disable_auto_complete_config_ = false;
+  model_control_mode_ = MODEL_CONTROL_NONE;
+}
+
+ServerOptions::ServerOptions(
+    std::vector<std::string> model_repository_paths, LoggingOptions logging,
+    MetricsOptions metrics, std::vector<BackendConfig> be_config,
+    std::string server_id, std::string backend_dir, std::string repo_agent_dir,
+    bool disable_auto_complete_config, ModelControlMode model_control_mode)
+{
+  model_repository_paths_ = model_repository_paths;
+  logging_ = logging;
+  metrics_ = metrics;
+  be_config_ = be_config;
+  server_id_ = server_id;
+  backend_dir_ = backend_dir;
+  repo_agent_dir_ = repo_agent_dir;
+  disable_auto_complete_config_ = disable_auto_complete_config;
+  model_control_mode_ = model_control_mode;
+}
+
+RepositoryIndex::RepositoryIndex(
+    std::string name, std::string version, std::string state)
+{
+  name_ = name;
+  version_ = version;
+  state_ = state;
+}
+
+Buffer::Buffer(
+    const char* buffer, size_t byte_size, std::string memory_type,
+    int64_t memory_type_id)
+{
+  buffer_ = buffer;
+  byte_size_ = byte_size;
+  memory_type_ = memory_type;
+  memory_type_id_ = memory_type_id;
+}
+
+InferOptions::InferOptions() {}
+
+InferOptions::InferOptions(const std::string& model_name)
+{
+  model_name_ = model_name;
+  model_version_ = -1;
+  request_id_ = "";
+  correlation_id_ = 0;
+  correlation_id_str_ = "";
+  sequence_start_ = false;
+  sequence_end_ = false;
+  priority_ = 0;
+  request_timeout_ = 0;
+  custom_allocator_ = nullptr;
+}
+
+InferOptions::InferOptions(
+    const std::string& model_name, const int64_t model_version,
+    const std::string request_id, const uint64_t correlation_id,
+    const std::string correlation_id_str, const bool sequence_start,
+    const bool sequence_end, const uint64_t priority,
+    const uint64_t request_timeout, Allocator* custom_allocator)
+{
+  model_name_ = model_name;
+  model_version_ = model_version;
+  request_id_ = request_id;
+  correlation_id_ = correlation_id;
+  correlation_id_str_ = correlation_id_str;
+  sequence_start_ = sequence_start;
+  sequence_end_ = sequence_end;
+  priority_ = priority;
+  request_timeout_ = request_timeout;
+  custom_allocator_ = custom_allocator;
+}
+
+TritonServer::TritonServer(ServerOptions options)
 {
   TRITONSERVER_ServerOptions* server_options = nullptr;
   FAIL_IF_TRITON_ERR(
@@ -361,8 +496,7 @@ TritonServer::TritonServer(ServerParams server_params)
       "creating server options");
 
   // Set model_repository_path
-  for (const auto& model_repository_path :
-       server_params.model_repository_paths) {
+  for (const auto& model_repository_path : options.model_repository_paths_) {
     FAIL_IF_TRITON_ERR(
         TRITONSERVER_ServerOptionsSetModelRepositoryPath(
             server_options, model_repository_path.c_str()),
@@ -372,84 +506,84 @@ TritonServer::TritonServer(ServerParams server_params)
   // Set logging options
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetLogVerbose(
-          server_options, server_params.logging.verbose),
+          server_options, options.logging_.verbose_),
       "setting verbose level logging");
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetLogInfo(
-          server_options, server_params.logging.info),
+          server_options, options.logging_.info_),
       "setting info level logging");
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetLogWarn(
-          server_options, server_params.logging.warn),
+          server_options, options.logging_.warn_),
       "setting warning level logging");
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetLogError(
-          server_options, server_params.logging.error),
+          server_options, options.logging_.error_),
       "setting error level logging");
   TRITONSERVER_LogFormat log_format;
   FAIL_IF_ERR(
-      ToTritonLogFormat(&log_format, server_params.logging.format),
+      ToTritonLogFormat(&log_format, options.logging_.format_),
       "converting to triton log format")
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetLogFormat(server_options, log_format),
       "setting logging format");
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetLogFile(
-          server_options, server_params.logging.log_file.c_str()),
+          server_options, options.logging_.log_file_.c_str()),
       "setting logging output file");
 
   // Set metrics options
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetMetrics(
-          server_options, server_params.metrics.allow_metrics),
+          server_options, options.metrics_.allow_metrics_),
       "setting metrics collection");
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetGpuMetrics(
-          server_options, server_params.metrics.allow_gpu_metrics),
+          server_options, options.metrics_.allow_gpu_metrics_),
       "setting GPU metrics collection");
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetMetricsInterval(
-          server_options, server_params.metrics.metrics_interval_ms),
+          server_options, options.metrics_.metrics_interval_ms_),
       "settin the interval for metrics collection");
 
   // Set backend configuration
-  for (const auto& bc : server_params.be_config) {
+  for (const auto& bc : options.be_config_) {
     FAIL_IF_TRITON_ERR(
         TRITONSERVER_ServerOptionsSetBackendConfig(
-            server_options, bc.backend_name.c_str(), bc.setting.c_str(),
-            bc.value.c_str()),
+            server_options, bc.backend_name_.c_str(), bc.setting_.c_str(),
+            bc.value_.c_str()),
         "setting backend configurtion");
   }
 
   // Set server id
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetServerId(
-          server_options, server_params.server_id.c_str()),
+          server_options, options.server_id_.c_str()),
       "setting server ID");
 
   // Set backend directory
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetBackendDirectory(
-          server_options, server_params.backend_dir.c_str()),
+          server_options, options.backend_dir_.c_str()),
       "setting backend directory");
 
   // Set repo agent directory
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetRepoAgentDirectory(
-          server_options, server_params.repo_agent_dir.c_str()),
+          server_options, options.repo_agent_dir_.c_str()),
       "setting repo agent directory");
 
   // Set auto-complete model config
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetStrictModelConfig(
-          server_options, server_params.disable_auto_complete_config),
+          server_options, options.disable_auto_complete_config_),
       "setting strict model configuration");
 
   // Set model control mode
   TRITONSERVER_ModelControlMode model_control_mode;
   FAIL_IF_ERR(
       ToTritonModelControlMode(
-          &model_control_mode, server_params.model_control_mode),
+          &model_control_mode, options.model_control_mode_),
       "converting to triton model control mode")
   FAIL_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetModelControlMode(
@@ -503,7 +637,7 @@ TritonServer::LoadedModels(std::set<std::string>* loaded_models)
 
   std::set<std::string> models;
   for (size_t i = 0; i < repository_index.size(); i++) {
-    models.insert(repository_index[i].name);
+    models.insert(repository_index[i].name_);
   }
 
   *loaded_models = models;
@@ -575,35 +709,35 @@ TritonServer::PrepareInferenceRequest(
     TRITONSERVER_InferenceRequest** irequest, InferRequest* request)
 {
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestNew(
-      irequest, server_, request->infer_options_.model_name.c_str(),
-      request->infer_options_.model_version));
+      irequest, server_, request->infer_options_.model_name_.c_str(),
+      request->infer_options_.model_version_));
 
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetId(
-      *irequest, request->infer_options_.request_id.c_str()));
-  if (request->infer_options_.correlation_id_str.empty()) {
+      *irequest, request->infer_options_.request_id_.c_str()));
+  if (request->infer_options_.correlation_id_str_.empty()) {
     RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetCorrelationId(
-        *irequest, request->infer_options_.correlation_id));
+        *irequest, request->infer_options_.correlation_id_));
   } else {
     RETURN_ERR_IF_TRITON_ERR(
         TRITONSERVER_InferenceRequestSetCorrelationIdString(
-            *irequest, request->infer_options_.correlation_id_str.c_str()));
+            *irequest, request->infer_options_.correlation_id_str_.c_str()));
   }
 
   uint32_t flags = 0;
-  if (request->infer_options_.sequence_start) {
+  if (request->infer_options_.sequence_start_) {
     flags |= TRITONSERVER_REQUEST_FLAG_SEQUENCE_START;
   }
-  if (request->infer_options_.sequence_end) {
+  if (request->infer_options_.sequence_end_) {
     flags |= TRITONSERVER_REQUEST_FLAG_SEQUENCE_END;
   }
   RETURN_ERR_IF_TRITON_ERR(
       TRITONSERVER_InferenceRequestSetFlags(*irequest, flags));
 
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetPriority(
-      *irequest, request->infer_options_.priority));
+      *irequest, request->infer_options_.priority_));
 
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetTimeoutMicroseconds(
-      *irequest, request->infer_options_.request_timeout));
+      *irequest, request->infer_options_.request_timeout_));
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetReleaseCallback(
       *irequest, InferRequestComplete, nullptr /* request_release_userp */));
 
@@ -677,8 +811,8 @@ TritonServer::PrepareInferenceInput(
       TRITONSERVER_DataType dtype;
       std::vector<int64_t> shape;
       RETURN_IF_ERR(ParseDataTypeAndShape(
-          request->infer_options_.model_name,
-          request->infer_options_.model_version, infer_input->Name(), &dtype,
+          request->infer_options_.model_name_,
+          request->infer_options_.model_version_, infer_input->Name(), &dtype,
           &shape));
       if (input_dtype == TRITONSERVER_TYPE_INVALID) {
         input_dtype = dtype;
@@ -719,9 +853,9 @@ TritonServer::AsyncInferHelper(
     TRITONSERVER_InferenceRequest** irequest, InferRequest infer_request)
 {
   bool is_ready = false;
-  std::string model_name = infer_request.infer_options_.model_name.c_str();
+  std::string model_name = infer_request.infer_options_.model_name_.c_str();
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ServerModelIsReady(
-      server_, model_name.c_str(), infer_request.infer_options_.model_version,
+      server_, model_name.c_str(), infer_request.infer_options_.model_version_,
       &is_ready));
 
   if (!is_ready) {
@@ -801,7 +935,7 @@ TritonServer::AsyncInfer(
 InferRequest::InferRequest(InferOptions options)
 {
   infer_options_ = options;
-  custom_allocator_ = options.custom_allocator;
+  custom_allocator_ = options.custom_allocator_;
 }
 
 Error
@@ -1064,21 +1198,21 @@ InferResult::DebugString(std::string* string_result)
     triton::common::TritonJson::Value params_json(
         response_json, triton::common::TritonJson::ValueType::OBJECT);
     for (size_t i = 0; i < params_.size(); i++) {
-      switch (params_[i]->type) {
+      switch (params_[i]->type_) {
         case TRITONSERVER_PARAMETER_BOOL:
           RETURN_ERR_IF_TRITON_ERR(params_json.AddBool(
-              params_[i]->name,
-              *(reinterpret_cast<const bool*>(params_[i]->vvalue))));
+              params_[i]->name_,
+              *(reinterpret_cast<const bool*>(params_[i]->vvalue_))));
           break;
         case TRITONSERVER_PARAMETER_INT:
           RETURN_ERR_IF_TRITON_ERR(params_json.AddInt(
-              params_[i]->name,
-              *(reinterpret_cast<const int64_t*>(params_[i]->vvalue))));
+              params_[i]->name_,
+              *(reinterpret_cast<const int64_t*>(params_[i]->vvalue_))));
           break;
         case TRITONSERVER_PARAMETER_STRING:
           RETURN_ERR_IF_TRITON_ERR(params_json.AddStringRef(
-              params_[i]->name,
-              reinterpret_cast<const char*>(params_[i]->vvalue)));
+              params_[i]->name_,
+              reinterpret_cast<const char*>(params_[i]->vvalue_)));
           break;
         case TRITONSERVER_PARAMETER_BYTES:
           return Error(

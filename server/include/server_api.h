@@ -44,139 +44,128 @@ class Allocator;
 //==============================================================================
 /// Structure to hold logging options for server parameters.
 ///
-struct logging_options {
-  logging_options()
-      : verbose(0), info(true), warn(true), error(true), format(LOG_DEFAULT),
-        log_file("")
-  {
-  }
-  logging_options(
-      bool verbose, bool info, bool warn, bool error, LogFormat format,
-      std::string log_file)
-      : verbose(verbose), info(info), warn(warn), error(error), format(format),
-        log_file(log_file)
-  {
-  }
+struct LoggingOptions {
+  LoggingOptions();
 
-  uint verbose;          // verbose logging level
-  bool info;             // enable/disable info logging level
-  bool warn;             // enable/disable warn logging level
-  bool error;            // enable/disable error logging level
-  LogFormat format;      // logging format
-  std::string log_file;  // logging output file
+  LoggingOptions(
+      bool verbose, bool info, bool warn, bool error, LogFormat format,
+      std::string log_file);
+
+  // Verbose logging level. Default is 0.
+  uint verbose_;
+  // Enable or disable info logging level. Default is true.
+  bool info_;
+  // Enable or disable warn logging level. Default is true.
+  bool warn_;
+  // Enable or disable error logging level. Default is true.
+  bool error_;
+  // The format of logging. For "LOG_DEFAULT", the log severity (L) and
+  // timestamp will be logged as "LMMDD hh:mm:ss.ssssss". For "LOG_ISO8601", the
+  // log format will be "YYYY-MM-DDThh:mm:ssZ L". Default is 'LOG_DEFAULT'.
+  LogFormat format_;
+  // Logging output file. If specified, log outputs will be saved to this file.
+  // If not specified, log outputs will stream to the console. Default is an
+  // empty string.
+  std::string log_file_;  // logging output file
 };
 
 //==============================================================================
 /// Structure to hold metrics options for server parameters.
 ///
-struct metrics_options {
-  metrics_options()
-      : allow_metrics(true), allow_gpu_metrics(true), metrics_interval_ms(2000)
-  {
-  }
-  metrics_options(
-      bool allow_metrics, bool allow_gpu_metrics, uint64_t metrics_interval_ms)
-      : allow_metrics(allow_metrics), allow_gpu_metrics(allow_gpu_metrics),
-        metrics_interval_ms(metrics_interval_ms)
-  {
-  }
+struct MetricsOptions {
+  MetricsOptions();
 
-  bool allow_metrics;            // enable/disable metrics
-  bool allow_gpu_metrics;        // enable/disable GPU metrics
-  uint64_t metrics_interval_ms;  // the interval for metrics collection
+  MetricsOptions(
+      bool allow_metrics, bool allow_gpu_metrics, uint64_t metrics_interval_ms);
+
+  // Enable or disable metrics. Default is true.
+  bool allow_metrics_;
+  // Enable or disable GPU metrics. Default is true.
+  bool allow_gpu_metrics_;
+  // The interval for metrics collection. Default is 2000.
+  uint64_t metrics_interval_ms_;
 };
 
 //==============================================================================
 /// Structure to hold backend configuration for server parameters.
 ///
-struct backend_config {
-  backend_config() : backend_name(""), setting(""), value("") {}
-  backend_config(
-      std::string backend_name, std::string setting, std::string value)
-      : backend_name(backend_name), setting(setting), value(value)
-  {
-  }
+struct BackendConfig {
+  BackendConfig();
 
-  std::string backend_name;  // the name of the backend
-  std::string setting;       // the name of the setting
-  std::string value;         // the setting value
+  BackendConfig(
+      std::string backend_name, std::string setting, std::string value);
+
+  // The name of the backend. Default is and empty string.
+  std::string backend_name_;
+  // The name of the setting. Default is and empty string.
+  std::string setting_;
+  // The setting value. Default is and empty string.
+  std::string value_;
 };
 
 //==============================================================================
-/// Server parameters that are used to initialize Triton Server.
+/// Server options that are used to initialize Triton Server.
 ///
-struct ServerParams {
-  explicit ServerParams(std::vector<std::string> model_repository_paths)
-      : model_repository_paths(model_repository_paths)
-  {
-    logging = logging_options();
-    metrics = metrics_options();
-    be_config.clear();
-    server_id = "triton";
-    backend_dir = "/opt/tritonserver/backends";
-    repo_agent_dir = "/opt/tritonserver/repoagents";
-    disable_auto_complete_config = false;
-    model_control_mode = MODEL_CONTROL_NONE;
-  }
+struct ServerOptions {
+  ServerOptions(std::vector<std::string> model_repository_paths);
 
-  explicit ServerParams(
-      std::vector<std::string> model_repository_paths, logging_options logging,
-      metrics_options metrics, std::vector<backend_config> be_config,
+  ServerOptions(
+      std::vector<std::string> model_repository_paths, LoggingOptions logging,
+      MetricsOptions metrics, std::vector<BackendConfig> be_config,
       std::string server_id, std::string backend_dir,
       std::string repo_agent_dir, bool disable_auto_complete_config,
-      ModelControlMode model_control_mode)
-      : model_repository_paths(model_repository_paths), logging(logging),
-        metrics(metrics), be_config(be_config), server_id(server_id),
-        backend_dir(backend_dir), repo_agent_dir(repo_agent_dir),
-        disable_auto_complete_config(disable_auto_complete_config),
-        model_control_mode(model_control_mode)
-  {
-  }
+      ModelControlMode model_control_mode);
 
-  std::vector<std::string>
-      model_repository_paths;  // directory paths of model repositories
-  logging_options logging;     // logging options
-  metrics_options metrics;     // metrics options
-  std::vector<backend_config> be_config;  // backend configuration
-  std::string server_id;                  // the ID of the server
-  std::string backend_dir;                // directory path of backend
-  std::string repo_agent_dir;             // directory path of repo agent
-  bool disable_auto_complete_config;      // enable/disable auto-complete model
-                                          // configuration
-  ModelControlMode model_control_mode;    // model control mode
+  // Paths to model repository directory. Note that if a model is not unique
+  // across all model repositories at any time, the model will not be available.
+  std::vector<std::string> model_repository_paths_;
+  // Logging options.
+  LoggingOptions logging_;
+  // Metrics options.
+  MetricsOptions metrics_;
+  // Backend configuration.
+  std::vector<BackendConfig> be_config_;
+  // The ID of the server.
+  std::string server_id_;
+  // The global directory searched for backend shared libraries. Default is
+  // "/opt/tritonserver/backends".
+  std::string backend_dir_;
+  // The global directory searched for repository agent shared libraries.
+  // Default is "/opt/tritonserver/repoagents".
+  std::string repo_agent_dir_;
+  // If set, disables the triton and backends from auto completing model
+  // configuration files. Model configuration files must be provided and
+  // all required configuration settings must be specified. Default is false.
+  bool disable_auto_complete_config_;
+  // Specify the mode for model management. Options are "MODEL_CONTROL_NONE",
+  // "MODEL_CONTROL_POLL" and "MODEL_CONTROL_EXPLICIT". Default is
+  // "MODEL_CONTROL_NONE".
+  ModelControlMode model_control_mode_;
 };
 
 //==============================================================================
 /// Structure to hold repository index for 'ModelIndex' function.
 ///
 struct RepositoryIndex {
-  explicit RepositoryIndex(
-      std::string name, std::string version, std::string state)
-      : name(name), version(version), state(state)
-  {
-  }
+  RepositoryIndex(std::string name, std::string version, std::string state);
 
-  std::string name;     // the name of the model
-  std::string version;  // the version of the model
-  std::string state;    // the state of the model
+  std::string name_;     // the name of the model
+  std::string version_;  // the version of the model
+  std::string state_;    // the state of the model
 };
 
 //==============================================================================
 /// Structure to hold buffer for output tensors.
 ///
 struct Buffer {
-  explicit Buffer(
+  Buffer(
       const char* buffer, size_t byte_size, std::string memory_type,
-      int64_t memory_type_id)
-      : buffer(buffer), byte_size(byte_size), memory_type(memory_type),
-        memory_type_id(memory_type_id)
-  {
-  }
+      int64_t memory_type_id);
 
-  const char* buffer;       // the pointer to the start of the buffer
-  size_t byte_size;         // the size of buffer in bytes
-  std::string memory_type;  // the memory type of the output
-  int64_t memory_type_id;   // the memory type ID of the output
+  const char* buffer_;       // the pointer to the start of the buffer
+  size_t byte_size_;         // the size of buffer in bytes
+  std::string memory_type_;  // the memory type of the output
+  int64_t memory_type_id_;   // the memory type ID of the output
 };
 
 //==============================================================================
@@ -185,12 +174,12 @@ struct Buffer {
 struct BufferResult {
   // Indicates if the result has an error. If so, should not retreive the result
   // from buffer_map.
-  bool has_error;
+  bool has_error_;
   // The error message. Empty if no error.
-  std::string error_msg;
+  std::string error_msg_;
   /// An unordered map which the key is the name of the output tensor and the
   /// value is the Buffer object that contains the output tensor.
-  std::unordered_map<std::string, Buffer> buffer_map;
+  std::unordered_map<std::string, Buffer> buffer_map_;
 };
 
 //==============================================================================
@@ -198,7 +187,7 @@ struct BufferResult {
 ///
 class TritonServer {
  public:
-  TritonServer(ServerParams server_params);
+  TritonServer(ServerOptions server_options);
 
   ~TritonServer();
 
@@ -279,54 +268,41 @@ class TritonServer {
 /// Structure to hold options for Inference Request.
 ///
 struct InferOptions {
-  InferOptions() {}
+  InferOptions();
 
-  explicit InferOptions(const std::string& model_name)
-      : model_name(model_name), model_version(-1), request_id(""),
-        correlation_id(0), correlation_id_str(""), sequence_start(false),
-        sequence_end(false), priority(0), request_timeout(0),
-        custom_allocator(nullptr)
-  {
-  }
+  InferOptions(const std::string& model_name);
 
-  explicit InferOptions(
+  InferOptions(
       const std::string& model_name, const int64_t model_version,
       const std::string request_id, const uint64_t correlation_id,
       const std::string correlation_id_str, const bool sequence_start,
       const bool sequence_end, const uint64_t priority,
-      const uint64_t request_timeout, Allocator* custom_allocator)
-      : model_name(model_name), model_version(model_version),
-        request_id(request_id), correlation_id(correlation_id),
-        correlation_id_str(correlation_id_str), sequence_start(sequence_start),
-        sequence_end(sequence_end), priority(priority),
-        request_timeout(request_timeout), custom_allocator(custom_allocator)
-  {
-  }
+      const uint64_t request_timeout, Allocator* custom_allocator);
 
   /// The name of the model to run inference.
-  std::string model_name;
+  std::string model_name_;
   /// The version of the model to use while running inference. The default
-  /// value is an empty string which means the server will select the
+  /// value is "-1" which means the server will select the
   /// version of the model based on its internal policy.
-  int64_t model_version;
+  int64_t model_version_;
   /// An identifier for the request. If specified will be returned
   /// in the response. Default value is an empty string which means no
   /// request_id will be used.
-  std::string request_id;
+  std::string request_id_;
   /// The correlation ID of the inference request to be an unsigned integer.
   /// Default is 0, which indicates that the request has no correlation ID.
-  uint64_t correlation_id;
+  uint64_t correlation_id_;
   /// The correlation ID of the inference request to be a string.
   /// Default value is "".
-  std::string correlation_id_str;
+  std::string correlation_id_str_;
   /// Indicates whether the request being added marks the start of the
   /// sequence. Default value is False. This argument is ignored if
   /// 'sequence_id' is 0.
-  bool sequence_start;
+  bool sequence_start_;
   /// Indicates whether the request being added marks the end of the
   /// sequence. Default value is False. This argument is ignored if
   /// 'sequence_id' is 0.
-  bool sequence_end;
+  bool sequence_end_;
   /// Indicates the priority of the request. Priority value zero
   /// indicates that the default priority level should be used
   /// (i.e. same behavior as not specifying the priority parameter).
@@ -334,16 +310,16 @@ struct InferOptions {
   /// the highest priority level is indicated by setting the parameter
   /// to 1, the next highest is 2, etc. If not provided, the server
   /// will handle the request using default setting for the model.
-  uint64_t priority;
+  uint64_t priority_;
   /// The timeout value for the request, in microseconds. If the request
   /// cannot be completed within the time by the server can take a
   /// model-specific action such as terminating the request. If not
   /// provided, the server will handle the request using default setting
   /// for the model.
-  uint64_t request_timeout;
+  uint64_t request_timeout_;
 
-  /// User-provided custom reponse allocator object.
-  Allocator* custom_allocator;
+  /// User-provided custom reponse allocator object. Default is nullptr.
+  Allocator* custom_allocator_;
 };
 
 //==============================================================================
@@ -352,8 +328,6 @@ struct InferOptions {
 class InferRequest {
  public:
   InferRequest(InferOptions infer_options);
-
-  ~InferRequest(){};
 
   /// Add an input tensor to be sent within an InferRequest object.
   /// \param name The name of the input tensor.
