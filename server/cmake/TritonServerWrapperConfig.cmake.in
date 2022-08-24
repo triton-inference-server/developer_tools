@@ -35,5 +35,3 @@ list(APPEND CMAKE_MODULE_PATH ${TRITONCAPIWRAPPER_CMAKE_DIR})
 if(NOT TARGET TritonDeveloperTools::triton-capi-wrapper)
   include("${TRITONCAPIWRAPPER_CMAKE_DIR}/TritonCAPIWrapperTargets.cmake")
 endif()
-
-set(TRITONSERVERWRAPPER_LIBRARIES TritonDeveloperTools::triton-capi-wrapper)
