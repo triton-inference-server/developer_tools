@@ -27,8 +27,9 @@
 
 #include "server_api.h"
 #include "triton/core/tritonserver.h"
+#include <exception>
 
-namespace tds = triton::developer_tools::server;
+namespace tsw = triton::server::wrapper;
 
 namespace {
 
@@ -47,15 +48,17 @@ TEST_F(ServerWrapperTest, SanityCheck)
 
 TEST_F(ServerWrapperTest, StartServer)
 {
-  // [WIP] fix below for real implementation
-  // try {
-  //   tds::TritonServer(tds::ServerParams({}));
-  // } catch (tds::TritonException ex) {
-  //   // check
-  //   ASSERT_STREQ(ex.what(), "test error");
-  // } catch (...) {
-  //   ASSERT_NO_THROW(throw);
-  // }
+  // Run server with invalid model repository
+  try {
+    tsw::TritonServer(tsw::ServerOptions({"/invalid_model_repository"}));
+  } catch (std::exception& ex) {
+    // check
+    // [FIXME] should have Triton specific error reporting, either error object
+    // or exception
+    ASSERT_STREQ(ex.what(), "some error message");
+  } catch (...) {
+    ASSERT_NO_THROW(throw);
+  }
 }
 
 }  // namespace
