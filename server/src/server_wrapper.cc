@@ -490,6 +490,14 @@ InferOptions::InferOptions(
 
 TritonServer::TritonServer(ServerOptions options)
 {
+  uint32_t api_version_major, api_version_minor;
+  THROW_IF_TRITON_ERR(
+      TRITONSERVER_ApiVersion(&api_version_major, &api_version_minor));
+  if ((TRITONSERVER_API_VERSION_MAJOR != api_version_major) ||
+      (TRITONSERVER_API_VERSION_MINOR > api_version_minor)) {
+    throw Exception("triton server API version mismatch");
+  }
+
   TRITONSERVER_ServerOptions* server_options = nullptr;
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsNew(&server_options));
 
