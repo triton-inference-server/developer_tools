@@ -103,7 +103,7 @@ namespace triton { namespace triton_developer_tools { namespace server {
         ("failed to log message: "));                            \
   } while (false)
 
-#define THROW_IF_ERROR(X)             \
+#define THROW_IF_ERR(X)               \
   do {                                \
     Error err = (X);                  \
     if (!err.IsOk()) {                \
@@ -111,13 +111,25 @@ namespace triton { namespace triton_developer_tools { namespace server {
     }                                 \
   } while (false)
 
-#define THROW_IF_TRITON_ERROR(X)                                   \
+#define THROW_IF_TRITON_ERR(X)                                     \
   do {                                                             \
     TRITONSERVER_Error* err__ = (X);                               \
     if (err__ != nullptr) {                                        \
       throw Exception(                                             \
           TRITONSERVER_ErrorCodeString(err__) + std::string("-") + \
           TRITONSERVER_ErrorMessage(err__) + "\n");                \
+    }                                                              \
+  } while (false)
+
+#define THROW_ERR_IF_TRITON_ERR(X)                                 \
+  do {                                                             \
+    TRITONSERVER_Error* err__ = (X);                               \
+    if (err__ != nullptr) {                                        \
+      Error err = Error(                                           \
+          TRITONSERVER_ErrorCodeString(err__) + std::string("-") + \
+          TRITONSERVER_ErrorMessage(err__) + "\n");                \
+      TRITONSERVER_ErrorDelete(err__);                             \
+      throw Exception(err.Message());                              \
     }                                                              \
   } while (false)
 
@@ -192,33 +204,6 @@ class Error {
   friend std::ostream& operator<<(std::ostream&, const Error&);
   std::string msg_;
 };
-
-//==============================================================================
-/// Default functions for allocator.
-///
-TRITONSERVER_Error* ResponseAlloc(
-    TRITONSERVER_ResponseAllocator* allocator, const char* tensor_name,
-    size_t byte_size, TRITONSERVER_MemoryType preferred_memory_type,
-    int64_t preferred_memory_type_id, void* userp, void** buffer,
-    void** buffer_userp, TRITONSERVER_MemoryType* actual_memory_type,
-    int64_t* actual_memory_type_id);
-
-TRITONSERVER_Error* ResponseRelease(
-    TRITONSERVER_ResponseAllocator* allocator, void* buffer, void* buffer_userp,
-    size_t byte_size, TRITONSERVER_MemoryType memory_type,
-    int64_t memory_type_id);
-
-void InferRequestComplete(
-    TRITONSERVER_InferenceRequest* request, const uint32_t flags, void* userp);
-
-void InferResponseComplete(
-    TRITONSERVER_InferenceResponse* response, const uint32_t flags,
-    void* userp);
-
-TRITONSERVER_Error* OutputBufferQuery(
-    TRITONSERVER_ResponseAllocator* allocator, void* userp,
-    const char* tensor_name, size_t* byte_size,
-    TRITONSERVER_MemoryType* memory_type, int64_t* memory_type_id);
 
 //==============================================================================
 /// Custom Response Allocator Callback function signatures.
@@ -367,12 +352,12 @@ class InferOutput {
       InferOutput** infer_output, const char* name,
       TRITONSERVER_DataType output_datatype, const int64_t* output_shape,
       uint64_t dims_count, size_t output_byte_size,
-      TRITONSERVER_MemoryType memory_type, int64_t memory_id, const void* base,
-      void* userp)
+      TRITONSERVER_MemoryType memory_type, int64_t memory_type_id,
+      const void* base, void* userp)
   {
     *infer_output = new InferOutput(
         name, output_datatype, output_shape, dims_count, output_byte_size,
-        memory_type, memory_id, base, userp);
+        memory_type, memory_type_id, base, userp);
 
     return Error::Success;
   }
@@ -380,11 +365,11 @@ class InferOutput {
   InferOutput(
       const char* name, TRITONSERVER_DataType output_datatype,
       const int64_t* output_shape, uint64_t dims_count, size_t output_byte_size,
-      TRITONSERVER_MemoryType memory_type, int64_t memory_id, const void* base,
-      void* userp)
+      TRITONSERVER_MemoryType memory_type, int64_t memory_type_id,
+      const void* base, void* userp)
       : name_(name), datatype(output_datatype), shape(output_shape),
         dims_count_(dims_count), output_byte_size_(output_byte_size),
-        memory_type_(memory_type), memory_id_(memory_id), base_(base),
+        memory_type_(memory_type), memory_type_id_(memory_type_id), base_(base),
         userp_(userp)
   {
   }
@@ -395,7 +380,7 @@ class InferOutput {
   uint64_t DimsCount() { return dims_count_; }
   size_t ByteSize() { return output_byte_size_; }
   TRITONSERVER_MemoryType MemoryType() { return memory_type_; }
-  int64_t MemoryId() { return memory_id_; }
+  int64_t MemoryTypeId() { return memory_type_id_; }
   const void* DataPtr() { return base_; }
 
  private:
@@ -405,7 +390,7 @@ class InferOutput {
   uint64_t dims_count_;
   size_t output_byte_size_;
   TRITONSERVER_MemoryType memory_type_;
-  int64_t memory_id_;
+  int64_t memory_type_id_;
   const void* base_;
   void* userp_;
 };

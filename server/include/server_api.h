@@ -46,8 +46,8 @@ class Allocator;
 ///
 struct logging_options {
   logging_options()
-      : verbose(false), info(true), warn(true), error(true),
-        format(LOG_DEFAULT), log_file("")
+      : verbose(0), info(true), warn(true), error(true), format(LOG_DEFAULT),
+        log_file("")
   {
   }
   logging_options(
@@ -58,8 +58,7 @@ struct logging_options {
   {
   }
 
-
-  bool verbose;          // enable/disable verbose logging level
+  uint verbose;          // verbose logging level
   bool info;             // enable/disable info logging level
   bool warn;             // enable/disable warn logging level
   bool error;            // enable/disable error logging level
@@ -163,16 +162,35 @@ struct RepositoryIndex {
 };
 
 //==============================================================================
-/// Structure to hold buffer for output tensors for 'AsyncInfer' function.
+/// Structure to hold buffer for output tensors.
 ///
 struct Buffer {
-  explicit Buffer(const char* buffer, size_t byte_size)
-      : buffer(buffer), byte_size(byte_size)
+  explicit Buffer(
+      const char* buffer, size_t byte_size, std::string memory_type,
+      int64_t memory_type_id)
+      : buffer(buffer), byte_size(byte_size), memory_type(memory_type),
+        memory_type_id(memory_type_id)
   {
   }
 
-  const char* buffer;  // the pointer to the start of the buffer.
-  size_t byte_size;    // the size of buffer in bytes.
+  const char* buffer;       // the pointer to the start of the buffer
+  size_t byte_size;         // the size of buffer in bytes
+  std::string memory_type;  // the memory type of the output
+  int64_t memory_type_id;   // the memory type ID of the output
+};
+
+//==============================================================================
+/// Structure to hold the inference result in the form of buffers.
+///
+struct BufferResult {
+  // Indicates if the result has an error. If so, should not retreive the result
+  // from buffer_map.
+  bool has_error;
+  // The error message. Empty if no error.
+  std::string error_msg;
+  /// An unordered map which the key is the name of the output tensor and the
+  /// value is the Buffer object that contains the output tensor.
+  std::unordered_map<std::string, Buffer> buffer_map;
 };
 
 //==============================================================================
@@ -213,32 +231,22 @@ class TritonServer {
   Error Metrics(std::string* metrics_str);
 
   /// Run asynchronous inference on server.
-  /// \param infer_result Returns the result of inference as InferResult object.
-  /// \param infer_request The InferRequest object contains the inputs, outputs
-  /// and infer options for an inference request.
-  /// \return Error object indicating success or failure.
-  Error AsyncInfer(InferResult* infer_result, InferRequest infer_request);
+  /// \param result_future Returns the result of inference as a future of
+  /// InferResult object. \param infer_request The InferRequest object contains
+  /// the inputs, outputs and infer options for an inference request. \return
+  /// Error object indicating success or failure.
+  Error AsyncInfer(
+      std::future<InferResult*>* result_future, InferRequest infer_request);
 
   /// Run asynchronous inference on server.
-  /// \param buffer_map Returns the result of inference as an unordered map
-  /// which the key is the name of the output tensor and the value is the Buffer
-  /// object that contains the output tensor.
-  /// \param infer_request The InferRequest object contains the inputs, outputs
-  /// and infer options for an inference request.
-  /// \return Error object indicating success or failure.
+  /// \param buffer_result_future Returns the result of inference as a future of
+  /// BufferResult object. \param infer_request The InferRequest object contains
+  /// the inputs, outputs and infer options for an inference request. \return
+  /// Error object indicating success or failure.
   Error AsyncInfer(
-      std::unordered_map<std::string, Buffer>* buffer_map,
+      std::future<BufferResult*>* buffer_result_future,
       InferRequest infer_request);
 
-  /// Clear all the responses that the server completed. Calling this
-  /// function means the buffers for output tensors associated with the
-  /// responses are freed, so must not access those buffers after calling this
-  /// function.
-  void ClearCompletedResponses();
-
-  /// The functions or objects below should not be called or accessed in one's
-  /// application.
-  //==============================================================================
  private:
   Error InitializeAllocator();
 
@@ -251,13 +259,8 @@ class TritonServer {
   Error PrepareInferenceOutput(
       TRITONSERVER_InferenceRequest* irequest, InferRequest* request);
 
-  Error AsyncExecute(
-      TRITONSERVER_InferenceRequest* irequest,
-      std::future<TRITONSERVER_InferenceResponse*>* future);
-
-  Error FinalizeResponse(
-      InferResult* infer_result,
-      std::future<TRITONSERVER_InferenceResponse*> future);
+  Error AsyncInferHelper(
+      TRITONSERVER_InferenceRequest** irequest, InferRequest infer_request);
 
   // Helper function for parsing data type and shape of an input tensor from
   // model configuration when 'data_type' or 'shape' field is missing.
@@ -270,18 +273,14 @@ class TritonServer {
   TRITONSERVER_Server* server_;
   // The allocator object allocating output tensor.
   TRITONSERVER_ResponseAllocator* allocator_;
-  // The responses that server completed. These reponses will not be deleted
-  // until function 'ClearCompletedResponses' or destructor is called so that
-  // the output buffer can still be accessed by users after inference is
-  // completed.
-  std::vector<TRITONSERVER_InferenceResponse*> completed_responses_;
-  //==============================================================================
 };
 
 //==============================================================================
 /// Structure to hold options for Inference Request.
 ///
 struct InferOptions {
+  InferOptions() {}
+
   explicit InferOptions(const std::string& model_name)
       : model_name(model_name), model_version(-1), request_id(""),
         correlation_id(0), correlation_id_str(""), sequence_start(false),
@@ -360,7 +359,7 @@ class InferRequest {
   /// \param name The name of the input tensor.
   /// \param buffer_ptr The buffer pointer of the input data.
   /// \param byte_size The size, in bytes, of the input data.
-  /// \param data_type The type of the input. This field is optional.
+  /// \param data_type The data type of the input. This field is optional.
   /// \param shape The shape of the input. This field is optional.
   /// \param memory_type The memory type of the input.
   /// This field is optional. Default is CPU.
@@ -376,8 +375,8 @@ class InferRequest {
   /// \param model_name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
-  /// \param data_type The data type of the input tensor. This is optional.
-  /// \param shape The shape of the input tensor. This is optional.
+  /// \param data_type The data type of the input. This field is optional.
+  /// \param shape The shape of the input. This field is optional.
   /// \param memory_type TThe memory type of the input.
   /// This field is optional. Default is CPU.
   /// \param memory_type_id The memory type id of the input.
@@ -399,50 +398,13 @@ class InferRequest {
   /// \return Error object indicating success or failure.
   Error Reset();
 
-  /// The functions or objects below should not be called or accessed in one's
-  /// application.
-  //==============================================================================
-  std::string ModelName() const { return model_name_; }
-  int64_t ModelVersion() const { return model_version_; }
-  std::string RequestId() const { return request_id_; }
-  uint64_t CorrelationId() const { return correlation_id_; };
-  std::string CorrelationIdStr() const { return correlation_id_str_; }
-  bool SequenceStart() const { return sequence_start_; }
-  bool SequenceEnd() const { return sequence_end_; }
-  uint64_t Priority() const { return priority_; }
-  uint64_t RequestTimeout() const { return request_timeout_; }
-  const std::vector<InferInput*> Inputs() const { return inputs_; }
-  const std::vector<InferRequestedOutput*> Outputs() const { return outputs_; }
-
-  static TRITONSERVER_Error* CustomAllocationFn(
-      TRITONSERVER_ResponseAllocator* allocator, const char* tensor_name,
-      size_t byte_size, TRITONSERVER_MemoryType preferred_memory_type,
-      int64_t preferred_memory_type_id, void* userp, void** buffer,
-      void** buffer_userp, TRITONSERVER_MemoryType* actual_memory_type,
-      int64_t* actual_memory_type_id);
-  static TRITONSERVER_Error* CustomReleaseFn(
-      TRITONSERVER_ResponseAllocator* allocator, void* buffer,
-      void* buffer_userp, size_t byte_size, TRITONSERVER_MemoryType memory_type,
-      int64_t memory_type_id);
-  static TRITONSERVER_Error* CustomStartFn(
-      TRITONSERVER_ResponseAllocator* allocator, void* userp);
+  friend class TritonServer;
 
  private:
-  std::string model_name_;
-  int64_t model_version_;
-  std::string request_id_;
-  uint64_t correlation_id_;
-  std::string correlation_id_str_;
-  bool sequence_start_;
-  bool sequence_end_;
-  uint64_t priority_;
-  uint64_t request_timeout_;
-
+  InferOptions infer_options_;
   std::list<std::string> str_bufs_;
-
   std::vector<InferInput*> inputs_ = {};
   std::vector<InferRequestedOutput*> outputs_ = {};
-  //==============================================================================
 };
 
 //==============================================================================
@@ -506,32 +468,30 @@ class InferResult {
   /// \return The string describing the complete response.
   Error DebugString(std::string* string_result);
 
-  /// The functions or objects below should not be called or accessed in one's
-  /// application.
-  //==============================================================================
-  Error SetResultInfo(
-      const char* model_name, int64_t model_version, const char* request_id);
+  /// Returns if there is an error within this result. If so, should not call
+  /// other member functions to retreive result. \return True if this
+  /// InferResult object has an error, false if no error.
+  bool HasError();
 
-  void AddInferOutput(const std::string name, InferOutput* output)
-  {
-    infer_outputs_[name] = output;
-  }
+  /// Returns the error message of the error.
+  /// \return The messsage for the error. Empty if no error.
+  std::string ErrorMsg();
 
-  std::unordered_map<std::string, InferOutput*> Outputs()
-  {
-    return infer_outputs_;
-  }
-
-  std::vector<ResponseParameters*> Params() { return params_; }
-
- private:
+ protected:
   const char* model_name_;
   int64_t model_version_;
   const char* request_id_;
   std::vector<ResponseParameters*> params_;
   std::unordered_map<std::string, InferOutput*> infer_outputs_;
-  //==============================================================================
+  Error response_error_;
 };
+
+//==============================================================================
+/// Clear all the responses that have been completed. Calling this
+/// function means buffers for all the output tensors associated with the
+/// responses are freed, so must not access those buffers after calling this
+/// function.
+void ClearCompletedResponses();
 
 //==============================================================================
 /// Custom Allocator object for providing custom functions for allocator.
