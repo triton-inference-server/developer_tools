@@ -31,12 +31,15 @@ project(tritoncapiwrapper LANGUAGES C CXX)
 #
 # Options
 #
+option(TRITON_ENABLE_GPU "Enable GPU support in backend utilities" ON)
+option(TRITON_ENABLE_STATS "Include statistics collections in backend utilities" ON)
 # [FIXME] add option needed for wrapper
 option(TRITON_BUILD_TEST "Include unit test for the wrapper" ON)
 # [FIXME] doesn't have example yet
 # option(TRITON_ENABLE_EXAMPLES "Include examples in build" ON)
 option(TRITON_ENABLE_EXAMPLES "Include examples in build" OFF)
 
+set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -49,12 +52,34 @@ endif()
 include(FetchContent)
 
 FetchContent_Declare(
+  repo-common
+  GIT_REPOSITORY https://github.com/triton-inference-server/common.git
+  GIT_TAG ${TRITON_COMMON_REPO_TAG}
+  GIT_SHALLOW ON
+)
+FetchContent_Declare(
   repo-core
   GIT_REPOSITORY https://github.com/triton-inference-server/core.git
   GIT_TAG ${TRITON_CORE_REPO_TAG}
   GIT_SHALLOW ON
 )
-FetchContent_MakeAvailable(repo-core)
+FetchContent_MakeAvailable(repo-common repo-core)
+
+#
+# CUDA
+#
+if(${TRITON_ENABLE_GPU})
+  find_package(CUDAToolkit REQUIRED)
+  find_package(CUDA REQUIRED)
+  message(STATUS "Using CUDA ${CUDA_VERSION}")
+  set(CUDA_NVCC_FLAGS -std=c++11)
+
+  if(CUDA_VERSION VERSION_GREATER "10.1" OR CUDA_VERSION VERSION_EQUAL "10.1")
+    add_definitions(-DTRITON_ENABLE_CUDA_GRAPH=1)
+  else()
+    message(WARNING "CUDA ${CUDA_VERSION} does not support CUDA graphs.")
+  endif()
+endif() # TRITON_ENABLE_GPU
 
 #
 # Triton Server C-API Wrapper
@@ -93,6 +118,22 @@ target_compile_options(
   $<$<CXX_COMPILER_ID:MSVC>:/Wall /D_WIN32_WINNT=0x0A00 /EHsc>
 )
 
+# TRITON_ENABLE_GPU exposed in header so set PUBLIC
+if(${TRITON_ENABLE_GPU})
+target_compile_definitions(
+  triton-server-wrapper
+  PUBLIC TRITON_ENABLE_GPU=1
+)
+endif() # TRITON_ENABLE_GPU
+
+# TRITON_ENABLE_STATS exposed in header so set PUBLIC
+if(${TRITON_ENABLE_STATS})
+target_compile_definitions(
+  triton-server-wrapper
+  PUBLIC TRITON_ENABLE_STATS=1
+)
+endif() # TRITON_ENABLE_STATS
+
 set_target_properties(
   triton-server-wrapper PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS TRUE
@@ -105,7 +146,16 @@ target_link_libraries(
   PUBLIC
     triton-core-serverapi         # from repo-core
     triton-core-serverstub        # from repo-core
+    triton-common-logging         # from repo-common
 )
+
+if(${TRITON_ENABLE_GPU})
+  target_link_libraries(
+    triton-server-wrapper
+    PUBLIC
+      CUDA::cudart
+  )
+endif() # TRITON_ENABLE_GPU
 
 #
 # Install
@@ -172,6 +222,6 @@ if(${TRITON_BUILD_TEST})
   add_subdirectory(test test)
 endif()
 
-if(${TRITON_ENABLE_EXAMPLES})
+if(TRITON_ENABLE_EXAMPLES)
   add_subdirectory(examples)
 endif() # TRITON_ENABLE_EXAMPLES
