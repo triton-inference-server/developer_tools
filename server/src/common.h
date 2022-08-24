@@ -115,9 +115,11 @@ namespace triton { namespace server { namespace wrapper {
   do {                                                             \
     TRITONSERVER_Error* err__ = (X);                               \
     if (err__ != nullptr) {                                        \
-      throw Exception(                                             \
+      Exception ex(                                                \
           TRITONSERVER_ErrorCodeString(err__) + std::string("-") + \
           TRITONSERVER_ErrorMessage(err__) + "\n");                \
+      TRITONSERVER_ErrorDelete(err__);                             \
+      throw ex;                                                    \
     }                                                              \
   } while (false)
 

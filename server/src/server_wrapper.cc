@@ -491,111 +491,70 @@ InferOptions::InferOptions(
 TritonServer::TritonServer(ServerOptions options)
 {
   TRITONSERVER_ServerOptions* server_options = nullptr;
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsNew(&server_options),
-      "creating server options");
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsNew(&server_options));
 
   // Set model_repository_path
   for (const auto& model_repository_path : options.model_repository_paths_) {
-    FAIL_IF_TRITON_ERR(
-        TRITONSERVER_ServerOptionsSetModelRepositoryPath(
-            server_options, model_repository_path.c_str()),
-        "setting model repository path");
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelRepositoryPath(
+        server_options, model_repository_path.c_str()));
   }
 
   // Set logging options
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetLogVerbose(
-          server_options, options.logging_.verbose_),
-      "setting verbose level logging");
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetLogInfo(
-          server_options, options.logging_.info_),
-      "setting info level logging");
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetLogWarn(
-          server_options, options.logging_.warn_),
-      "setting warning level logging");
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetLogError(
-          server_options, options.logging_.error_),
-      "setting error level logging");
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogVerbose(
+      server_options, options.logging_.verbose_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogInfo(
+      server_options, options.logging_.info_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogWarn(
+      server_options, options.logging_.warn_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogError(
+      server_options, options.logging_.error_));
   TRITONSERVER_LogFormat log_format;
-  FAIL_IF_ERR(
-      ToTritonLogFormat(&log_format, options.logging_.format_),
-      "converting to triton log format")
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetLogFormat(server_options, log_format),
-      "setting logging format");
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetLogFile(
-          server_options, options.logging_.log_file_.c_str()),
-      "setting logging output file");
+  THROW_IF_ERR(ToTritonLogFormat(&log_format, options.logging_.format_));
+  THROW_IF_TRITON_ERR(
+      TRITONSERVER_ServerOptionsSetLogFormat(server_options, log_format));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogFile(
+      server_options, options.logging_.log_file_.c_str()));
 
   // Set metrics options
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetMetrics(
-          server_options, options.metrics_.allow_metrics_),
-      "setting metrics collection");
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetGpuMetrics(
-          server_options, options.metrics_.allow_gpu_metrics_),
-      "setting GPU metrics collection");
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetMetricsInterval(
-          server_options, options.metrics_.metrics_interval_ms_),
-      "settin the interval for metrics collection");
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetMetrics(
+      server_options, options.metrics_.allow_metrics_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetGpuMetrics(
+      server_options, options.metrics_.allow_gpu_metrics_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetMetricsInterval(
+      server_options, options.metrics_.metrics_interval_ms_));
 
   // Set backend configuration
   for (const auto& bc : options.be_config_) {
-    FAIL_IF_TRITON_ERR(
-        TRITONSERVER_ServerOptionsSetBackendConfig(
-            server_options, bc.backend_name_.c_str(), bc.setting_.c_str(),
-            bc.value_.c_str()),
-        "setting backend configurtion");
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBackendConfig(
+        server_options, bc.backend_name_.c_str(), bc.setting_.c_str(),
+        bc.value_.c_str()));
   }
 
   // Set server id
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetServerId(
-          server_options, options.server_id_.c_str()),
-      "setting server ID");
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetServerId(
+      server_options, options.server_id_.c_str()));
 
   // Set backend directory
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetBackendDirectory(
-          server_options, options.backend_dir_.c_str()),
-      "setting backend directory");
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBackendDirectory(
+      server_options, options.backend_dir_.c_str()));
 
   // Set repo agent directory
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetRepoAgentDirectory(
-          server_options, options.repo_agent_dir_.c_str()),
-      "setting repo agent directory");
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetRepoAgentDirectory(
+      server_options, options.repo_agent_dir_.c_str()));
 
   // Set auto-complete model config
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetStrictModelConfig(
-          server_options, options.disable_auto_complete_config_),
-      "setting strict model configuration");
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetStrictModelConfig(
+      server_options, options.disable_auto_complete_config_));
 
   // Set model control mode
   TRITONSERVER_ModelControlMode model_control_mode;
-  FAIL_IF_ERR(
-      ToTritonModelControlMode(
-          &model_control_mode, options.model_control_mode_),
-      "converting to triton model control mode")
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetModelControlMode(
-          server_options, model_control_mode),
-      "setting model control mode");
+  THROW_IF_ERR(ToTritonModelControlMode(
+      &model_control_mode, options.model_control_mode_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelControlMode(
+      server_options, model_control_mode));
 
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerNew(&server_, server_options),
-      "creating server object");
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsDelete(server_options),
-      "deleting server options");
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerNew(&server_, server_options));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsDelete(server_options));
 }
 
 TritonServer::~TritonServer()
@@ -677,17 +636,13 @@ Error
 TritonServer::Metrics(std::string* metrics_str)
 {
   TRITONSERVER_Metrics* metrics = nullptr;
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerMetrics(server_, &metrics), "fetch metrics");
+  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ServerMetrics(server_, &metrics));
   const char* base;
   size_t byte_size;
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_MetricsFormatted(
-          metrics, TRITONSERVER_METRIC_PROMETHEUS, &base, &byte_size),
-      "format metrics string");
+  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_MetricsFormatted(
+      metrics, TRITONSERVER_METRIC_PROMETHEUS, &base, &byte_size));
   *metrics_str = std::string(base, byte_size);
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_MetricsDelete(metrics), "delete metrics object");
+  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_MetricsDelete(metrics));
 
   return Error::Success;
 }
