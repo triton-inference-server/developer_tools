@@ -35,7 +35,7 @@
 #include "../src/common.h"
 #include "triton/core/tritonserver.h"
 
-namespace triton { namespace triton_developer_tools { namespace server {
+namespace triton { namespace server { namespace wrapper {
 
 class InferResult;
 class InferRequest;
@@ -521,4 +521,4 @@ class Allocator {
   //==============================================================================
 };
 
-}}}  // namespace triton::triton_developer_tools::server
+}}}  // namespace triton::server::wrapper

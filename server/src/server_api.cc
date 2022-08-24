@@ -36,7 +36,7 @@
 #define TRITONJSON_STATUSSUCCESS nullptr
 #include "triton/common/triton_json.h"
 
-namespace triton { namespace triton_developer_tools { namespace server {
+namespace triton { namespace server { namespace wrapper {
 
 Allocator* custom_allocator_ = nullptr;
 
@@ -1254,4 +1254,4 @@ InferResult::DebugString(std::string* string_result)
   return Error::Success;
 }
 
-}}}  // namespace triton::triton_developer_tools::server
+}}}  // namespace triton::server::wrapper

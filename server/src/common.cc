@@ -26,7 +26,7 @@
 
 #include "common.h"
 
-namespace triton { namespace triton_developer_tools { namespace server {
+namespace triton { namespace server { namespace wrapper {
 
 Error
 ToTritonModelControlMode(
@@ -178,4 +178,4 @@ operator<<(std::ostream& out, const Error& err)
   return out;
 }
 
-}}}  // namespace triton::triton_developer_tools::server
+}}}  // namespace triton::server::wrapper

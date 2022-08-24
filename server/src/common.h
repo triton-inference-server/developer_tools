@@ -34,7 +34,7 @@
 #include <cuda_runtime_api.h>
 #endif  // TRITON_ENABLE_GPU
 
-namespace triton { namespace triton_developer_tools { namespace server {
+namespace triton { namespace server { namespace wrapper {
 
 #define FAIL_IF_TRITON_ERR(X, MSG)                                \
   do {                                                            \
@@ -395,4 +395,4 @@ class InferOutput {
   void* userp_;
 };
 
-}}}  // namespace triton::triton_developer_tools::server
+}}}  // namespace triton::server::wrapper
