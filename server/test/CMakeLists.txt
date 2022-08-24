@@ -24,16 +24,45 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-include(CMakeFindDependencyMacro)
+cmake_minimum_required(VERSION 3.18)
 
-get_filename_component(
-  TRITONCAPIWRAPPER_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH
+#
+# Unit tests
+#
+
+#
+# Unit test for Server Wrapper
+#
+add_executable(
+  wrapper_test
+  wrapper_test.cc
 )
 
-list(APPEND CMAKE_MODULE_PATH ${TRITONCAPIWRAPPER_CMAKE_DIR})
+set_target_properties(
+  wrapper_test
+  PROPERTIES
+    SKIP_BUILD_RPATH TRUE
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+    INSTALL_RPATH ""
+)
 
-if(NOT TARGET TritonDeveloperTools::triton-capi-wrapper)
-  include("${TRITONCAPIWRAPPER_CMAKE_DIR}/TritonCAPIWrapperTargets.cmake")
-endif()
+target_include_directories(
+  wrapper_test
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${GTEST_INCLUDE_DIRS}
+)
 
-set(TRITONSERVERWRAPPER_LIBRARIES TritonDeveloperTools::triton-capi-wrapper)
+target_link_libraries(
+  wrapper_test
+  PRIVATE
+    triton-server-wrapper
+    triton-core-serverstub
+    GTest::gtest_main
+)
+
+install(
+  TARGETS wrapper_test
+  RUNTIME DESTINATION bin
+)
