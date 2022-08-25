@@ -74,6 +74,18 @@ TEST(TritonServer, StartPolling)
   }
 }
 
+TEST(TritonServer, PollLoadUnload)
+{
+  // Start server with polling mode which explicit model control is not allowed
+  try {
+    auto server = tsw::TritonServer(tsw::ServerOptions({"./models"}));
+    ASSERT_FALSE(server.LoadModel("add_sub").IsOk());
+    ASSERT_FALSE(server.UnloadModel("add_sub").IsOk());
+  } catch (...) {
+    ASSERT_NO_THROW(throw);
+  }
+}
+
 }  // namespace
 
 int
