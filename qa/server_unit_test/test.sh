@@ -39,16 +39,16 @@ fi
 
 export CUDA_VISIBLE_DEVICES=0
 
-DATADIR=`pwd`/models
+TEST_LOG=test.log
 
 RET=0
 
 set +e
 # Must explicitly set LD_LIBRARY_PATH so that the test can find
 # libtritonserver.so.
-LD_LIBRARY_PATH=/opt/tritonserver/lib:${LD_LIBRARY_PATH} ./wrapper_test >> ${CLIENT_LOG} 2>&1
+LD_LIBRARY_PATH=/opt/tritonserver/lib:${LD_LIBRARY_PATH} ./wrapper_test >> ${TEST_LOG} 2>&1
 if [ $? -ne 0 ]; then
-    cat ${CLIENT_LOG}
+    cat ${TEST_LOG}
     RET=1
 fi
 set -e

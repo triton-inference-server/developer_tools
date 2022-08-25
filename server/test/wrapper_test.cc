@@ -62,7 +62,7 @@ TEST(TritonServer, StartInvalidRepository)
 
 TEST(TritonServer, StartPolling)
 {
-  // Run server with invalid model repository
+  // Start server with polling mode
   try {
     auto server = tsw::TritonServer(tsw::ServerOptions({"./models"}));
     std::set<std::string> loaded_models;
