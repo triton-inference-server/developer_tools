@@ -29,8 +29,9 @@
 namespace triton { namespace server { namespace wrapper {
 
 Error
-ToTritonModelControlMode(
-    TRITONSERVER_ModelControlMode* model_control_mode, ModelControlMode mode)
+WrapperToTritonModelControlMode(
+    TRITONSERVER_ModelControlMode* model_control_mode,
+    Wrapper_ModelControlMode mode)
 {
   switch (mode) {
     case MODEL_CONTROL_NONE:
@@ -51,7 +52,8 @@ ToTritonModelControlMode(
 }
 
 Error
-ToTritonLogFormat(TRITONSERVER_LogFormat* log_format, LogFormat format)
+WrapperToTritonLogFormat(
+    TRITONSERVER_LogFormat* log_format, Wrapper_LogFormat format)
 {
   switch (format) {
     case LOG_DEFAULT:
@@ -69,45 +71,120 @@ ToTritonLogFormat(TRITONSERVER_LogFormat* log_format, LogFormat format)
 }
 
 Error
-ToTritonDataType(TRITONSERVER_DataType* dtype, std::string data_type)
+WrapperToTritonDataType(
+    TRITONSERVER_DataType* data_type, Wrapper_DataType dtype)
 {
-  if ((data_type == "BOOL") || (data_type == "TYPE_BOOL")) {
-    *dtype = TRITONSERVER_TYPE_BOOL;
-  } else if ((data_type == "UINT8") || (data_type == "TYPE_UINT8")) {
-    *dtype = TRITONSERVER_TYPE_UINT8;
-  } else if ((data_type == "UINT16") || (data_type == "TYPE_UINT16")) {
-    *dtype = TRITONSERVER_TYPE_UINT16;
-  } else if ((data_type == "UINT32") || (data_type == "TYPE_UINT32")) {
-    *dtype = TRITONSERVER_TYPE_UINT32;
-  } else if ((data_type == "UINT64") || (data_type == "TYPE_UINT64")) {
-    *dtype = TRITONSERVER_TYPE_UINT64;
-  } else if ((data_type == "INT8") || (data_type == "TYPE_INT8")) {
-    *dtype = TRITONSERVER_TYPE_INT8;
-  } else if ((data_type == "INT16") || (data_type == "TYPE_INT16")) {
-    *dtype = TRITONSERVER_TYPE_INT16;
-  } else if ((data_type == "INT32") || (data_type == "TYPE_INT32")) {
-    *dtype = TRITONSERVER_TYPE_INT32;
-  } else if ((data_type == "INT64") || (data_type == "TYPE_INT64")) {
-    *dtype = TRITONSERVER_TYPE_INT64;
-  } else if ((data_type == "FP16") || (data_type == "TYPE_FP16")) {
-    *dtype = TRITONSERVER_TYPE_FP16;
-  } else if ((data_type == "FP32") || (data_type == "TYPE_FP32")) {
-    *dtype = TRITONSERVER_TYPE_FP32;
-  } else if ((data_type == "FP64") || (data_type == "TYPE_FP64")) {
-    *dtype = TRITONSERVER_TYPE_FP64;
-  } else if ((data_type == "BYTES") || (data_type == "TYPE_STRING")) {
-    *dtype = TRITONSERVER_TYPE_BYTES;
-  } else if ((data_type == "BF16") || (data_type == "TYPE_BF16")) {
-    *dtype = TRITONSERVER_TYPE_BF16;
-  } else {
-    *dtype = TRITONSERVER_TYPE_INVALID;
+  switch (dtype) {
+    case BOOL:
+      *data_type = TRITONSERVER_TYPE_BOOL;
+      break;
+    case UINT8:
+      *data_type = TRITONSERVER_TYPE_UINT8;
+      break;
+    case UINT16:
+      *data_type = TRITONSERVER_TYPE_UINT16;
+      break;
+    case UINT32:
+      *data_type = TRITONSERVER_TYPE_UINT32;
+      break;
+    case UINT64:
+      *data_type = TRITONSERVER_TYPE_UINT64;
+      break;
+    case INT8:
+      *data_type = TRITONSERVER_TYPE_INT8;
+      break;
+    case INT16:
+      *data_type = TRITONSERVER_TYPE_INT16;
+      break;
+    case INT32:
+      *data_type = TRITONSERVER_TYPE_INT32;
+      break;
+    case INT64:
+      *data_type = TRITONSERVER_TYPE_INT64;
+      break;
+    case FP16:
+      *data_type = TRITONSERVER_TYPE_FP16;
+      break;
+    case FP32:
+      *data_type = TRITONSERVER_TYPE_FP32;
+      break;
+    case FP64:
+      *data_type = TRITONSERVER_TYPE_FP64;
+      break;
+    case BYTES:
+      *data_type = TRITONSERVER_TYPE_BYTES;
+      break;
+    case BF16:
+      *data_type = TRITONSERVER_TYPE_BF16;
+      break;
+
+    default:
+      *data_type = TRITONSERVER_TYPE_INVALID;
+      break;
   }
 
   return Error::Success;
 }
 
 Error
-ToTritonMemoryType(TRITONSERVER_MemoryType* memory_type, MemoryType mem_type)
+TritonToWrapperDataType(
+    Wrapper_DataType* data_type, TRITONSERVER_DataType dtype)
+{
+  switch (dtype) {
+    case TRITONSERVER_TYPE_BOOL:
+      *data_type = BOOL;
+      break;
+    case TRITONSERVER_TYPE_UINT8:
+      *data_type = UINT8;
+      break;
+    case TRITONSERVER_TYPE_UINT16:
+      *data_type = UINT16;
+      break;
+    case TRITONSERVER_TYPE_UINT32:
+      *data_type = UINT32;
+      break;
+    case TRITONSERVER_TYPE_UINT64:
+      *data_type = UINT64;
+      break;
+    case TRITONSERVER_TYPE_INT8:
+      *data_type = INT8;
+      break;
+    case TRITONSERVER_TYPE_INT16:
+      *data_type = INT16;
+      break;
+    case TRITONSERVER_TYPE_INT32:
+      *data_type = INT32;
+      break;
+    case TRITONSERVER_TYPE_INT64:
+      *data_type = INT64;
+      break;
+    case TRITONSERVER_TYPE_FP16:
+      *data_type = FP16;
+      break;
+    case TRITONSERVER_TYPE_FP32:
+      *data_type = FP32;
+      break;
+    case TRITONSERVER_TYPE_FP64:
+      *data_type = FP64;
+      break;
+    case TRITONSERVER_TYPE_BYTES:
+      *data_type = BYTES;
+      break;
+    case TRITONSERVER_TYPE_BF16:
+      *data_type = BF16;
+      break;
+
+    default:
+      *data_type = INVALID;
+      break;
+  }
+
+  return Error::Success;
+}
+
+Error
+WrapperToTritonMemoryType(
+    TRITONSERVER_MemoryType* memory_type, Wrapper_MemoryType mem_type)
 {
   switch (mem_type) {
     case CPU:
@@ -128,7 +205,8 @@ ToTritonMemoryType(TRITONSERVER_MemoryType* memory_type, MemoryType mem_type)
 }
 
 Error
-ToMemoryType(MemoryType* memory_type, TRITONSERVER_MemoryType mem_type)
+TritonToWrapperMemoryType(
+    Wrapper_MemoryType* memory_type, TRITONSERVER_MemoryType mem_type)
 {
   switch (mem_type) {
     case TRITONSERVER_MEMORY_CPU:
@@ -146,23 +224,6 @@ ToMemoryType(MemoryType* memory_type, TRITONSERVER_MemoryType mem_type)
   }
 
   return Error::Success;
-}
-
-std::string
-MemoryTypeString(MemoryType memory_type)
-{
-  switch (memory_type) {
-    case CPU:
-      return "CPU";
-    case CPU_PINNED:
-      return "CPU_PINNED";
-    case GPU:
-      return "GPU";
-    default:
-      break;
-  }
-
-  return "<invalid>";
 }
 
 const Error Error::Success("");

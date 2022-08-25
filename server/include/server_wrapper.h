@@ -48,7 +48,7 @@ struct LoggingOptions {
   LoggingOptions();
 
   LoggingOptions(
-      bool verbose, bool info, bool warn, bool error, LogFormat format,
+      bool verbose, bool info, bool warn, bool error, Wrapper_LogFormat format,
       std::string log_file);
 
   // Verbose logging level. Default is 0.
@@ -62,7 +62,7 @@ struct LoggingOptions {
   // The format of logging. For "LOG_DEFAULT", the log severity (L) and
   // timestamp will be logged as "LMMDD hh:mm:ss.ssssss". For "LOG_ISO8601", the
   // log format will be "YYYY-MM-DDThh:mm:ssZ L". Default is 'LOG_DEFAULT'.
-  LogFormat format_;
+  Wrapper_LogFormat format_;
   // Logging output file. If specified, log outputs will be saved to this file.
   // If not specified, log outputs will stream to the console. Default is an
   // empty string.
@@ -114,7 +114,7 @@ struct ServerOptions {
       MetricsOptions metrics, std::vector<BackendConfig> be_config,
       std::string server_id, std::string backend_dir,
       std::string repo_agent_dir, bool disable_auto_complete_config,
-      ModelControlMode model_control_mode);
+      Wrapper_ModelControlMode model_control_mode);
 
   // Paths to model repository directory. Note that if a model is not unique
   // across all model repositories at any time, the model will not be available.
@@ -140,7 +140,7 @@ struct ServerOptions {
   // Specify the mode for model management. Options are "MODEL_CONTROL_NONE",
   // "MODEL_CONTROL_POLL" and "MODEL_CONTROL_EXPLICIT". Default is
   // "MODEL_CONTROL_NONE".
-  ModelControlMode model_control_mode_;
+  Wrapper_ModelControlMode model_control_mode_;
 };
 
 //==============================================================================
@@ -155,31 +155,43 @@ struct RepositoryIndex {
 };
 
 //==============================================================================
-/// Structure to hold buffer for output tensors.
+/// Structure to hold information of a tensor.
 ///
-struct Buffer {
-  Buffer(
-      const char* buffer, size_t byte_size, std::string memory_type,
-      int64_t memory_type_id);
+struct Tensor {
+  Tensor(
+      std::string name_, const char* buffer, size_t byte_size,
+      Wrapper_DataType data_type, std::vector<int64_t> shape,
+      Wrapper_MemoryType memory_type, int64_t memory_type_id);
 
-  const char* buffer_;       // the pointer to the start of the buffer
-  size_t byte_size_;         // the size of buffer in bytes
-  std::string memory_type_;  // the memory type of the output
-  int64_t memory_type_id_;   // the memory type ID of the output
+  // The name of the tensor.
+  std::string name_;
+  // The pointer to the start of the buffer.
+  const char* buffer_;
+  // The size of buffer in bytes.
+  size_t byte_size_;
+  // The data type of the tensor.
+  Wrapper_DataType data_type_;
+  // The shape of the tensor.
+  std::vector<int64_t> shape_;
+  // The memory type of the tensor. Valid memory types are "CPU", "CPU_PINNED"
+  // and "GPU".
+  Wrapper_MemoryType memory_type_;
+  // The memory type ID of the tensor.
+  int64_t memory_type_id_;
 };
 
 //==============================================================================
-/// Structure to hold the inference result in the form of buffers.
+/// Structure to hold the inference result in the form of a map to Tensor object.
 ///
-struct BufferResult {
+struct TensorResult {
   // Indicates if the result has an error. If so, should not retreive the result
   // from buffer_map.
   bool has_error_;
   // The error message. Empty if no error.
   std::string error_msg_;
   /// An unordered map which the key is the name of the output tensor and the
-  /// value is the Buffer object that contains the output tensor.
-  std::unordered_map<std::string, Buffer> buffer_map_;
+  /// value is the Tensor object that contains the output tensor.
+  std::unordered_map<std::string, Tensor> tensor_map_;
 };
 
 //==============================================================================
@@ -230,13 +242,13 @@ class TritonServer {
       const InferRequest& infer_request);
 
   /// Run asynchronous inference on server.
-  /// \param buffer_result_future Returns the result of inference as a future of
-  /// BufferResult object.
+  /// \param tensor_result_future Returns the result of inference as a future of
+  /// TensorResult object.
   /// \param infer_request The InferRequest object contains
   /// the inputs, outputs and infer options for an inference request.
   /// \return Error object indicating success or failure.
   Error AsyncInfer(
-      std::future<BufferResult*>* buffer_result_future,
+      std::future<TensorResult*>* tensor_result_future,
       const InferRequest& infer_request);
 
  private:
@@ -334,22 +346,12 @@ class InferRequest {
   InferRequest(InferOptions infer_options);
 
   /// Add an input tensor to be sent within an InferRequest object.
-  /// \param name The name of the input tensor.
-  /// \param buffer_ptr The buffer pointer of the input data.
-  /// \param byte_size The size, in bytes, of the input data.
-  /// \param data_type The data type of the input. This field is optional.
-  /// \param shape The shape of the input. This field is optional.
-  /// \param memory_type The memory type of the input.
-  /// This field is optional. Default is CPU.
-  /// \param memory_type_id The memory type id of the input.
-  /// This field is optional. Default is 0.
+  /// \param input A Tensor object that describes an input tensor.
   /// \return Error object indicating success or failure.
-  Error AddInput(
-      const std::string name, char* buffer_ptr, const uint64_t byte_size,
-      std::string data_type = "", std::vector<int64_t> shape = {},
-      const MemoryType memory_type = CPU, const int64_t memory_type_id = 0);
+  Error AddInput(Tensor& input);
 
-  /// Add an input tensor to be sent within an InferRequest object.
+  /// Add an input tensor to be sent within an InferRequest object. This
+  /// function is for containers holding string elements.
   /// \param model_name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
@@ -363,8 +365,9 @@ class InferRequest {
   template <typename Iterator>
   Error AddInput(
       const std::string name, Iterator& begin, Iterator& end,
-      std::string data_type = "", std::vector<int64_t> shape = {},
-      const MemoryType memory_type = CPU, const int64_t memory_type_id = 0);
+      Wrapper_DataType data_type = INVALID, std::vector<int64_t> shape = {},
+      const Wrapper_MemoryType memory_type = CPU,
+      const int64_t memory_type_id = 0);
 
   /// Add an requested output tensor to be sent within an InferRequest object.
   /// \param name The name of the requested output tensor.
@@ -416,7 +419,7 @@ class InferResult {
   /// \param output_name The name of the ouput to get datatype.
   /// \param datatype Returns the datatype of result for specified output name.
   /// \return Error object indicating success or failure.
-  Error DataType(const std::string& output_name, std::string* datatype);
+  Error DataType(const std::string& output_name, Wrapper_DataType* datatype);
 
   /// Get access to the buffer holding raw results of specified output
   /// returned by the server. Note the buffer is owned by InferResult
@@ -491,13 +494,13 @@ class Allocator {
 
   The signature of each function:
    * typedef Error (*ResponseAllocatorAllocFn_t)(
-      const char* tensor_name, size_t byte_size, MemoryType
+      const char* tensor_name, size_t byte_size, Wrapper_MemoryType
   preferred_memory_type, int64_t preferred_memory_type_id, void* userp, void**
-  buffer, void** buffer_userp, MemoryType* actual_memory_type, int64_t*
+  buffer, void** buffer_userp, Wrapper_MemoryType* actual_memory_type, int64_t*
   actual_memory_type_id);
 
    * typedef Error (*ResponseAllocatorReleaseFn_t)(
-      void* buffer, void* buffer_userp, size_t byte_size, MemoryType
+      void* buffer, void* buffer_userp, size_t byte_size, Wrapper_MemoryType
   memory_type, int64_t memory_type_id);
 
    * typedef Error (*ResponseAllocatorStartFn_t)(void* userp);
@@ -511,9 +514,6 @@ class Allocator {
   {
   }
 
-  /// The functions or objects below should not be called or accessed in one's
-  /// application.
-  //==============================================================================
   ResponseAllocatorAllocFn_t AllocFn() { return alloc_fn_; }
   ResponseAllocatorReleaseFn_t ReleaseFn() { return release_fn_; }
   ResponseAllocatorStartFn_t StartFn() { return start_fn_; }
@@ -522,7 +522,12 @@ class Allocator {
   ResponseAllocatorAllocFn_t alloc_fn_;
   ResponseAllocatorReleaseFn_t release_fn_;
   ResponseAllocatorStartFn_t start_fn_;
-  //==============================================================================
 };
+
+//==============================================================================
+/// Helper functions to convert Wrapper enum class to string
+///
+std::string WrapperMemoryTypeString(Wrapper_MemoryType memory_type);
+std::string WrapperDataTypeString(Wrapper_DataType data_type);
 
 }}}  // namespace triton::server::wrapper

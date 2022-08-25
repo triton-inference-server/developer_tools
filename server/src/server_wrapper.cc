@@ -44,7 +44,7 @@ Allocator* custom_allocator_ = nullptr;
 // until function 'ClearCompletedResponse' or TritonServer destructor is called
 // so that the output buffers can still be accessed by users after inference is
 // completed.
-std::vector<TRITONSERVER_InferenceResponse*> completed_responses_;
+std::vector<TRITONSERVER_InferenceResponse*> completed_responses_ = {};
 
 void
 ClearCompletedResponses()
@@ -58,6 +58,79 @@ ClearCompletedResponses()
   }
 
   completed_responses_.clear();
+}
+
+//==============================================================================
+/// Helper functions
+///
+std::string
+WrapperDataTypeString(Wrapper_DataType data_type)
+{
+  switch (data_type) {
+    case BOOL:
+      return "BOOL";
+      break;
+    case UINT8:
+      return "UINT8";
+      break;
+    case UINT16:
+      return "UINT16";
+      break;
+    case UINT32:
+      return "UINT32";
+      break;
+    case UINT64:
+      return "UINT64";
+      break;
+    case INT8:
+      return "INT8";
+      break;
+    case INT16:
+      return "INT16";
+      break;
+    case INT32:
+      return "INT32";
+      break;
+    case INT64:
+      return "INT64";
+      break;
+    case FP16:
+      return "FP16";
+      break;
+    case FP32:
+      return "FP32";
+      break;
+    case FP64:
+      return "FP64";
+      break;
+    case BYTES:
+      return "BYTES";
+      break;
+    case BF16:
+      return "BF16";
+      break;
+    default:
+      break;
+  }
+
+  return "<invalid>";
+}
+
+std::string
+WrapperMemoryTypeString(Wrapper_MemoryType memory_type)
+{
+  switch (memory_type) {
+    case CPU:
+      return "CPU";
+    case CPU_PINNED:
+      return "CPU_PINNED";
+    case GPU:
+      return "GPU";
+    default:
+      break;
+  }
+
+  return "<invalid>";
 }
 
 //==============================================================================
@@ -173,19 +246,19 @@ ResponseAlloc(
       }
     }
   } else if (custom_allocator_->AllocFn() != nullptr) {
-    MemoryType preferred_mem_type;
-    MemoryType actual_mem_type;
+    Wrapper_MemoryType preferred_mem_type;
+    Wrapper_MemoryType actual_mem_type;
     RETURN_TRITON_ERR_IF_ERR(
-        ToMemoryType(&preferred_mem_type, preferred_memory_type));
+        TritonToWrapperMemoryType(&preferred_mem_type, preferred_memory_type));
     RETURN_TRITON_ERR_IF_ERR(
-        ToMemoryType(&actual_mem_type, *actual_memory_type));
+        TritonToWrapperMemoryType(&actual_mem_type, *actual_memory_type));
 
     RETURN_TRITON_ERR_IF_ERR(custom_allocator_->AllocFn()(
         tensor_name, byte_size, preferred_mem_type, preferred_memory_type_id,
         userp, buffer, buffer_userp, &actual_mem_type, actual_memory_type_id));
 
     RETURN_TRITON_ERR_IF_ERR(
-        ToTritonMemoryType(actual_memory_type, actual_mem_type));
+        WrapperToTritonMemoryType(actual_memory_type, actual_mem_type));
   } else {
     return TRITONSERVER_ErrorNew(
         TRITONSERVER_ERROR_INTERNAL,
@@ -256,8 +329,8 @@ ResponseRelease(
 
     delete name;
   } else if (custom_allocator_->ReleaseFn() != nullptr) {
-    MemoryType mem_type;
-    RETURN_TRITON_ERR_IF_ERR(ToMemoryType(&mem_type, memory_type));
+    Wrapper_MemoryType mem_type;
+    RETURN_TRITON_ERR_IF_ERR(TritonToWrapperMemoryType(&mem_type, memory_type));
 
     RETURN_TRITON_ERR_IF_ERR(custom_allocator_->ReleaseFn()(
         buffer, buffer_userp, byte_size, mem_type, memory_type_id));
@@ -305,39 +378,51 @@ InferResponseComplete(
 }
 
 void
-InferResponseCompleteBuffer(
+InferResponseCompleteTensor(
     TRITONSERVER_InferenceResponse* response, const uint32_t flags, void* userp)
 {
   if (response != nullptr) {
-    auto p = reinterpret_cast<std::promise<BufferResult*>*>(userp);
+    auto p = reinterpret_cast<std::promise<TensorResult*>*>(userp);
     InternalResult* result = new InternalResult();
     result->FinalizeResponse(response);
-    BufferResult* buffer_result = new BufferResult();
+    TensorResult* tensor_result = new TensorResult();
     if (result->HasError()) {
-      buffer_result->has_error_ = true;
-      buffer_result->error_msg_ = result->ErrorMsg();
+      tensor_result->has_error_ = true;
+      tensor_result->error_msg_ = result->ErrorMsg();
     } else {
       for (auto& output : result->Outputs()) {
         std::string name = output.first;
         const char* buf;
         size_t byte_size;
-        std::string memory_type;
+        Wrapper_DataType data_type;
+        std::vector<int64_t> shape;
+        Wrapper_MemoryType memory_type;
         int64_t memory_type_id;
         Error err = result->RawData(name, &buf, &byte_size);
+        if (err.IsOk()) {
+          err = TritonToWrapperMemoryType(
+              &memory_type, output.second->MemoryType());
+        }
+        if (err.IsOk()) {
+          err = result->DataType(name, &data_type);
+        }
+        if (err.IsOk()) {
+          err = result->Shape(name, &shape);
+        }
         if (!err.IsOk()) {
-          buffer_result->has_error_ = true;
-          buffer_result->error_msg_ = err.Message();
+          tensor_result->has_error_ = true;
+          tensor_result->error_msg_ = err.Message();
           break;
         }
-        memory_type =
-            TRITONSERVER_MemoryTypeString(output.second->MemoryType());
         memory_type_id = output.second->MemoryTypeId();
-        buffer_result->buffer_map_.insert(std::pair<std::string, Buffer>(
-            name, Buffer(buf, byte_size, memory_type, memory_type_id)));
+        tensor_result->tensor_map_.insert(std::pair<std::string, Tensor>(
+            name, Tensor(
+                      name, buf, byte_size, data_type, shape, memory_type,
+                      memory_type_id)));
       }
     }
 
-    p->set_value(buffer_result);
+    p->set_value(tensor_result);
     delete p;
   }
 }
@@ -364,7 +449,7 @@ LoggingOptions::LoggingOptions()
 }
 
 LoggingOptions::LoggingOptions(
-    bool verbose, bool info, bool warn, bool error, LogFormat format,
+    bool verbose, bool info, bool warn, bool error, Wrapper_LogFormat format,
     std::string log_file)
 {
   verbose_ = verbose;
@@ -422,7 +507,8 @@ ServerOptions::ServerOptions(
     std::vector<std::string> model_repository_paths, LoggingOptions logging,
     MetricsOptions metrics, std::vector<BackendConfig> be_config,
     std::string server_id, std::string backend_dir, std::string repo_agent_dir,
-    bool disable_auto_complete_config, ModelControlMode model_control_mode)
+    bool disable_auto_complete_config,
+    Wrapper_ModelControlMode model_control_mode)
 {
   model_repository_paths_ = model_repository_paths;
   logging_ = logging;
@@ -443,12 +529,16 @@ RepositoryIndex::RepositoryIndex(
   state_ = state;
 }
 
-Buffer::Buffer(
-    const char* buffer, size_t byte_size, std::string memory_type,
-    int64_t memory_type_id)
+Tensor::Tensor(
+    std::string name, const char* buffer, size_t byte_size,
+    Wrapper_DataType data_type, std::vector<int64_t> shape,
+    Wrapper_MemoryType memory_type, int64_t memory_type_id)
 {
+  name_ = name;
   buffer_ = buffer;
   byte_size_ = byte_size;
+  data_type_ = data_type;
+  shape_ = shape;
   memory_type_ = memory_type;
   memory_type_id_ = memory_type_id;
 }
@@ -517,7 +607,7 @@ TritonServer::TritonServer(ServerOptions options)
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogError(
       server_options, options.logging_.error_));
   TRITONSERVER_LogFormat log_format;
-  THROW_IF_ERR(ToTritonLogFormat(&log_format, options.logging_.format_));
+  THROW_IF_ERR(WrapperToTritonLogFormat(&log_format, options.logging_.format_));
   THROW_IF_TRITON_ERR(
       TRITONSERVER_ServerOptionsSetLogFormat(server_options, log_format));
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogFile(
@@ -556,13 +646,15 @@ TritonServer::TritonServer(ServerOptions options)
 
   // Set model control mode
   TRITONSERVER_ModelControlMode model_control_mode;
-  THROW_IF_ERR(ToTritonModelControlMode(
+  THROW_IF_ERR(WrapperToTritonModelControlMode(
       &model_control_mode, options.model_control_mode_));
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelControlMode(
       server_options, model_control_mode));
 
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerNew(&server_, server_options));
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsDelete(server_options));
+
+  allocator_ = nullptr;
 }
 
 TritonServer::~TritonServer()
@@ -740,7 +832,7 @@ TritonServer::ParseDataTypeAndShape(
         input.Find("data_type", &data_type);
         std::string data_type_str;
         RETURN_ERR_IF_TRITON_ERR(data_type.AsString(&data_type_str));
-        RETURN_IF_ERR(ToTritonDataType(datatype, data_type_str));
+        *datatype = TRITONSERVER_StringToDataType(data_type_str.c_str());
 
         int64_t mbs_value;
         model_config.MemberAsInt("max_batch_size", &mbs_value);
@@ -867,7 +959,7 @@ TritonServer::AsyncInfer(
 
 Error
 TritonServer::AsyncInfer(
-    std::future<BufferResult*>* buffer_result_future,
+    std::future<TensorResult*>* buffer_result_future,
     const InferRequest& infer_request)
 {
   // The inference request object for sending internal requests.
@@ -875,12 +967,12 @@ TritonServer::AsyncInfer(
   try {
     THROW_IF_ERR(AsyncInferHelper(&irequest, infer_request));
     {
-      auto p = new std::promise<BufferResult*>();
+      auto p = new std::promise<TensorResult*>();
       *buffer_result_future = p->get_future();
 
       THROW_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
           irequest, allocator_, nullptr /* response_allocator_userp */,
-          InferResponseCompleteBuffer, reinterpret_cast<void*>(p)));
+          InferResponseCompleteTensor, reinterpret_cast<void*>(p)));
       THROW_ERR_IF_TRITON_ERR(TRITONSERVER_ServerInferAsync(
           server_, irequest, nullptr /* trace */));
     }
@@ -902,15 +994,13 @@ InferRequest::InferRequest(InferOptions options)
 }
 
 Error
-InferRequest::AddInput(
-    const std::string name, char* buffer_ptr, const uint64_t byte_size,
-    std::string data_type, std::vector<int64_t> shape,
-    const MemoryType memory_type, const int64_t memory_type_id)
+InferRequest::AddInput(Tensor& input_tensor)
 {
   InferInput* input;
   RETURN_IF_ERR(InferInput::Create(
-      &input, name, shape, data_type, buffer_ptr, byte_size, memory_type,
-      memory_type_id));
+      &input, input_tensor.name_, input_tensor.shape_, input_tensor.data_type_,
+      input_tensor.buffer_, input_tensor.byte_size_, input_tensor.memory_type_,
+      input_tensor.memory_type_id_));
   inputs_.push_back(input);
 
   return Error::Success;
@@ -920,8 +1010,8 @@ template <typename Iterator>
 Error
 InferRequest::AddInput(
     const std::string name, Iterator& begin, Iterator& end,
-    std::string data_type, std::vector<int64_t> shape,
-    const MemoryType memory_type, const int64_t memory_type_id)
+    Wrapper_DataType data_type, std::vector<int64_t> shape,
+    const Wrapper_MemoryType memory_type, const int64_t memory_type_id)
 {
   // Serialize the strings into a "raw" buffer. The first 4-bytes are
   // the length of the string length. Next are the actual string
@@ -936,17 +1026,18 @@ InferRequest::AddInput(
     sbuf.append(reinterpret_cast<const char*>(&len), sizeof(uint32_t));
     sbuf.append(*it);
   }
-
-  return AddInput(
+  Tensor input(
       name, reinterpret_cast<char*>(&sbuf[0]), sbuf.size(), data_type, shape,
       memory_type, memory_type_id);
+
+  return AddInput(input);
 }
 
 // Explicit template instantiation
 template Error InferRequest::AddInput<std::vector<std::string>::iterator>(
     const std::string name, std::vector<std::string>::iterator& begin,
-    std::vector<std::string>::iterator& end, std::string data_type,
-    std::vector<int64_t> shape, const MemoryType memory_type,
+    std::vector<std::string>::iterator& end, Wrapper_DataType data_type,
+    std::vector<int64_t> shape, const Wrapper_MemoryType memory_type,
     const int64_t memory_type_id);
 
 Error
@@ -1089,11 +1180,12 @@ InferResult::Shape(const std::string& output_name, std::vector<int64_t>* shape)
 }
 
 Error
-InferResult::DataType(const std::string& output_name, std::string* datatype)
+InferResult::DataType(
+    const std::string& output_name, Wrapper_DataType* datatype)
 {
   if (infer_outputs_.find(output_name) != infer_outputs_.end()) {
-    *datatype =
-        TRITONSERVER_DataTypeString(infer_outputs_[output_name]->DataType());
+    RETURN_IF_ERR(TritonToWrapperDataType(
+        datatype, infer_outputs_[output_name]->DataType()));
   } else {
     return Error(
         "The response does not contain results for output name " + output_name);
