@@ -153,7 +153,6 @@ enum Wrapper_ModelControlMode {
 };
 enum Wrapper_MemoryType { CPU, CPU_PINNED, GPU };
 enum Wrapper_LogFormat { LOG_DEFAULT, LOG_ISO8601 };
-
 enum Wrapper_DataType {
   INVALID,
   BOOL,
