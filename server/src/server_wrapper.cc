@@ -1092,40 +1092,6 @@ InferRequest::AddInput(const Tensor& input_tensor)
   return Error::Success;
 }
 
-template <typename Iterator>
-Error
-InferRequest::AddInput(
-    const std::string name, const Iterator& begin, const Iterator& end,
-    Wrapper_DataType data_type, std::vector<int64_t> shape,
-    Wrapper_MemoryType memory_type, int64_t memory_type_id)
-{
-  // Serialize the strings into a "raw" buffer. The first 4-bytes are
-  // the length of the string length. Next are the actual string
-  // characters. There is *not* a null-terminator on the string.
-  str_bufs_.emplace_back();
-  std::string& sbuf = str_bufs_.back();
-
-  // std::string sbuf;
-  Iterator it;
-  for (it = begin; it != end; it++) {
-    uint32_t len = (*it).size();
-    sbuf.append(reinterpret_cast<const char*>(&len), sizeof(uint32_t));
-    sbuf.append(*it);
-  }
-  Tensor input(
-      name, reinterpret_cast<char*>(&sbuf[0]), sbuf.size(), data_type, shape,
-      memory_type, memory_type_id);
-
-  return AddInput(input);
-}
-
-// Explicit template instantiation
-template Error InferRequest::AddInput<std::vector<std::string>::iterator>(
-    const std::string name, const std::vector<std::string>::iterator& begin,
-    const std::vector<std::string>::iterator& end, Wrapper_DataType data_type,
-    std::vector<int64_t> shape, Wrapper_MemoryType memory_type,
-    int64_t memory_type_id);
-
 Error
 InferRequest::AddOutput(Tensor& output_tensor)
 {

@@ -359,7 +359,7 @@ class InferRequest {
   Error AddInput(const Tensor& input);
 
   /// Add an input tensor to be sent within an InferRequest object. This
-  /// function is for containers holding string elements.
+  /// function is for containers holding data elements.
   /// \param model_name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
@@ -375,6 +375,23 @@ class InferRequest {
       const std::string name, const Iterator& begin, const Iterator& end,
       Wrapper_DataType data_type = INVALID, std::vector<int64_t> shape = {},
       Wrapper_MemoryType memory_type = CPU, int64_t memory_type_id = 0);
+
+  /// Add an input tensor to be sent within an InferRequest object. This
+  /// function is for containers holding 'string' elements.
+  /// \param model_name The name of the input tensor.
+  /// \param begin The begin iterator of the container.
+  /// \param end  The end iterator of the container.
+  /// \param shape The shape of the input. This field is optional.
+  /// \param memory_type TThe memory type of the input.
+  /// This field is optional. Default is CPU.
+  /// \param memory_type_id The memory type id of the input.
+  /// This field is optional. Default is 0.
+  /// \return Error object indicating success or failure.
+  template <typename Iterator>
+  Error AddInput(
+      const std::string name, const Iterator& begin, const Iterator& end,
+      std::vector<int64_t> shape = {}, Wrapper_MemoryType memory_type = CPU,
+      int64_t memory_type_id = 0);
 
   /// Add an requested output tensor to be sent within an InferRequest object.
   /// Calling this function is optional. If no output(s) are specifically
@@ -544,5 +561,49 @@ class Allocator {
 ///
 std::string WrapperMemoryTypeString(Wrapper_MemoryType memory_type);
 std::string WrapperDataTypeString(Wrapper_DataType data_type);
+
+//==============================================================================
+/// Implementation of template functions
+///
+template <typename Iterator>
+Error
+InferRequest::AddInput(
+    const std::string name, const Iterator& begin, const Iterator& end,
+    std::vector<int64_t> shape, Wrapper_MemoryType memory_type,
+    int64_t memory_type_id)
+{
+  // Serialize the strings into a "raw" buffer. The first 4-bytes are
+  // the length of the string length. Next are the actual string
+  // characters. There is *not* a null-terminator on the string.
+  str_bufs_.emplace_back();
+  std::string& sbuf = str_bufs_.back();
+
+  Iterator it;
+  for (it = begin; it != end; it++) {
+    uint32_t len = (*it).size();
+    sbuf.append(reinterpret_cast<const char*>(&len), sizeof(uint32_t));
+    sbuf.append(*it);
+  }
+  Tensor input(
+      name, reinterpret_cast<char*>(&sbuf[0]), sbuf.size(), BYTES, shape,
+      memory_type, memory_type_id);
+
+  return AddInput(input);
+}
+
+template <typename Iterator>
+Error
+InferRequest::AddInput(
+    const std::string name, const Iterator& begin, const Iterator& end,
+    Wrapper_DataType data_type, std::vector<int64_t> shape,
+    Wrapper_MemoryType memory_type, int64_t memory_type_id)
+{
+  size_t bytes = sizeof(*begin) * std::distance(begin, end);
+
+  Tensor input(
+      name, reinterpret_cast<char*>(&(*begin)), bytes, data_type, shape,
+      memory_type, memory_type_id);
+  return AddInput(input);
+}
 
 }}}  // namespace triton::server::wrapper
