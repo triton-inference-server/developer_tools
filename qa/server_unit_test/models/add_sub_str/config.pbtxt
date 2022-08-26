@@ -29,29 +29,29 @@ backend: "python"
 input [
   {
     name: "INPUT0"
-    data_type: TYPE_INT32
-    dims: [ 16 ]
+    data_type: TYPE_STRING
+    dims: [ -1 ]
   }
 ]
 input [
   {
     name: "INPUT1"
-    data_type: TYPE_INT32
-    dims: [ 16 ]
+    data_type: TYPE_STRING
+    dims: [ -1 ]
   }
 ]
 output [
   {
     name: "OUTPUT0"
-    data_type: TYPE_INT32
-    dims: [ 16 ]
+    data_type: TYPE_STRING
+    dims: [ -1 ]
   }
 ]
 output [
   {
     name: "OUTPUT1"
-    data_type: TYPE_INT32
-    dims: [ 16 ]
+    data_type: TYPE_STRING
+    dims: [ -1 ]
   }
 ]
 
