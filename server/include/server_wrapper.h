@@ -356,7 +356,7 @@ class InferRequest {
   /// Add an input tensor to be sent within an InferRequest object.
   /// \param input A Tensor object that describes an input tensor.
   /// \return Error object indicating success or failure.
-  Error AddInput(Tensor& input);
+  Error AddInput(const Tensor& input);
 
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding string elements.
@@ -372,10 +372,9 @@ class InferRequest {
   /// \return Error object indicating success or failure.
   template <typename Iterator>
   Error AddInput(
-      const std::string name, Iterator& begin, Iterator& end,
+      const std::string name, const Iterator& begin, const Iterator& end,
       Wrapper_DataType data_type = INVALID, std::vector<int64_t> shape = {},
-      const Wrapper_MemoryType memory_type = CPU,
-      const int64_t memory_type_id = 0);
+      Wrapper_MemoryType memory_type = CPU, int64_t memory_type_id = 0);
 
   /// Add an requested output tensor to be sent within an InferRequest object.
   /// Calling this function is optional. If no output(s) are specifically

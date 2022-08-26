@@ -1080,7 +1080,7 @@ InferRequest::InferRequest(InferOptions options) : infer_options_(options)
 }
 
 Error
-InferRequest::AddInput(Tensor& input_tensor)
+InferRequest::AddInput(const Tensor& input_tensor)
 {
   InferInput* input;
   RETURN_IF_ERR(InferInput::Create(
@@ -1095,9 +1095,9 @@ InferRequest::AddInput(Tensor& input_tensor)
 template <typename Iterator>
 Error
 InferRequest::AddInput(
-    const std::string name, Iterator& begin, Iterator& end,
+    const std::string name, const Iterator& begin, const Iterator& end,
     Wrapper_DataType data_type, std::vector<int64_t> shape,
-    const Wrapper_MemoryType memory_type, const int64_t memory_type_id)
+    Wrapper_MemoryType memory_type, int64_t memory_type_id)
 {
   // Serialize the strings into a "raw" buffer. The first 4-bytes are
   // the length of the string length. Next are the actual string
@@ -1121,10 +1121,10 @@ InferRequest::AddInput(
 
 // Explicit template instantiation
 template Error InferRequest::AddInput<std::vector<std::string>::iterator>(
-    const std::string name, std::vector<std::string>::iterator& begin,
-    std::vector<std::string>::iterator& end, Wrapper_DataType data_type,
-    std::vector<int64_t> shape, const Wrapper_MemoryType memory_type,
-    const int64_t memory_type_id);
+    const std::string name, const std::vector<std::string>::iterator& begin,
+    const std::vector<std::string>::iterator& end, Wrapper_DataType data_type,
+    std::vector<int64_t> shape, Wrapper_MemoryType memory_type,
+    int64_t memory_type_id);
 
 Error
 InferRequest::AddOutput(Tensor& output_tensor)
