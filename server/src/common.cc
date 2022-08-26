@@ -70,116 +70,80 @@ WrapperToTritonLogFormat(
   return Error::Success;
 }
 
-Error
-WrapperToTritonDataType(
-    TRITONSERVER_DataType* data_type, Wrapper_DataType dtype)
+TRITONSERVER_DataType
+WrapperToTritonDataType(Wrapper_DataType dtype)
 {
   switch (dtype) {
     case BOOL:
-      *data_type = TRITONSERVER_TYPE_BOOL;
-      break;
+      return TRITONSERVER_TYPE_BOOL;
     case UINT8:
-      *data_type = TRITONSERVER_TYPE_UINT8;
-      break;
+      return TRITONSERVER_TYPE_UINT8;
     case UINT16:
-      *data_type = TRITONSERVER_TYPE_UINT16;
-      break;
+      return TRITONSERVER_TYPE_UINT16;
     case UINT32:
-      *data_type = TRITONSERVER_TYPE_UINT32;
-      break;
+      return TRITONSERVER_TYPE_UINT32;
     case UINT64:
-      *data_type = TRITONSERVER_TYPE_UINT64;
-      break;
+      return TRITONSERVER_TYPE_UINT64;
     case INT8:
-      *data_type = TRITONSERVER_TYPE_INT8;
-      break;
+      return TRITONSERVER_TYPE_INT8;
     case INT16:
-      *data_type = TRITONSERVER_TYPE_INT16;
-      break;
+      return TRITONSERVER_TYPE_INT16;
     case INT32:
-      *data_type = TRITONSERVER_TYPE_INT32;
-      break;
+      return TRITONSERVER_TYPE_INT32;
     case INT64:
-      *data_type = TRITONSERVER_TYPE_INT64;
-      break;
+      return TRITONSERVER_TYPE_INT64;
     case FP16:
-      *data_type = TRITONSERVER_TYPE_FP16;
-      break;
+      return TRITONSERVER_TYPE_FP16;
     case FP32:
-      *data_type = TRITONSERVER_TYPE_FP32;
-      break;
+      return TRITONSERVER_TYPE_FP32;
     case FP64:
-      *data_type = TRITONSERVER_TYPE_FP64;
-      break;
+      return TRITONSERVER_TYPE_FP64;
     case BYTES:
-      *data_type = TRITONSERVER_TYPE_BYTES;
-      break;
+      return TRITONSERVER_TYPE_BYTES;
     case BF16:
-      *data_type = TRITONSERVER_TYPE_BF16;
-      break;
+      return TRITONSERVER_TYPE_BF16;
 
     default:
-      *data_type = TRITONSERVER_TYPE_INVALID;
-      break;
+      return TRITONSERVER_TYPE_INVALID;
   }
-
-  return Error::Success;
 }
 
-Error
-TritonToWrapperDataType(
-    Wrapper_DataType* data_type, TRITONSERVER_DataType dtype)
+Wrapper_DataType
+TritonToWrapperDataType(TRITONSERVER_DataType dtype)
 {
   switch (dtype) {
     case TRITONSERVER_TYPE_BOOL:
-      *data_type = BOOL;
-      break;
+      return BOOL;
     case TRITONSERVER_TYPE_UINT8:
-      *data_type = UINT8;
-      break;
+      return UINT8;
     case TRITONSERVER_TYPE_UINT16:
-      *data_type = UINT16;
-      break;
+      return UINT16;
     case TRITONSERVER_TYPE_UINT32:
-      *data_type = UINT32;
-      break;
+      return UINT32;
     case TRITONSERVER_TYPE_UINT64:
-      *data_type = UINT64;
-      break;
+      return UINT64;
     case TRITONSERVER_TYPE_INT8:
-      *data_type = INT8;
-      break;
+      return INT8;
     case TRITONSERVER_TYPE_INT16:
-      *data_type = INT16;
-      break;
+      return INT16;
     case TRITONSERVER_TYPE_INT32:
-      *data_type = INT32;
-      break;
+      return INT32;
     case TRITONSERVER_TYPE_INT64:
-      *data_type = INT64;
-      break;
+      return INT64;
     case TRITONSERVER_TYPE_FP16:
-      *data_type = FP16;
-      break;
+      return FP16;
     case TRITONSERVER_TYPE_FP32:
-      *data_type = FP32;
-      break;
+      return FP32;
     case TRITONSERVER_TYPE_FP64:
-      *data_type = FP64;
-      break;
+      return FP64;
     case TRITONSERVER_TYPE_BYTES:
-      *data_type = BYTES;
-      break;
+      return BYTES;
     case TRITONSERVER_TYPE_BF16:
-      *data_type = BF16;
-      break;
+      return BF16;
 
     default:
-      *data_type = INVALID;
-      break;
+      return INVALID;
   }
-
-  return Error::Success;
 }
 
 Error

@@ -153,7 +153,7 @@ class InternalServer : public TritonServer {
   Error InitializeAllocator(bool is_prealloc);
 
   Error AsyncInfer(
-      std::future<InferResult*>* result_future,
+      std::future<InferResult>* result_future,
       const InferRequest& infer_request) override;
 
   Error AsyncInfer(
@@ -394,9 +394,9 @@ InferResponseComplete(
     TRITONSERVER_InferenceResponse* response, const uint32_t flags, void* userp)
 {
   if (response != nullptr) {
-    auto p = reinterpret_cast<std::promise<InferResult*>*>(userp);
-    InternalResult* result = new InternalResult();
-    result->FinalizeResponse(response);
+    auto p = reinterpret_cast<std::promise<InferResult>*>(userp);
+    InternalResult result;
+    result.FinalizeResponse(response);
     p->set_value(result);
     delete p;
   }
@@ -569,7 +569,7 @@ RepositoryIndex::RepositoryIndex(
 }
 
 Tensor::Tensor(
-    std::string name, const char* buffer, size_t byte_size,
+    std::string name, char* buffer, size_t byte_size,
     Wrapper_DataType data_type, std::vector<int64_t> shape,
     Wrapper_MemoryType memory_type, int64_t memory_type_id)
 {
@@ -593,7 +593,7 @@ Tensor::Tensor(std::string name)
   memory_type_id_ = 0;
 }
 
-Tensor::Tensor(std::string name, const char* buffer, size_t byte_size)
+Tensor::Tensor(std::string name, char* buffer, size_t byte_size)
 {
   name_ = name;
   buffer_ = buffer;
@@ -1014,7 +1014,7 @@ InternalServer::InitializeAllocator(bool is_prealloc)
 
 Error
 InternalServer::AsyncInfer(
-    std::future<InferResult*>* result_future, const InferRequest& infer_request)
+    std::future<InferResult>* result_future, const InferRequest& infer_request)
 {
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
@@ -1023,7 +1023,7 @@ InternalServer::AsyncInfer(
     THROW_IF_ERR(
         AsyncInferHelper(&irequest, infer_request, false /*is_prealloc*/));
     {
-      auto p = new std::promise<InferResult*>();
+      auto p = new std::promise<InferResult>();
       *result_future = p->get_future();
 
       THROW_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
@@ -1234,73 +1234,61 @@ InferResult::ErrorMsg()
   return response_error_.Message();
 }
 
-Error
-InferResult::ModelName(std::string* name)
+std::string
+InferResult::ModelName()
 {
-  *name = model_name_;
-  return Error::Success;
+  return model_name_;
+}
+
+std::string
+InferResult::ModelVersion()
+{
+  return std::to_string(model_version_);
+}
+
+std::string
+InferResult::Id()
+{
+  return request_id_;
 }
 
 Error
-InferResult::ModelVersion(std::string* version)
+InferResult::Output(Tensor* output)
 {
-  *version = std::to_string(model_version_);
-  return Error::Success;
-}
-
-Error
-InferResult::Id(std::string* id)
-{
-  *id = request_id_;
-  return Error::Success;
-}
-
-Error
-InferResult::Shape(const std::string& output_name, std::vector<int64_t>* shape)
-{
-  if (infer_outputs_.find(output_name) != infer_outputs_.end()) {
-    shape->clear();
-    const int64_t* output_shape = infer_outputs_[output_name]->Shape();
-    for (uint64_t i = 0; i < infer_outputs_[output_name]->DimsCount(); i++) {
-      shape->push_back(*(output_shape + i));
-    }
+  if (infer_outputs_.find(output->name_) != infer_outputs_.end()) {
+    RawData(output->name_, (const char**)&output->buffer_, &output->byte_size_);
+    output->data_type_ =
+        TritonToWrapperDataType(infer_outputs_[output->name_]->DataType());
+    ShapeHelper(output->name_, &output->shape_);
+    RETURN_IF_ERR(TritonToWrapperMemoryType(
+        &output->memory_type_, infer_outputs_[output->name_]->MemoryType()));
+    output->memory_type_id_ = infer_outputs_[output->name_]->MemoryTypeId();
   } else {
     return Error(
-        "The response does not contain results for output name " + output_name);
+        "The response does not contain results for output name " +
+        output->name_);
   }
 
   return Error::Success;
 }
 
-Error
-InferResult::DataType(
-    const std::string& output_name, Wrapper_DataType* datatype)
+void
+InferResult::ShapeHelper(
+    const std::string& output_name, std::vector<int64_t>* shape)
 {
-  if (infer_outputs_.find(output_name) != infer_outputs_.end()) {
-    RETURN_IF_ERR(TritonToWrapperDataType(
-        datatype, infer_outputs_[output_name]->DataType()));
-  } else {
-    return Error(
-        "The response does not contain results for output name " + output_name);
+  shape->clear();
+  const int64_t* output_shape = infer_outputs_[output_name]->Shape();
+  for (uint64_t i = 0; i < infer_outputs_[output_name]->DimsCount(); i++) {
+    shape->push_back(*(output_shape + i));
   }
-
-  return Error::Success;
 }
 
-Error
+void
 InferResult::RawData(
     const std::string output_name, const char** buf, size_t* byte_size)
 {
-  if (infer_outputs_.find(output_name) != infer_outputs_.end()) {
-    *buf =
-        reinterpret_cast<const char*>(infer_outputs_[output_name]->DataPtr());
-    *byte_size = infer_outputs_[output_name]->ByteSize();
-  } else {
-    return Error(
-        "The response does not contain results for output name " + output_name);
-  }
-
-  return Error::Success;
+  *buf = reinterpret_cast<const char*>(infer_outputs_[output_name]->DataPtr());
+  *byte_size = infer_outputs_[output_name]->ByteSize();
 }
 
 Error
@@ -1310,7 +1298,7 @@ InferResult::StringData(
   if (infer_outputs_.find(output_name) != infer_outputs_.end()) {
     const char* buf;
     size_t byte_size;
-    RETURN_IF_ERR(RawData(output_name, &buf, &byte_size));
+    RawData(output_name, &buf, &byte_size);
 
     string_result->clear();
     size_t buf_offset = 0;

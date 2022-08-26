@@ -236,10 +236,8 @@ Error WrapperToTritonModelControlMode(
     Wrapper_ModelControlMode mode);
 Error WrapperToTritonLogFormat(
     TRITONSERVER_LogFormat* log_format, Wrapper_LogFormat format);
-Error WrapperToTritonDataType(
-    TRITONSERVER_DataType* data_type, Wrapper_DataType dtype);
-Error TritonToWrapperDataType(
-    Wrapper_DataType* data_type, TRITONSERVER_DataType dtype);
+TRITONSERVER_DataType WrapperToTritonDataType(Wrapper_DataType dtype);
+Wrapper_DataType TritonToWrapperDataType(TRITONSERVER_DataType dtype);
 Error WrapperToTritonMemoryType(
     TRITONSERVER_MemoryType* memory_type, Wrapper_MemoryType mem_type);
 Error TritonToWrapperMemoryType(
@@ -268,9 +266,8 @@ class InferInput {
       const Wrapper_MemoryType memory_type, const int64_t memory_type_id)
   {
     TRITONSERVER_MemoryType input_memory_type;
-    TRITONSERVER_DataType dtype;
+    TRITONSERVER_DataType dtype = WrapperToTritonDataType(datatype);
     RETURN_IF_ERR(WrapperToTritonMemoryType(&input_memory_type, memory_type));
-    RETURN_IF_ERR(WrapperToTritonDataType(&dtype, datatype));
 
     *infer_input = new InferInput(
         name, dims, dtype, data_ptr, byte_size, input_memory_type,

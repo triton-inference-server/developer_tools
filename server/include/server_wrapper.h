@@ -159,18 +159,18 @@ struct RepositoryIndex {
 ///
 struct Tensor {
   Tensor(
-      std::string name_, const char* buffer, size_t byte_size,
+      std::string name_, char* buffer, size_t byte_size,
       Wrapper_DataType data_type, std::vector<int64_t> shape,
       Wrapper_MemoryType memory_type, int64_t memory_type_id);
 
   Tensor(std::string name_);
 
-  Tensor(std::string name_, const char* buffer, size_t byte_size);
+  Tensor(std::string name_, char* buffer, size_t byte_size);
 
   // The name of the tensor.
   std::string name_;
   // The pointer to the start of the buffer.
-  const char* buffer_;
+  char* buffer_;
   // The size of buffer in bytes.
   size_t byte_size_;
   // The data type of the tensor.
@@ -242,7 +242,7 @@ class TritonServer {
   /// the inputs, outputs and infer options for an inference request.
   /// \return Error object indicating success or failure.
   virtual Error AsyncInfer(
-      std::future<InferResult*>* result_future,
+      std::future<InferResult>* result_future,
       const InferRequest& infer_request) = 0;
 
   /// Run asynchronous inference on server with pre-allocated buffers for output
@@ -310,9 +310,11 @@ struct InferOptions {
   /// request_id will be used.
   std::string request_id_;
   /// The correlation ID of the inference request to be an unsigned integer.
+  /// Should be used exclusively with 'correlation_id_str_'.
   /// Default is 0, which indicates that the request has no correlation ID.
   uint64_t correlation_id_;
   /// The correlation ID of the inference request to be a string.
+  /// Should be used exclusively with 'correlation_id_'.
   /// Default value is "".
   std::string correlation_id_str_;
   /// Indicates whether the request being added marks the start of the
@@ -409,43 +411,25 @@ class InferRequest {
 class InferResult {
  public:
   /// Get the name of the model which generated this response.
-  /// \param name Returns the name of the model.
-  /// \return Error object indicating success or failure.
-  Error ModelName(std::string* name);
+  /// \return Returns the name of the model.
+  std::string ModelName();
 
   /// Get the version of the model which generated this response.
-  /// \param version Returns the version of the model.
-  /// \return Error object indicating success or failure.
-  Error ModelVersion(std::string* version);
+  /// \return Returns the version of the model.
+  std::string ModelVersion();
 
   /// Get the id of the request which generated this response.
-  /// \param version Returns the version of the model.
-  /// \return Error object indicating success or failure.
-  Error Id(std::string* id);
+  /// \return Returns the id of the request.
+  std::string Id();
 
-  /// Get the shape of output result returned in the response.
-  /// \param output_name The name of the ouput to get shape.
-  /// \param shape Returns the shape of result for specified output name.
-  /// \return Error object indicating success or failure.
-  Error Shape(const std::string& output_name, std::vector<int64_t>* shape);
-
-  /// Get the datatype of output result returned in the response.
-  /// \param output_name The name of the ouput to get datatype.
-  /// \param datatype Returns the datatype of result for specified output name.
-  /// \return Error object indicating success or failure.
-  Error DataType(const std::string& output_name, Wrapper_DataType* datatype);
-
-  /// Get access to the buffer holding raw results of specified output
-  /// returned by the server. Note the buffer is owned by InferResult
-  /// instance. Users can copy out the data if required to extend the
-  /// lifetime.
-  /// \param output_name The name of the output to get result data.
-  /// \param buf Returns the pointer to the start of the buffer.
-  /// \param byte_size Returns the size of buffer in bytes.
-  /// \return Error object indicating success or failure of the
-  /// request.
-  Error RawData(
-      const std::string output_name, const char** buf, size_t* byte_size);
+  /// Get the result output as a 'Tensor' object. The 'buffer' field of the
+  /// output is owned by InferResult instance. Users can copy out the data if
+  /// required to extend the lifetime. Note that for string data, need to use
+  /// 'StringData' function for string data result.
+  /// \param output Contains the requested output tensor name. The output data
+  // will be returned in the same 'Tensor' object.
+  /// \return Error object indicating success or failure of the request.
+  Error Output(Tensor* output);
 
   /// Get the result data as a vector of strings. The vector will
   /// receive a copy of result data. An error will be generated if
@@ -464,8 +448,8 @@ class InferResult {
   Error DebugString(std::string* string_result);
 
   /// Returns if there is an error within this result. If so, should not call
-  /// other member functions to retreive result. \return True if this
-  /// InferResult object has an error, false if no error.
+  /// other member functions to retreive result.
+  /// \return True if this 'InferResult' object has an error, false if no error.
   bool HasError();
 
   /// Returns the error message of the error.
@@ -473,6 +457,22 @@ class InferResult {
   std::string ErrorMsg();
 
  protected:
+  /// Get the shape of output result returned in the response.
+  /// \param output_name The name of the ouput to get shape.
+  /// \param shape Returns the shape of result for specified output name.
+  /// \return Error object indicating success or failure.
+  void ShapeHelper(const std::string& output_name, std::vector<int64_t>* shape);
+
+  /// Get access to the buffer holding raw results of specified output
+  /// returned by the server.
+  /// \param output_name The name of the output to get result data.
+  /// \param buf Returns the pointer to the start of the buffer.
+  /// \param byte_size Returns the size of buffer in bytes.
+  /// \return Error object indicating success or failure of the
+  /// request.
+  void RawData(
+      const std::string output_name, const char** buf, size_t* byte_size);
+
   const char* model_name_;
   int64_t model_version_;
   const char* request_id_;
