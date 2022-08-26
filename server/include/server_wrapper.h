@@ -163,6 +163,10 @@ struct Tensor {
       Wrapper_DataType data_type, std::vector<int64_t> shape,
       Wrapper_MemoryType memory_type, int64_t memory_type_id);
 
+  Tensor(std::string name_);
+
+  Tensor(std::string name_, const char* buffer, size_t byte_size);
+
   // The name of the tensor.
   std::string name_;
   // The pointer to the start of the buffer.
@@ -181,17 +185,16 @@ struct Tensor {
 };
 
 //==============================================================================
-/// Structure to hold the inference result in the form of a map to Tensor object.
-///
-struct TensorResult {
-  // Indicates if the result has an error. If so, should not retreive the result
-  // from buffer_map.
+/// Structure for checking if an error occurs during inference. This structure
+/// is used with calling the overloaded 'AsyncInfer(std::future<ErrorCheck>*
+/// error_check, const InferRequest& infer_request)' function where the output
+/// tensors will be stored in-place in the pre-allocated buffers provided by
+/// users.
+struct ErrorCheck {
+  ErrorCheck();
+
   bool has_error_;
-  // The error message. Empty if no error.
-  std::string error_msg_;
-  /// An unordered map which the key is the name of the output tensor and the
-  /// value is the Tensor object that contains the output tensor.
-  std::unordered_map<std::string, Tensor> tensor_map_;
+  std::string error_message_;
 };
 
 //==============================================================================
@@ -199,7 +202,8 @@ struct TensorResult {
 ///
 class TritonServer {
  public:
-  TritonServer(ServerOptions server_options);
+  ///  Create a TritonServer instance.
+  static std::unique_ptr<TritonServer> Create(ServerOptions server_options);
 
   ~TritonServer();
 
@@ -237,23 +241,24 @@ class TritonServer {
   /// \param infer_request The InferRequest object contains
   /// the inputs, outputs and infer options for an inference request.
   /// \return Error object indicating success or failure.
-  Error AsyncInfer(
+  virtual Error AsyncInfer(
       std::future<InferResult*>* result_future,
-      const InferRequest& infer_request);
+      const InferRequest& infer_request) = 0;
 
-  /// Run asynchronous inference on server.
-  /// \param tensor_result_future Returns the result of inference as a future of
-  /// TensorResult object.
-  /// \param infer_request The InferRequest object contains
-  /// the inputs, outputs and infer options for an inference request.
+  /// Run asynchronous inference on server with pre-allocated buffers for output
+  /// tensors. Each output result will be stored in-place in the buffer provided
+  /// by user using 'Tensor' structure when calling
+  /// 'InferRequest.AddOutput(Tensor& output)' function.
+  /// \param error_check Returns a future of ErrorCheck object indicating if an
+  /// error occurs during inference.
+  /// \param infer_request The InferRequest object contains the inputs, outputs
+  /// and infer options for an inference request.
   /// \return Error object indicating success or failure.
-  Error AsyncInfer(
-      std::future<TensorResult*>* tensor_result_future,
-      const InferRequest& infer_request);
+  virtual Error AsyncInfer(
+      std::future<ErrorCheck>* error_check,
+      const InferRequest& infer_request) = 0;
 
- private:
-  Error InitializeAllocator();
-
+ protected:
   Error PrepareInferenceRequest(
       TRITONSERVER_InferenceRequest** irequest, const InferRequest& request);
 
@@ -261,11 +266,12 @@ class TritonServer {
       TRITONSERVER_InferenceRequest* irequest, const InferRequest& request);
 
   Error PrepareInferenceOutput(
-      TRITONSERVER_InferenceRequest* irequest, const InferRequest& request);
+      TRITONSERVER_InferenceRequest* irequest, const InferRequest& request,
+      bool is_prealloc);
 
   Error AsyncInferHelper(
       TRITONSERVER_InferenceRequest** irequest,
-      const InferRequest& infer_request);
+      const InferRequest& infer_request, bool is_prealloc);
 
   // Helper function for parsing data type and shape of an input tensor from
   // model configuration when 'data_type' or 'shape' field is missing.
@@ -284,8 +290,6 @@ class TritonServer {
 /// Structure to hold options for Inference Request.
 ///
 struct InferOptions {
-  InferOptions();
-
   InferOptions(const std::string& model_name);
 
   InferOptions(
@@ -370,9 +374,19 @@ class InferRequest {
       const int64_t memory_type_id = 0);
 
   /// Add an requested output tensor to be sent within an InferRequest object.
-  /// \param name The name of the requested output tensor.
+  /// Calling this function is optional. If no output(s) are specifically
+  /// requested then all outputs defined by the model will be calculated and
+  /// returned. Pre-allocated buffer for each output can be specified within the
+  /// 'Tensor' object to use the overloaded 'AsyncInfer(std::future<ErrorCheck>*
+  /// error_check, const InferRequest& infer_request)' function that will store
+  /// output tensors in-place in the pre-allocated buffers. If 'output' contains
+  /// only the name of the output, then the buffer for each output will be
+  /// allocated by 'Allocator' object internally or provided by users, and
+  /// should call 'AsyncInfer(std::future<InferResult*>* result_future,const
+  /// InferRequest& infer_request)' function for inference.
+  /// \param output A Tensor object that describes an output tensor.
   /// \return Error object indicating success or failure.
-  Error AddRequestedOutputName(const std::string name);
+  Error AddOutput(Tensor& output);
 
   /// Clear inputs and outputs of the request except for the callback functions.
   /// This allows users to reuse the InferRequest object if needed.
@@ -525,7 +539,7 @@ class Allocator {
 };
 
 //==============================================================================
-/// Helper functions to convert Wrapper enum class to string
+/// Helper functions to convert Wrapper enum to string.
 ///
 std::string WrapperMemoryTypeString(Wrapper_MemoryType memory_type);
 std::string WrapperDataTypeString(Wrapper_DataType data_type);

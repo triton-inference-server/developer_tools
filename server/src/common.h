@@ -47,7 +47,6 @@ namespace triton { namespace server { namespace wrapper {
       exit(1);                                                    \
     }                                                             \
   } while (false)
-
 #define FAIL_IF_ERR(X, MSG)                                        \
   {                                                                \
     Error err = (X);                                               \
@@ -56,7 +55,6 @@ namespace triton { namespace server { namespace wrapper {
       exit(1);                                                     \
     }                                                              \
   }
-
 #define RETURN_ERR_IF_TRITON_ERR(X)                                \
   do {                                                             \
     TRITONSERVER_Error* err__ = (X);                               \
@@ -66,7 +64,6 @@ namespace triton { namespace server { namespace wrapper {
           TRITONSERVER_ErrorMessage(err__) + "\n");                \
     }                                                              \
   } while (false)
-
 #define IGNORE_ERROR(X)                   \
   do {                                    \
     TRITONSERVER_Error* ie_err__ = (X);   \
@@ -74,7 +71,6 @@ namespace triton { namespace server { namespace wrapper {
       TRITONSERVER_ErrorDelete(ie_err__); \
     }                                     \
   } while (false)
-
 #define RETURN_IF_ERR(X)           \
   {                                \
     Error err = (X);               \
@@ -82,7 +78,6 @@ namespace triton { namespace server { namespace wrapper {
       return Error(err.Message()); \
     }                              \
   }
-
 #define LOG_IF_ERROR(X, MSG)                                                   \
   do {                                                                         \
     TRITONSERVER_Error* lie_err__ = (X);                                       \
@@ -95,14 +90,12 @@ namespace triton { namespace server { namespace wrapper {
       TRITONSERVER_ErrorDelete(lie_err__);                                     \
     }                                                                          \
   } while (false)
-
 #define LOG_MESSAGE(LEVEL, MSG)                                  \
   do {                                                           \
     LOG_IF_ERROR(                                                \
         TRITONSERVER_LogMessage(LEVEL, __FILE__, __LINE__, MSG), \
         ("failed to log message: "));                            \
   } while (false)
-
 #define THROW_IF_ERR(X)               \
   do {                                \
     Error err = (X);                  \
@@ -110,7 +103,6 @@ namespace triton { namespace server { namespace wrapper {
       throw Exception(err.Message()); \
     }                                 \
   } while (false)
-
 #define THROW_IF_TRITON_ERR(X)                                     \
   do {                                                             \
     TRITONSERVER_Error* err__ = (X);                               \
@@ -122,7 +114,6 @@ namespace triton { namespace server { namespace wrapper {
       throw ex;                                                    \
     }                                                              \
   } while (false)
-
 #define THROW_ERR_IF_TRITON_ERR(X)                                 \
   do {                                                             \
     TRITONSERVER_Error* err__ = (X);                               \
@@ -134,7 +125,6 @@ namespace triton { namespace server { namespace wrapper {
       throw Exception(err.Message());                              \
     }                                                              \
   } while (false)
-
 #define RETURN_TRITON_ERR_IF_ERR(X)                              \
   do {                                                           \
     Error err = (X);                                             \
@@ -143,7 +133,6 @@ namespace triton { namespace server { namespace wrapper {
           TRITONSERVER_ERROR_INTERNAL, (err.Message()).c_str()); \
     }                                                            \
   } while (false)
-
 
 //==============================================================================
 enum Wrapper_ModelControlMode {
@@ -269,6 +258,8 @@ class InferInput {
   /// \param datatype The datatype of the input.
   /// \param data_ptr The data pointer of the input.
   /// \param byte_size The byte size of the input.
+  /// \param memory_type The memory type of the input.
+  /// \param memory_type_id The memory type id of the input.
   /// \return Error object indicating success or failure.
   static Error Create(
       InferInput** infer_input, const std::string name,
@@ -346,7 +337,7 @@ class InferRequestedOutput {
  public:
   /// Create a InferRequestedOutput instance that describes a model output being
   /// requested.
-  /// \param infer_output Returns a new InferOutputGrpc object.
+  /// \param infer_output Returns a new InferRequestedOutput object.
   /// \param name The name of output being requested.
   /// \return Error object indicating success or failure.
   static Error Create(
@@ -356,14 +347,48 @@ class InferRequestedOutput {
     return Error::Success;
   }
 
+  /// Create a InferRequestedOutput instance that describes a model output being
+  /// requested with pre-allocated output buffer.
+  /// \param infer_output Returns a new InferRequestedOutput object.
+  /// \param name The name of output being requested.
+  /// \param buffer The pointer to the start of the pre-allocated buffer.
+  /// \param byte_size The size of buffer in bytes.
+  /// \return Error object indicating success or failure.
+  static Error Create(
+      InferRequestedOutput** infer_output, const std::string& name,
+      const char* buffer, size_t byte_size)
+  {
+    *infer_output = new InferRequestedOutput(name, buffer, byte_size);
+    return Error::Success;
+  }
+
   /// Gets name of the associated output tensor.
   /// \return The name of the tensor.
   const std::string& Name() const { return name_; }
 
-  InferRequestedOutput(const std::string& name) : name_(name) {}
+  /// Gets buffer of the associated output tensor.
+  /// \return The name of the tensor.
+  const char* Buffer() { return buffer_; }
+
+  /// Gets byte size of the associated output tensor.
+  /// \return The name of the tensor.
+  size_t ByteSize() { return byte_size_; }
+
+  InferRequestedOutput(const std::string& name)
+      : name_(name), buffer_(nullptr), byte_size_(0)
+  {
+  }
+
+  InferRequestedOutput(
+      const std::string& name, const char* buffer, size_t byte_size)
+      : name_(name), buffer_(buffer), byte_size_(byte_size)
+  {
+  }
 
  private:
   std::string name_;
+  const char* buffer_;
+  size_t byte_size_;
 };
 
 //==============================================================================
@@ -372,39 +397,73 @@ class InferRequestedOutput {
 ///
 class InferOutput {
  public:
+  /// Create a InferOutput instance that describes a inference output.
+  /// \param infer_output Returns a new InferOutput object.
+  /// \param name The name of output being requested.
+  /// \param datatype The datatype of the output.
+  /// \param shape The shape of the output.
+  /// \param dims_count The dims count of the output.
+  /// \param byte_size The byte size of the output.
+  /// \param memory_type The memory type of the output.
+  /// \param memory_type_id The memory type id of the output.
+  /// \param base The data pointer of the output.
+  /// \param userp The userp function.
+  /// \return Error object indicating success or failure.
   static Error Create(
       InferOutput** infer_output, const char* name,
-      TRITONSERVER_DataType output_datatype, const int64_t* output_shape,
-      uint64_t dims_count, size_t output_byte_size,
+      TRITONSERVER_DataType data_type, const int64_t* shape,
+      uint64_t dims_count, size_t byte_size,
       TRITONSERVER_MemoryType memory_type, int64_t memory_type_id,
       const void* base, void* userp)
   {
     *infer_output = new InferOutput(
-        name, output_datatype, output_shape, dims_count, output_byte_size,
-        memory_type, memory_type_id, base, userp);
+        name, data_type, shape, dims_count, byte_size, memory_type,
+        memory_type_id, base, userp);
 
     return Error::Success;
   }
 
   InferOutput(
-      const char* name, TRITONSERVER_DataType output_datatype,
-      const int64_t* output_shape, uint64_t dims_count, size_t output_byte_size,
+      const char* name, TRITONSERVER_DataType data_type, const int64_t* shape,
+      uint64_t dims_count, size_t byte_size,
       TRITONSERVER_MemoryType memory_type, int64_t memory_type_id,
       const void* base, void* userp)
-      : name_(name), datatype(output_datatype), shape(output_shape),
-        dims_count_(dims_count), output_byte_size_(output_byte_size),
-        memory_type_(memory_type), memory_type_id_(memory_type_id), base_(base),
-        userp_(userp)
+      : name_(name), datatype(data_type), shape(shape), dims_count_(dims_count),
+        output_byte_size_(byte_size), memory_type_(memory_type),
+        memory_type_id_(memory_type_id), base_(base), userp_(userp)
   {
   }
 
+  /// Gets name of the associated output tensor.
+  /// \return The name of the tensor.
   const char* Name() { return name_; }
+
+  /// Gets datatype of the associated output tensor.
+  /// \return The datatype of the tensor.
   TRITONSERVER_DataType DataType() { return datatype; }
+
+  /// Gets the shape of the output tensor.
+  /// \return The shape of the tensor.
   const int64_t* Shape() { return shape; }
+
+  /// Gets dims count of the associated output tensor.
+  /// \return The dims count of the tensor.
   uint64_t DimsCount() { return dims_count_; }
+
+  /// Gets byte size of the associated output tensor.
+  /// \return The name of the tensor.
   size_t ByteSize() { return output_byte_size_; }
+
+  /// Gets the memory type of the output tensor.
+  /// \return The memory type of the tensor.
   TRITONSERVER_MemoryType MemoryType() { return memory_type_; }
+
+  /// Gets the memory type id of the output tensor.
+  /// \return The memory type id of the tensor.
   int64_t MemoryTypeId() { return memory_type_id_; }
+
+  /// Gets data pointer of the associated output tensor.
+  /// \return The name of the tensor.
   const void* DataPtr() { return base_; }
 
  private:

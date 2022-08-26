@@ -69,46 +69,32 @@ WrapperDataTypeString(Wrapper_DataType data_type)
   switch (data_type) {
     case BOOL:
       return "BOOL";
-      break;
     case UINT8:
       return "UINT8";
-      break;
     case UINT16:
       return "UINT16";
-      break;
     case UINT32:
       return "UINT32";
-      break;
     case UINT64:
       return "UINT64";
-      break;
     case INT8:
       return "INT8";
-      break;
     case INT16:
       return "INT16";
-      break;
     case INT32:
       return "INT32";
-      break;
     case INT64:
       return "INT64";
-      break;
     case FP16:
       return "FP16";
-      break;
     case FP32:
       return "FP32";
-      break;
     case FP64:
       return "FP64";
-      break;
     case BYTES:
       return "BYTES";
-      break;
     case BF16:
       return "BF16";
-      break;
     default:
       break;
   }
@@ -146,6 +132,43 @@ class InternalResult : public InferResult {
 };
 
 //==============================================================================
+/// InternalServer class
+///
+class InternalServer : public TritonServer {
+ public:
+  InternalServer(ServerOptions server_options);
+
+  // Callback functions for pre-allocated output buffer.
+  static TRITONSERVER_Error* PreAllocatedAlloc(
+      TRITONSERVER_ResponseAllocator* allocator, const char* tensor_name,
+      size_t byte_size, TRITONSERVER_MemoryType preferred_memory_type,
+      int64_t preferred_memory_type_id, void* userp, void** buffer,
+      void** buffer_userp, TRITONSERVER_MemoryType* actual_memory_type,
+      int64_t* actual_memory_type_id);
+  static TRITONSERVER_Error* PreAllocatedResponseRelease(
+      TRITONSERVER_ResponseAllocator* allocator, void* buffer,
+      void* buffer_userp, size_t byte_size, TRITONSERVER_MemoryType memory_type,
+      int64_t memory_type_id);
+
+  Error InitializeAllocator(bool is_prealloc);
+
+  Error AsyncInfer(
+      std::future<InferResult*>* result_future,
+      const InferRequest& infer_request) override;
+
+  Error AsyncInfer(
+      std::future<ErrorCheck>* error_check,
+      const InferRequest& infer_request) override;
+
+  // key:value -> output name : pair<pre-allocated buffer, byte size>
+  static std::unordered_map<std::string, std::pair<const void*, size_t>>
+      tensor_alloc_map_;
+};
+
+std::unordered_map<std::string, std::pair<const void*, size_t>>
+    InternalServer::tensor_alloc_map_;
+
+//==============================================================================
 /// Default functions for allocator.
 ///
 TRITONSERVER_Error*
@@ -167,8 +190,10 @@ ResponseAlloc(
     if (byte_size == 0) {
       *buffer = nullptr;
       *buffer_userp = nullptr;
-      std::cout << "allocated " << byte_size << " bytes for result tensor "
-                << tensor_name << std::endl;
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_VERBOSE, ("allocated " + std::to_string(byte_size) +
+                                     " bytes for result tensor " + tensor_name)
+                                        .c_str());
     } else {
       void* allocated_ptr = nullptr;
       switch (*actual_memory_type) {
@@ -377,52 +402,30 @@ InferResponseComplete(
   }
 }
 
+// Callback function for pre-allocated output buffer.
 void
-InferResponseCompleteTensor(
+InferResponseCompletePreAlloc(
     TRITONSERVER_InferenceResponse* response, const uint32_t flags, void* userp)
 {
   if (response != nullptr) {
-    auto p = reinterpret_cast<std::promise<TensorResult*>*>(userp);
-    InternalResult* result = new InternalResult();
-    result->FinalizeResponse(response);
-    TensorResult* tensor_result = new TensorResult();
-    if (result->HasError()) {
-      tensor_result->has_error_ = true;
-      tensor_result->error_msg_ = result->ErrorMsg();
-    } else {
-      for (auto& output : result->Outputs()) {
-        std::string name = output.first;
-        const char* buf;
-        size_t byte_size;
-        Wrapper_DataType data_type;
-        std::vector<int64_t> shape;
-        Wrapper_MemoryType memory_type;
-        int64_t memory_type_id;
-        Error err = result->RawData(name, &buf, &byte_size);
-        if (err.IsOk()) {
-          err = TritonToWrapperMemoryType(
-              &memory_type, output.second->MemoryType());
-        }
-        if (err.IsOk()) {
-          err = result->DataType(name, &data_type);
-        }
-        if (err.IsOk()) {
-          err = result->Shape(name, &shape);
-        }
-        if (!err.IsOk()) {
-          tensor_result->has_error_ = true;
-          tensor_result->error_msg_ = err.Message();
-          break;
-        }
-        memory_type_id = output.second->MemoryTypeId();
-        tensor_result->tensor_map_.insert(std::pair<std::string, Tensor>(
-            name, Tensor(
-                      name, buf, byte_size, data_type, shape, memory_type,
-                      memory_type_id)));
-      }
+    auto p = reinterpret_cast<std::promise<ErrorCheck>*>(userp);
+    ErrorCheck error_check;
+    try {
+      THROW_IF_TRITON_ERR(TRITONSERVER_InferenceResponseError(response));
+    }
+    catch (const Exception& ex) {
+      LOG_IF_ERROR(
+          TRITONSERVER_InferenceResponseDelete(response),
+          "Failed to delete inference response.");
+      response = nullptr;
+      error_check.has_error_ = true;
+      error_check.error_message_ =
+          std::string("Error in the infer response: ") + std::string(ex.what());
     }
 
-    p->set_value(tensor_result);
+    completed_responses_.emplace_back(response);
+
+    p->set_value(error_check);
     delete p;
   }
 }
@@ -436,6 +439,42 @@ OutputBufferQuery(
   // Always attempt to return the memory in the requested memory_type and
   // memory_type_id.
   return nullptr;  // Success
+}
+
+// Using pre-allocated buffer for output.
+TRITONSERVER_Error*
+InternalServer::PreAllocatedAlloc(
+    TRITONSERVER_ResponseAllocator* allocator, const char* tensor_name,
+    size_t byte_size, TRITONSERVER_MemoryType preferred_memory_type,
+    int64_t preferred_memory_type_id, void* userp, void** buffer,
+    void** buffer_userp, TRITONSERVER_MemoryType* actual_memory_type,
+    int64_t* actual_memory_type_id)
+{
+  if (byte_size != tensor_alloc_map_[tensor_name].second) {
+    return TRITONSERVER_ErrorNew(
+        TRITONSERVER_ERROR_INTERNAL,
+        std::string(
+            "Unexpected byte-size of pre-allocated buffer for '" +
+            std::string(tensor_name) + "'. Expected " +
+            std::to_string(byte_size) + ", got " +
+            std::to_string(tensor_alloc_map_[tensor_name].second))
+            .c_str());
+  }
+
+  *buffer = const_cast<void*>(tensor_alloc_map_[tensor_name].first);
+  *buffer_userp = new std::string(tensor_name);
+
+  return nullptr;
+}
+
+TRITONSERVER_Error*
+InternalServer::PreAllocatedResponseRelease(
+    TRITONSERVER_ResponseAllocator* allocator, void* buffer, void* buffer_userp,
+    size_t byte_size, TRITONSERVER_MemoryType memory_type,
+    int64_t memory_type_id)
+{
+  // Users should release the pre-allocated buffer(s) they povided.
+  return nullptr;
 }
 
 LoggingOptions::LoggingOptions()
@@ -543,7 +582,33 @@ Tensor::Tensor(
   memory_type_id_ = memory_type_id;
 }
 
-InferOptions::InferOptions() {}
+Tensor::Tensor(std::string name)
+{
+  name_ = name;
+  buffer_ = nullptr;
+  byte_size_ = 0;
+  data_type_ = INVALID;
+  shape_ = {};
+  memory_type_ = CPU;
+  memory_type_id_ = 0;
+}
+
+Tensor::Tensor(std::string name, const char* buffer, size_t byte_size)
+{
+  name_ = name;
+  buffer_ = buffer;
+  byte_size_ = byte_size;
+  data_type_ = INVALID;
+  shape_ = {};
+  memory_type_ = CPU;
+  memory_type_id_ = 0;
+}
+
+ErrorCheck::ErrorCheck()
+{
+  has_error_ = false;
+  error_message_ = "";
+}
 
 InferOptions::InferOptions(const std::string& model_name)
 {
@@ -578,83 +643,12 @@ InferOptions::InferOptions(
   custom_allocator_ = custom_allocator;
 }
 
-TritonServer::TritonServer(ServerOptions options)
+std::unique_ptr<TritonServer>
+TritonServer::Create(ServerOptions options)
 {
-  uint32_t api_version_major, api_version_minor;
-  THROW_IF_TRITON_ERR(
-      TRITONSERVER_ApiVersion(&api_version_major, &api_version_minor));
-  if ((TRITONSERVER_API_VERSION_MAJOR != api_version_major) ||
-      (TRITONSERVER_API_VERSION_MINOR > api_version_minor)) {
-    throw Exception("triton server API version mismatch");
-  }
-
-  TRITONSERVER_ServerOptions* server_options = nullptr;
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsNew(&server_options));
-
-  // Set model_repository_path
-  for (const auto& model_repository_path : options.model_repository_paths_) {
-    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelRepositoryPath(
-        server_options, model_repository_path.c_str()));
-  }
-
-  // Set logging options
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogVerbose(
-      server_options, options.logging_.verbose_));
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogInfo(
-      server_options, options.logging_.info_));
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogWarn(
-      server_options, options.logging_.warn_));
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogError(
-      server_options, options.logging_.error_));
-  TRITONSERVER_LogFormat log_format;
-  THROW_IF_ERR(WrapperToTritonLogFormat(&log_format, options.logging_.format_));
-  THROW_IF_TRITON_ERR(
-      TRITONSERVER_ServerOptionsSetLogFormat(server_options, log_format));
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogFile(
-      server_options, options.logging_.log_file_.c_str()));
-
-  // Set metrics options
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetMetrics(
-      server_options, options.metrics_.allow_metrics_));
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetGpuMetrics(
-      server_options, options.metrics_.allow_gpu_metrics_));
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetMetricsInterval(
-      server_options, options.metrics_.metrics_interval_ms_));
-
-  // Set backend configuration
-  for (const auto& bc : options.be_config_) {
-    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBackendConfig(
-        server_options, bc.backend_name_.c_str(), bc.setting_.c_str(),
-        bc.value_.c_str()));
-  }
-
-  // Set server id
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetServerId(
-      server_options, options.server_id_.c_str()));
-
-  // Set backend directory
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBackendDirectory(
-      server_options, options.backend_dir_.c_str()));
-
-  // Set repo agent directory
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetRepoAgentDirectory(
-      server_options, options.repo_agent_dir_.c_str()));
-
-  // Set auto-complete model config
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetStrictModelConfig(
-      server_options, options.disable_auto_complete_config_));
-
-  // Set model control mode
-  TRITONSERVER_ModelControlMode model_control_mode;
-  THROW_IF_ERR(WrapperToTritonModelControlMode(
-      &model_control_mode, options.model_control_mode_));
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelControlMode(
-      server_options, model_control_mode));
-
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerNew(&server_, server_options));
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsDelete(server_options));
-
-  allocator_ = nullptr;
+  std::unique_ptr<InternalServer> internal_server;
+  internal_server.reset(new InternalServer(options));
+  return internal_server;
 }
 
 TritonServer::~TritonServer()
@@ -743,18 +737,6 @@ TritonServer::Metrics(std::string* metrics_str)
       metrics, TRITONSERVER_METRIC_PROMETHEUS, &base, &byte_size));
   *metrics_str = std::string(base, byte_size);
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_MetricsDelete(metrics));
-
-  return Error::Success;
-}
-
-Error
-TritonServer::InitializeAllocator()
-{
-  allocator_ = nullptr;
-  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ResponseAllocatorNew(
-      &allocator_, ResponseAlloc, ResponseRelease, StartFn));
-  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ResponseAllocatorSetQueryFunction(
-      allocator_, OutputBufferQuery));
 
   return Error::Success;
 }
@@ -892,12 +874,17 @@ TritonServer::PrepareInferenceInput(
 
 Error
 TritonServer::PrepareInferenceOutput(
-    TRITONSERVER_InferenceRequest* irequest, const InferRequest& request)
+    TRITONSERVER_InferenceRequest* irequest, const InferRequest& request,
+    bool is_prealloc)
 {
   for (auto& infer_output : request.outputs_) {
     const char* name = infer_output->Name().c_str();
     RETURN_ERR_IF_TRITON_ERR(
         TRITONSERVER_InferenceRequestAddRequestedOutput(irequest, name));
+    if (is_prealloc) {
+      InternalServer::tensor_alloc_map_[name] =
+          std::make_pair(infer_output->Buffer(), infer_output->ByteSize());
+    }
   }
 
   return Error::Success;
@@ -905,7 +892,8 @@ TritonServer::PrepareInferenceOutput(
 
 Error
 TritonServer::AsyncInferHelper(
-    TRITONSERVER_InferenceRequest** irequest, const InferRequest& infer_request)
+    TRITONSERVER_InferenceRequest** irequest, const InferRequest& infer_request,
+    bool is_prealloc)
 {
   bool is_ready = false;
   std::string model_name = infer_request.infer_options_.model_name_.c_str();
@@ -920,22 +908,120 @@ TritonServer::AsyncInferHelper(
             .c_str());
   }
 
-  RETURN_IF_ERR(InitializeAllocator());
   RETURN_IF_ERR(PrepareInferenceRequest(irequest, infer_request));
   RETURN_IF_ERR(PrepareInferenceInput(*irequest, infer_request));
-  RETURN_IF_ERR(PrepareInferenceOutput(*irequest, infer_request));
+  RETURN_IF_ERR(PrepareInferenceOutput(*irequest, infer_request, is_prealloc));
+
+  return Error::Success;
+}
+
+InternalServer::InternalServer(ServerOptions options)
+{
+  uint32_t api_version_major, api_version_minor;
+  THROW_IF_TRITON_ERR(
+      TRITONSERVER_ApiVersion(&api_version_major, &api_version_minor));
+  if ((TRITONSERVER_API_VERSION_MAJOR != api_version_major) ||
+      (TRITONSERVER_API_VERSION_MINOR > api_version_minor)) {
+    throw Exception("triton server API version mismatch");
+  }
+
+  TRITONSERVER_ServerOptions* server_options = nullptr;
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsNew(&server_options));
+
+  // Set model_repository_path
+  for (const auto& model_repository_path : options.model_repository_paths_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelRepositoryPath(
+        server_options, model_repository_path.c_str()));
+  }
+
+  // Set logging options
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogVerbose(
+      server_options, options.logging_.verbose_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogInfo(
+      server_options, options.logging_.info_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogWarn(
+      server_options, options.logging_.warn_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogError(
+      server_options, options.logging_.error_));
+  TRITONSERVER_LogFormat log_format;
+  THROW_IF_ERR(WrapperToTritonLogFormat(&log_format, options.logging_.format_));
+  THROW_IF_TRITON_ERR(
+      TRITONSERVER_ServerOptionsSetLogFormat(server_options, log_format));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetLogFile(
+      server_options, options.logging_.log_file_.c_str()));
+
+  // Set metrics options
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetMetrics(
+      server_options, options.metrics_.allow_metrics_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetGpuMetrics(
+      server_options, options.metrics_.allow_gpu_metrics_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetMetricsInterval(
+      server_options, options.metrics_.metrics_interval_ms_));
+
+  // Set backend configuration
+  for (const auto& bc : options.be_config_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBackendConfig(
+        server_options, bc.backend_name_.c_str(), bc.setting_.c_str(),
+        bc.value_.c_str()));
+  }
+
+  // Set server id
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetServerId(
+      server_options, options.server_id_.c_str()));
+
+  // Set backend directory
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBackendDirectory(
+      server_options, options.backend_dir_.c_str()));
+
+  // Set repo agent directory
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetRepoAgentDirectory(
+      server_options, options.repo_agent_dir_.c_str()));
+
+  // Set auto-complete model config
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetStrictModelConfig(
+      server_options, options.disable_auto_complete_config_));
+
+  // Set model control mode
+  TRITONSERVER_ModelControlMode model_control_mode;
+  THROW_IF_ERR(WrapperToTritonModelControlMode(
+      &model_control_mode, options.model_control_mode_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelControlMode(
+      server_options, model_control_mode));
+
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerNew(&server_, server_options));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsDelete(server_options));
+
+  allocator_ = nullptr;
+}
+
+Error
+InternalServer::InitializeAllocator(bool is_prealloc)
+{
+  allocator_ = nullptr;
+  if (is_prealloc) {
+    RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ResponseAllocatorNew(
+        &allocator_, InternalServer::PreAllocatedAlloc,
+        InternalServer::PreAllocatedResponseRelease, StartFn));
+  } else {
+    RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ResponseAllocatorNew(
+        &allocator_, ResponseAlloc, ResponseRelease, StartFn));
+  }
+  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ResponseAllocatorSetQueryFunction(
+      allocator_, OutputBufferQuery));
 
   return Error::Success;
 }
 
 Error
-TritonServer::AsyncInfer(
+InternalServer::AsyncInfer(
     std::future<InferResult*>* result_future, const InferRequest& infer_request)
 {
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
   try {
-    THROW_IF_ERR(AsyncInferHelper(&irequest, infer_request));
+    THROW_IF_ERR(InitializeAllocator(false /*is_prealloc*/));
+    THROW_IF_ERR(
+        AsyncInferHelper(&irequest, infer_request, false /*is_prealloc*/));
     {
       auto p = new std::promise<InferResult*>();
       *result_future = p->get_future();
@@ -958,21 +1044,22 @@ TritonServer::AsyncInfer(
 }
 
 Error
-TritonServer::AsyncInfer(
-    std::future<TensorResult*>* buffer_result_future,
-    const InferRequest& infer_request)
+InternalServer::AsyncInfer(
+    std::future<ErrorCheck>* error_check, const InferRequest& infer_request)
 {
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
   try {
-    THROW_IF_ERR(AsyncInferHelper(&irequest, infer_request));
+    THROW_IF_ERR(InitializeAllocator(true /* is_prealloc */));
+    THROW_IF_ERR(
+        AsyncInferHelper(&irequest, infer_request, true /* is_prealloc */));
     {
-      auto p = new std::promise<TensorResult*>();
-      *buffer_result_future = p->get_future();
+      auto p = new std::promise<ErrorCheck>();
+      *error_check = p->get_future();
 
       THROW_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
           irequest, allocator_, nullptr /* response_allocator_userp */,
-          InferResponseCompleteTensor, reinterpret_cast<void*>(p)));
+          InferResponseCompletePreAlloc, reinterpret_cast<void*>(p)));
       THROW_ERR_IF_TRITON_ERR(TRITONSERVER_ServerInferAsync(
           server_, irequest, nullptr /* trace */));
     }
@@ -987,9 +1074,8 @@ TritonServer::AsyncInfer(
   return Error::Success;
 }
 
-InferRequest::InferRequest(InferOptions options)
+InferRequest::InferRequest(InferOptions options) : infer_options_(options)
 {
-  infer_options_ = options;
   custom_allocator_ = options.custom_allocator_;
 }
 
@@ -1041,10 +1127,17 @@ template Error InferRequest::AddInput<std::vector<std::string>::iterator>(
     const int64_t memory_type_id);
 
 Error
-InferRequest::AddRequestedOutputName(const std::string name)
+InferRequest::AddOutput(Tensor& output_tensor)
 {
   InferRequestedOutput* output;
-  RETURN_IF_ERR(InferRequestedOutput::Create(&output, name));
+  if (output_tensor.buffer_ == nullptr) {
+    RETURN_IF_ERR(InferRequestedOutput::Create(&output, output_tensor.name_));
+  } else {
+    RETURN_IF_ERR(InferRequestedOutput::Create(
+        &output, output_tensor.name_, output_tensor.buffer_,
+        output_tensor.byte_size_));
+  }
+
   outputs_.push_back(output);
 
   return Error::Success;
@@ -1273,7 +1366,6 @@ InferResult::DebugString(std::string* string_result)
           return Error(
               "Response parameter of type 'TRITONSERVER_PARAMETER_BYTES' is "
               "not currently supported");
-          break;
       }
     }
     RETURN_ERR_IF_TRITON_ERR(
