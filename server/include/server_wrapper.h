@@ -193,7 +193,9 @@ struct Tensor {
 struct ErrorCheck {
   ErrorCheck();
 
+  // Indicates error if true, false if no error.
   bool has_error_;
+  // The messsage for the error. Empty if no error.
   std::string error_message_;
 };
 
