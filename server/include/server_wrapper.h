@@ -77,12 +77,14 @@ struct MetricsOptions {
 
   MetricsOptions(
       const bool allow_metrics, const bool allow_gpu_metrics,
-      const uint64_t& metrics_interval_ms);
+      const bool allow_cpu_metrics, const uint64_t& metrics_interval_ms);
 
   // Enable or disable metrics. Default is true.
   bool allow_metrics_;
   // Enable or disable GPU metrics. Default is true.
   bool allow_gpu_metrics_;
+  // Enable or disable CPU metrics. Default is true.
+  bool allow_cpu_metrics_;
   // The interval for metrics collection. Default is 2000.
   uint64_t metrics_interval_ms_;
 };

@@ -503,15 +503,17 @@ MetricsOptions::MetricsOptions()
 {
   allow_metrics_ = true;
   allow_gpu_metrics_ = true;
+  allow_cpu_metrics_ = true;
   metrics_interval_ms_ = 2000;
 }
 
 MetricsOptions::MetricsOptions(
     const bool allow_metrics, const bool allow_gpu_metrics,
-    const uint64_t& metrics_interval_ms)
+    const bool allow_cpu_metrics, const uint64_t& metrics_interval_ms)
 {
   allow_metrics_ = allow_metrics;
   allow_gpu_metrics_ = allow_gpu_metrics;
+  allow_cpu_metrics_ = allow_cpu_metrics;
   metrics_interval_ms_ = metrics_interval_ms;
 }
 
@@ -960,6 +962,8 @@ InternalServer::InternalServer(ServerOptions options)
       server_options, options.metrics_.allow_metrics_));
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetGpuMetrics(
       server_options, options.metrics_.allow_gpu_metrics_));
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetCpuMetrics(
+      server_options, options.metrics_.allow_cpu_metrics_));
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetMetricsInterval(
       server_options, options.metrics_.metrics_interval_ms_));
 
