@@ -64,7 +64,7 @@ ClearCompletedResponses()
 /// Helper functions
 ///
 std::string
-WrapperDataTypeString(Wrapper_DataType data_type)
+WrapperDataTypeString(const DataType& data_type)
 {
   switch (data_type) {
     case BOOL:
@@ -103,7 +103,7 @@ WrapperDataTypeString(Wrapper_DataType data_type)
 }
 
 std::string
-WrapperMemoryTypeString(Wrapper_MemoryType memory_type)
+WrapperMemoryTypeString(const MemoryType& memory_type)
 {
   switch (memory_type) {
     case CPU:
@@ -271,8 +271,8 @@ ResponseAlloc(
       }
     }
   } else if (custom_allocator_->AllocFn() != nullptr) {
-    Wrapper_MemoryType preferred_mem_type;
-    Wrapper_MemoryType actual_mem_type;
+    MemoryType preferred_mem_type;
+    MemoryType actual_mem_type;
     RETURN_TRITON_ERR_IF_ERR(
         TritonToWrapperMemoryType(&preferred_mem_type, preferred_memory_type));
     RETURN_TRITON_ERR_IF_ERR(
@@ -354,7 +354,7 @@ ResponseRelease(
 
     delete name;
   } else if (custom_allocator_->ReleaseFn() != nullptr) {
-    Wrapper_MemoryType mem_type;
+    MemoryType mem_type;
     RETURN_TRITON_ERR_IF_ERR(TritonToWrapperMemoryType(&mem_type, memory_type));
 
     RETURN_TRITON_ERR_IF_ERR(custom_allocator_->ReleaseFn()(
@@ -488,8 +488,8 @@ LoggingOptions::LoggingOptions()
 }
 
 LoggingOptions::LoggingOptions(
-    bool verbose, bool info, bool warn, bool error, Wrapper_LogFormat format,
-    std::string log_file)
+    const uint& verbose, const bool& info, const bool& warn, const bool& error,
+    const LogFormat& format, const std::string& log_file)
 {
   verbose_ = verbose;
   info_ = info;
@@ -507,7 +507,8 @@ MetricsOptions::MetricsOptions()
 }
 
 MetricsOptions::MetricsOptions(
-    bool allow_metrics, bool allow_gpu_metrics, uint64_t metrics_interval_ms)
+    const bool& allow_metrics, const bool& allow_gpu_metrics,
+    const uint64_t& metrics_interval_ms)
 {
   allow_metrics_ = allow_metrics;
   allow_gpu_metrics_ = allow_gpu_metrics;
@@ -522,14 +523,16 @@ BackendConfig::BackendConfig()
 }
 
 BackendConfig::BackendConfig(
-    std::string backend_name, std::string setting, std::string value)
+    const std::string& backend_name, const std::string& setting,
+    const std::string& value)
 {
   backend_name_ = backend_name;
   setting_ = setting;
   value_ = value;
 }
 
-ServerOptions::ServerOptions(std::vector<std::string> model_repository_paths)
+ServerOptions::ServerOptions(
+    const std::vector<std::string>& model_repository_paths)
 {
   model_repository_paths_ = model_repository_paths;
   logging_ = LoggingOptions();
@@ -543,11 +546,12 @@ ServerOptions::ServerOptions(std::vector<std::string> model_repository_paths)
 }
 
 ServerOptions::ServerOptions(
-    std::vector<std::string> model_repository_paths, LoggingOptions logging,
-    MetricsOptions metrics, std::vector<BackendConfig> be_config,
-    std::string server_id, std::string backend_dir, std::string repo_agent_dir,
-    bool disable_auto_complete_config,
-    Wrapper_ModelControlMode model_control_mode)
+    const std::vector<std::string>& model_repository_paths,
+    const LoggingOptions& logging, const MetricsOptions& metrics,
+    std::vector<BackendConfig> be_config, const std::string& server_id,
+    const std::string& backend_dir, const std::string& repo_agent_dir,
+    const bool& disable_auto_complete_config,
+    const ModelControlMode& model_control_mode)
 {
   model_repository_paths_ = model_repository_paths;
   logging_ = logging;
@@ -561,7 +565,8 @@ ServerOptions::ServerOptions(
 }
 
 RepositoryIndex::RepositoryIndex(
-    std::string name, std::string version, std::string state)
+    const std::string& name, const std::string& version,
+    const std::string& state)
 {
   name_ = name;
   version_ = version;
@@ -569,9 +574,9 @@ RepositoryIndex::RepositoryIndex(
 }
 
 Tensor::Tensor(
-    std::string name, char* buffer, size_t byte_size,
-    Wrapper_DataType data_type, std::vector<int64_t> shape,
-    Wrapper_MemoryType memory_type, int64_t memory_type_id)
+    const std::string& name, char* buffer, const size_t& byte_size,
+    DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
+    int64_t memory_type_id)
 {
   name_ = name;
   buffer_ = buffer;
@@ -582,7 +587,7 @@ Tensor::Tensor(
   memory_type_id_ = memory_type_id;
 }
 
-Tensor::Tensor(std::string name)
+Tensor::Tensor(const std::string& name)
 {
   name_ = name;
   buffer_ = nullptr;
@@ -593,7 +598,7 @@ Tensor::Tensor(std::string name)
   memory_type_id_ = 0;
 }
 
-Tensor::Tensor(std::string name, char* buffer, size_t byte_size)
+Tensor::Tensor(const std::string& name, char* buffer, size_t byte_size)
 {
   name_ = name;
   buffer_ = buffer;
@@ -625,11 +630,11 @@ InferOptions::InferOptions(const std::string& model_name)
 }
 
 InferOptions::InferOptions(
-    const std::string& model_name, const int64_t model_version,
-    const std::string request_id, const uint64_t correlation_id,
-    const std::string correlation_id_str, const bool sequence_start,
-    const bool sequence_end, const uint64_t priority,
-    const uint64_t request_timeout, Allocator* custom_allocator)
+    const std::string& model_name, const int64_t& model_version,
+    const std::string& request_id, const uint64_t& correlation_id,
+    const std::string& correlation_id_str, const bool& sequence_start,
+    const bool& sequence_end, const uint64_t& priority,
+    const uint64_t& request_timeout, Allocator* custom_allocator)
 {
   model_name_ = model_name;
   model_version_ = model_version;
@@ -665,7 +670,7 @@ TritonServer::~TritonServer()
 }
 
 Error
-TritonServer::LoadModel(const std::string model_name)
+TritonServer::LoadModel(const std::string& model_name)
 {
   RETURN_ERR_IF_TRITON_ERR(
       TRITONSERVER_ServerLoadModel(server_, model_name.c_str()));
@@ -674,7 +679,7 @@ TritonServer::LoadModel(const std::string model_name)
 }
 
 Error
-TritonServer::UnloadModel(const std::string model_name)
+TritonServer::UnloadModel(const std::string& model_name)
 {
   RETURN_ERR_IF_TRITON_ERR(
       TRITONSERVER_ServerUnloadModelAndDependents(server_, model_name.c_str()));
@@ -686,7 +691,7 @@ Error
 TritonServer::LoadedModels(std::set<std::string>* loaded_models)
 {
   std::vector<RepositoryIndex> repository_index;
-  RETURN_IF_ERR(ModelIndex(repository_index));
+  RETURN_IF_ERR(ModelIndex(&repository_index));
 
   std::set<std::string> models;
   for (size_t i = 0; i < repository_index.size(); i++) {
@@ -698,7 +703,7 @@ TritonServer::LoadedModels(std::set<std::string>* loaded_models)
 }
 
 Error
-TritonServer::ModelIndex(std::vector<RepositoryIndex>& repository_index)
+TritonServer::ModelIndex(std::vector<RepositoryIndex>* repository_index)
 {
   TRITONSERVER_Message* message = nullptr;
   uint32_t flags = TRITONSERVER_INDEX_FLAG_READY;
@@ -720,7 +725,7 @@ TritonServer::ModelIndex(std::vector<RepositoryIndex>& repository_index)
     RETURN_ERR_IF_TRITON_ERR(index.MemberAsString("name", &name));
     RETURN_ERR_IF_TRITON_ERR(index.MemberAsString("version", &version));
     RETURN_ERR_IF_TRITON_ERR(index.MemberAsString("state", &state));
-    repository_index.push_back(RepositoryIndex(name, version, state));
+    repository_index->push_back(RepositoryIndex(name, version, state));
   }
 
   return Error::Success;
@@ -783,8 +788,8 @@ TritonServer::PrepareInferenceRequest(
 
 Error
 TritonServer::ParseDataTypeAndShape(
-    const std::string model_name, const int64_t model_version,
-    const std::string input_name, TRITONSERVER_DataType* datatype,
+    const std::string& model_name, const int64_t model_version,
+    const std::string& input_name, TRITONSERVER_DataType* datatype,
     std::vector<int64_t>* shape)
 {
   TRITONSERVER_Message* message;
@@ -1251,7 +1256,7 @@ InferResult::ShapeHelper(
 
 void
 InferResult::RawData(
-    const std::string output_name, const char** buf, size_t* byte_size)
+    const std::string& output_name, const char** buf, size_t* byte_size)
 {
   *buf = reinterpret_cast<const char*>(infer_outputs_[output_name]->DataPtr());
   *byte_size = infer_outputs_[output_name]->ByteSize();

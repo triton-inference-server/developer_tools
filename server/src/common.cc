@@ -30,8 +30,7 @@ namespace triton { namespace server { namespace wrapper {
 
 Error
 WrapperToTritonModelControlMode(
-    TRITONSERVER_ModelControlMode* model_control_mode,
-    Wrapper_ModelControlMode mode)
+    TRITONSERVER_ModelControlMode* model_control_mode, ModelControlMode mode)
 {
   switch (mode) {
     case MODEL_CONTROL_NONE:
@@ -52,8 +51,7 @@ WrapperToTritonModelControlMode(
 }
 
 Error
-WrapperToTritonLogFormat(
-    TRITONSERVER_LogFormat* log_format, Wrapper_LogFormat format)
+WrapperToTritonLogFormat(TRITONSERVER_LogFormat* log_format, LogFormat format)
 {
   switch (format) {
     case LOG_DEFAULT:
@@ -71,7 +69,7 @@ WrapperToTritonLogFormat(
 }
 
 TRITONSERVER_DataType
-WrapperToTritonDataType(Wrapper_DataType dtype)
+WrapperToTritonDataType(DataType dtype)
 {
   switch (dtype) {
     case BOOL:
@@ -108,7 +106,7 @@ WrapperToTritonDataType(Wrapper_DataType dtype)
   }
 }
 
-Wrapper_DataType
+DataType
 TritonToWrapperDataType(TRITONSERVER_DataType dtype)
 {
   switch (dtype) {
@@ -148,7 +146,7 @@ TritonToWrapperDataType(TRITONSERVER_DataType dtype)
 
 Error
 WrapperToTritonMemoryType(
-    TRITONSERVER_MemoryType* memory_type, Wrapper_MemoryType mem_type)
+    TRITONSERVER_MemoryType* memory_type, MemoryType mem_type)
 {
   switch (mem_type) {
     case CPU:
@@ -170,7 +168,7 @@ WrapperToTritonMemoryType(
 
 Error
 TritonToWrapperMemoryType(
-    Wrapper_MemoryType* memory_type, TRITONSERVER_MemoryType mem_type)
+    MemoryType* memory_type, TRITONSERVER_MemoryType mem_type)
 {
   switch (mem_type) {
     case TRITONSERVER_MEMORY_CPU:

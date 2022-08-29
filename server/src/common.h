@@ -135,14 +135,14 @@ namespace triton { namespace server { namespace wrapper {
   } while (false)
 
 //==============================================================================
-enum Wrapper_ModelControlMode {
+enum ModelControlMode {
   MODEL_CONTROL_NONE,
   MODEL_CONTROL_POLL,
   MODEL_CONTROL_EXPLICIT
 };
-enum Wrapper_MemoryType { CPU, CPU_PINNED, GPU };
-enum Wrapper_LogFormat { LOG_DEFAULT, LOG_ISO8601 };
-enum Wrapper_DataType {
+enum MemoryType { CPU, CPU_PINNED, GPU };
+enum LogFormat { LOG_DEFAULT, LOG_ISO8601 };
+enum DataType {
   INVALID,
   BOOL,
   UINT8,
@@ -217,14 +217,14 @@ class Error {
 /// Custom Response Allocator Callback function signatures.
 ///
 typedef Error (*ResponseAllocatorAllocFn_t)(
-    const char* tensor_name, size_t byte_size,
-    Wrapper_MemoryType preferred_memory_type, int64_t preferred_memory_type_id,
-    void* userp, void** buffer, void** buffer_userp,
-    Wrapper_MemoryType* actual_memory_type, int64_t* actual_memory_type_id);
+    const char* tensor_name, size_t byte_size, MemoryType preferred_memory_type,
+    int64_t preferred_memory_type_id, void* userp, void** buffer,
+    void** buffer_userp, MemoryType* actual_memory_type,
+    int64_t* actual_memory_type_id);
 
 typedef Error (*ResponseAllocatorReleaseFn_t)(
-    void* buffer, void* buffer_userp, size_t byte_size,
-    Wrapper_MemoryType memory_type, int64_t memory_type_id);
+    void* buffer, void* buffer_userp, size_t byte_size, MemoryType memory_type,
+    int64_t memory_type_id);
 
 typedef Error (*ResponseAllocatorStartFn_t)(void* userp);
 
@@ -232,16 +232,15 @@ typedef Error (*ResponseAllocatorStartFn_t)(void* userp);
 /// Helper functions.
 ///
 Error WrapperToTritonModelControlMode(
-    TRITONSERVER_ModelControlMode* model_control_mode,
-    Wrapper_ModelControlMode mode);
+    TRITONSERVER_ModelControlMode* model_control_mode, ModelControlMode mode);
 Error WrapperToTritonLogFormat(
-    TRITONSERVER_LogFormat* log_format, Wrapper_LogFormat format);
-TRITONSERVER_DataType WrapperToTritonDataType(Wrapper_DataType dtype);
-Wrapper_DataType TritonToWrapperDataType(TRITONSERVER_DataType dtype);
+    TRITONSERVER_LogFormat* log_format, LogFormat format);
+TRITONSERVER_DataType WrapperToTritonDataType(DataType dtype);
+DataType TritonToWrapperDataType(TRITONSERVER_DataType dtype);
 Error WrapperToTritonMemoryType(
-    TRITONSERVER_MemoryType* memory_type, Wrapper_MemoryType mem_type);
+    TRITONSERVER_MemoryType* memory_type, MemoryType mem_type);
 Error TritonToWrapperMemoryType(
-    Wrapper_MemoryType* memory_type, TRITONSERVER_MemoryType mem_type);
+    MemoryType* memory_type, TRITONSERVER_MemoryType mem_type);
 
 //==============================================================================
 /// An interface for InferInput object to describe the model input for
@@ -261,9 +260,9 @@ class InferInput {
   /// \return Error object indicating success or failure.
   static Error Create(
       InferInput** infer_input, const std::string name,
-      const std::vector<int64_t>& dims, const Wrapper_DataType datatype,
+      const std::vector<int64_t>& dims, const DataType datatype,
       const char* data_ptr, const uint64_t byte_size,
-      const Wrapper_MemoryType memory_type, const int64_t memory_type_id)
+      const MemoryType memory_type, const int64_t memory_type_id)
   {
     TRITONSERVER_MemoryType input_memory_type;
     TRITONSERVER_DataType dtype = WrapperToTritonDataType(datatype);

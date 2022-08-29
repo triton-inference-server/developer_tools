@@ -48,8 +48,8 @@ struct LoggingOptions {
   LoggingOptions();
 
   LoggingOptions(
-      bool verbose, bool info, bool warn, bool error, Wrapper_LogFormat format,
-      std::string log_file);
+      const uint& verbose, const bool& info, const bool& warn,
+      const bool& error, const LogFormat& format, const std::string& log_file);
 
   // Verbose logging level. Default is 0.
   uint verbose_;
@@ -62,7 +62,7 @@ struct LoggingOptions {
   // The format of logging. For "LOG_DEFAULT", the log severity (L) and
   // timestamp will be logged as "LMMDD hh:mm:ss.ssssss". For "LOG_ISO8601", the
   // log format will be "YYYY-MM-DDThh:mm:ssZ L". Default is 'LOG_DEFAULT'.
-  Wrapper_LogFormat format_;
+  LogFormat format_;
   // Logging output file. If specified, log outputs will be saved to this file.
   // If not specified, log outputs will stream to the console. Default is an
   // empty string.
@@ -76,7 +76,8 @@ struct MetricsOptions {
   MetricsOptions();
 
   MetricsOptions(
-      bool allow_metrics, bool allow_gpu_metrics, uint64_t metrics_interval_ms);
+      const bool& allow_metrics, const bool& allow_gpu_metrics,
+      const uint64_t& metrics_interval_ms);
 
   // Enable or disable metrics. Default is true.
   bool allow_metrics_;
@@ -93,13 +94,14 @@ struct BackendConfig {
   BackendConfig();
 
   BackendConfig(
-      std::string backend_name, std::string setting, std::string value);
+      const std::string& backend_name, const std::string& setting,
+      const std::string& value);
 
-  // The name of the backend. Default is and empty string.
+  // The name of the backend. Default is an empty string.
   std::string backend_name_;
-  // The name of the setting. Default is and empty string.
+  // The name of the setting. Default is an empty string.
   std::string setting_;
-  // The setting value. Default is and empty string.
+  // The setting value. Default is an empty string.
   std::string value_;
 };
 
@@ -107,14 +109,15 @@ struct BackendConfig {
 /// Server options that are used to initialize Triton Server.
 ///
 struct ServerOptions {
-  ServerOptions(std::vector<std::string> model_repository_paths);
+  ServerOptions(const std::vector<std::string>& model_repository_paths);
 
   ServerOptions(
-      std::vector<std::string> model_repository_paths, LoggingOptions logging,
-      MetricsOptions metrics, std::vector<BackendConfig> be_config,
-      std::string server_id, std::string backend_dir,
-      std::string repo_agent_dir, bool disable_auto_complete_config,
-      Wrapper_ModelControlMode model_control_mode);
+      const std::vector<std::string>& model_repository_paths,
+      const LoggingOptions& logging, const MetricsOptions& metrics,
+      std::vector<BackendConfig> be_config, const std::string& server_id,
+      const std::string& backend_dir, const std::string& repo_agent_dir,
+      const bool& disable_auto_complete_config,
+      const ModelControlMode& model_control_mode);
 
   // Paths to model repository directory. Note that if a model is not unique
   // across all model repositories at any time, the model will not be available.
@@ -140,14 +143,16 @@ struct ServerOptions {
   // Specify the mode for model management. Options are "MODEL_CONTROL_NONE",
   // "MODEL_CONTROL_POLL" and "MODEL_CONTROL_EXPLICIT". Default is
   // "MODEL_CONTROL_NONE".
-  Wrapper_ModelControlMode model_control_mode_;
+  ModelControlMode model_control_mode_;
 };
 
 //==============================================================================
 /// Structure to hold repository index for 'ModelIndex' function.
 ///
 struct RepositoryIndex {
-  RepositoryIndex(std::string name, std::string version, std::string state);
+  RepositoryIndex(
+      const std::string& name, const std::string& version,
+      const std::string& state);
 
   std::string name_;     // the name of the model
   std::string version_;  // the version of the model
@@ -159,13 +164,13 @@ struct RepositoryIndex {
 ///
 struct Tensor {
   Tensor(
-      std::string name_, char* buffer, size_t byte_size,
-      Wrapper_DataType data_type, std::vector<int64_t> shape,
-      Wrapper_MemoryType memory_type, int64_t memory_type_id);
+      const std::string& name, char* buffer, const size_t& byte_size,
+      DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
+      int64_t memory_type_id);
 
-  Tensor(std::string name_);
+  Tensor(const std::string& name);
 
-  Tensor(std::string name_, char* buffer, size_t byte_size);
+  Tensor(const std::string& name, char* buffer, size_t byte_size);
 
   // The name of the tensor.
   std::string name_;
@@ -174,12 +179,12 @@ struct Tensor {
   // The size of buffer in bytes.
   size_t byte_size_;
   // The data type of the tensor.
-  Wrapper_DataType data_type_;
+  DataType data_type_;
   // The shape of the tensor.
   std::vector<int64_t> shape_;
   // The memory type of the tensor. Valid memory types are "CPU", "CPU_PINNED"
   // and "GPU".
-  Wrapper_MemoryType memory_type_;
+  MemoryType memory_type_;
   // The memory type ID of the tensor.
   int64_t memory_type_id_;
 };
@@ -212,13 +217,13 @@ class TritonServer {
   /// Load the requested model or reload the model if it is already loaded.
   /// \param model_name The name of the model.
   /// \return Error object indicating success or failure.
-  Error LoadModel(const std::string model_name);
+  Error LoadModel(const std::string& model_name);
 
   /// Unload the requested model. Unloading a model that is not loaded
   /// on server has no affect and success code will be returned.
   /// \param model_name The name of the model.
   /// \return Error object indicating success or failure.
-  Error UnloadModel(const std::string model_name);
+  Error UnloadModel(const std::string& model_name);
 
   /// Get the set of names of models that are loaded and ready for inference.
   /// \param loaded_models Returns the set of names of models that are loaded
@@ -230,7 +235,7 @@ class TritonServer {
   /// \param repository_index Returns a vector of RepositoryIndex object
   /// representing the repository index.
   /// \return Error object indicating success or failure.
-  Error ModelIndex(std::vector<RepositoryIndex>& repository_index);
+  Error ModelIndex(std::vector<RepositoryIndex>* repository_index);
 
   /// Get the metrics of the server.
   /// \param metrics_str Returns a string representing the metrics.
@@ -278,8 +283,8 @@ class TritonServer {
   // Helper function for parsing data type and shape of an input tensor from
   // model configuration when 'data_type' or 'shape' field is missing.
   Error ParseDataTypeAndShape(
-      const std::string model_name, const int64_t model_version,
-      const std::string input_name, TRITONSERVER_DataType* datatype,
+      const std::string& model_name, const int64_t model_version,
+      const std::string& input_name, TRITONSERVER_DataType* datatype,
       std::vector<int64_t>* shape);
 
   // The server object.
@@ -295,11 +300,11 @@ struct InferOptions {
   InferOptions(const std::string& model_name);
 
   InferOptions(
-      const std::string& model_name, const int64_t model_version,
-      const std::string request_id, const uint64_t correlation_id,
-      const std::string correlation_id_str, const bool sequence_start,
-      const bool sequence_end, const uint64_t priority,
-      const uint64_t request_timeout, Allocator* custom_allocator);
+      const std::string& model_name, const int64_t& model_version,
+      const std::string& request_id, const uint64_t& correlation_id,
+      const std::string& correlation_id_str, const bool& sequence_start,
+      const bool& sequence_end, const uint64_t& priority,
+      const uint64_t& request_timeout, Allocator* custom_allocator);
 
   /// The name of the model to run inference.
   std::string model_name_;
@@ -365,16 +370,16 @@ class InferRequest {
   /// \param end  The end iterator of the container.
   /// \param data_type The data type of the input. This field is optional.
   /// \param shape The shape of the input. This field is optional.
-  /// \param memory_type TThe memory type of the input.
+  /// \param memory_type The memory type of the input.
   /// This field is optional. Default is CPU.
   /// \param memory_type_id The memory type id of the input.
   /// This field is optional. Default is 0.
   /// \return Error object indicating success or failure.
   template <typename Iterator>
   Error AddInput(
-      const std::string name, const Iterator& begin, const Iterator& end,
-      Wrapper_DataType data_type = INVALID, std::vector<int64_t> shape = {},
-      Wrapper_MemoryType memory_type = CPU, int64_t memory_type_id = 0);
+      const std::string& name, const Iterator begin, const Iterator end,
+      DataType data_type = INVALID, std::vector<int64_t> shape = {},
+      MemoryType memory_type = CPU, int64_t memory_type_id = 0);
 
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding 'string' elements.
@@ -382,18 +387,18 @@ class InferRequest {
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
   /// \param shape The shape of the input. This field is optional.
-  /// \param memory_type TThe memory type of the input.
+  /// \param memory_type The memory type of the input.
   /// This field is optional. Default is CPU.
   /// \param memory_type_id The memory type id of the input.
   /// This field is optional. Default is 0.
   /// \return Error object indicating success or failure.
   template <typename Iterator>
   Error AddInput(
-      const std::string name, const Iterator& begin, const Iterator& end,
-      std::vector<int64_t> shape = {}, Wrapper_MemoryType memory_type = CPU,
+      const std::string& name, const Iterator begin, const Iterator end,
+      std::vector<int64_t> shape = {}, MemoryType memory_type = CPU,
       int64_t memory_type_id = 0);
 
-  /// Add an requested output tensor to be sent within an InferRequest object.
+  /// Add a requested output tensor to be sent within an InferRequest object.
   /// Calling this function is optional. If no output(s) are specifically
   /// requested then all outputs defined by the model will be calculated and
   /// returned. Pre-allocated buffer for each output can be specified within the
@@ -489,7 +494,7 @@ class InferResult {
   /// \return Error object indicating success or failure of the
   /// request.
   void RawData(
-      const std::string output_name, const char** buf, size_t* byte_size);
+      const std::string& output_name, const char** buf, size_t* byte_size);
 
   const char* model_name_;
   int64_t model_version_;
@@ -526,13 +531,13 @@ class Allocator {
 
   The signature of each function:
    * typedef Error (*ResponseAllocatorAllocFn_t)(
-      const char* tensor_name, size_t byte_size, Wrapper_MemoryType
+      const char* tensor_name, size_t byte_size, MemoryType
   preferred_memory_type, int64_t preferred_memory_type_id, void* userp, void**
-  buffer, void** buffer_userp, Wrapper_MemoryType* actual_memory_type, int64_t*
+  buffer, void** buffer_userp, MemoryType* actual_memory_type, int64_t*
   actual_memory_type_id);
 
    * typedef Error (*ResponseAllocatorReleaseFn_t)(
-      void* buffer, void* buffer_userp, size_t byte_size, Wrapper_MemoryType
+      void* buffer, void* buffer_userp, size_t byte_size, MemoryType
   memory_type, int64_t memory_type_id);
 
    * typedef Error (*ResponseAllocatorStartFn_t)(void* userp);
@@ -559,8 +564,8 @@ class Allocator {
 //==============================================================================
 /// Helper functions to convert Wrapper enum to string.
 ///
-std::string WrapperMemoryTypeString(Wrapper_MemoryType memory_type);
-std::string WrapperDataTypeString(Wrapper_DataType data_type);
+std::string WrapperMemoryTypeString(const MemoryType& memory_type);
+std::string WrapperDataTypeString(const DataType& data_type);
 
 //==============================================================================
 /// Implementation of template functions
@@ -568,9 +573,8 @@ std::string WrapperDataTypeString(Wrapper_DataType data_type);
 template <typename Iterator>
 Error
 InferRequest::AddInput(
-    const std::string name, const Iterator& begin, const Iterator& end,
-    std::vector<int64_t> shape, Wrapper_MemoryType memory_type,
-    int64_t memory_type_id)
+    const std::string& name, const Iterator begin, const Iterator end,
+    std::vector<int64_t> shape, MemoryType memory_type, int64_t memory_type_id)
 {
   // Serialize the strings into a "raw" buffer. The first 4-bytes are
   // the length of the string length. Next are the actual string
@@ -580,7 +584,7 @@ InferRequest::AddInput(
 
   Iterator it;
   for (it = begin; it != end; it++) {
-    uint32_t len = (*it).size();
+    auto len = it->size();
     sbuf.append(reinterpret_cast<const char*>(&len), sizeof(uint32_t));
     sbuf.append(*it);
   }
@@ -594,9 +598,9 @@ InferRequest::AddInput(
 template <typename Iterator>
 Error
 InferRequest::AddInput(
-    const std::string name, const Iterator& begin, const Iterator& end,
-    Wrapper_DataType data_type, std::vector<int64_t> shape,
-    Wrapper_MemoryType memory_type, int64_t memory_type_id)
+    const std::string& name, const Iterator begin, const Iterator end,
+    DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
+    int64_t memory_type_id)
 {
   size_t bytes = sizeof(*begin) * std::distance(begin, end);
 
