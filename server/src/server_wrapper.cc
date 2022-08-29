@@ -150,7 +150,7 @@ class InternalServer : public TritonServer {
       void* buffer_userp, size_t byte_size, TRITONSERVER_MemoryType memory_type,
       int64_t memory_type_id);
 
-  Error InitializeAllocator(bool is_prealloc);
+  Error InitializeAllocator(const bool is_prealloc);
 
   Error AsyncInfer(
       std::future<InferResult>* result_future,
@@ -488,7 +488,7 @@ LoggingOptions::LoggingOptions()
 }
 
 LoggingOptions::LoggingOptions(
-    const uint& verbose, const bool& info, const bool& warn, const bool& error,
+    const uint verbose, const bool info, const bool warn, const bool error,
     const LogFormat& format, const std::string& log_file)
 {
   verbose_ = verbose;
@@ -507,7 +507,7 @@ MetricsOptions::MetricsOptions()
 }
 
 MetricsOptions::MetricsOptions(
-    const bool& allow_metrics, const bool& allow_gpu_metrics,
+    const bool allow_metrics, const bool allow_gpu_metrics,
     const uint64_t& metrics_interval_ms)
 {
   allow_metrics_ = allow_metrics;
@@ -550,7 +550,7 @@ ServerOptions::ServerOptions(
     const LoggingOptions& logging, const MetricsOptions& metrics,
     std::vector<BackendConfig> be_config, const std::string& server_id,
     const std::string& backend_dir, const std::string& repo_agent_dir,
-    const bool& disable_auto_complete_config,
+    const bool disable_auto_complete_config,
     const ModelControlMode& model_control_mode)
 {
   model_repository_paths_ = model_repository_paths;
@@ -632,8 +632,8 @@ InferOptions::InferOptions(const std::string& model_name)
 InferOptions::InferOptions(
     const std::string& model_name, const int64_t& model_version,
     const std::string& request_id, const uint64_t& correlation_id,
-    const std::string& correlation_id_str, const bool& sequence_start,
-    const bool& sequence_end, const uint64_t& priority,
+    const std::string& correlation_id_str, const bool sequence_start,
+    const bool sequence_end, const uint64_t& priority,
     const uint64_t& request_timeout, Allocator* custom_allocator)
 {
   model_name_ = model_name;
@@ -880,7 +880,7 @@ TritonServer::PrepareInferenceInput(
 Error
 TritonServer::PrepareInferenceOutput(
     TRITONSERVER_InferenceRequest* irequest, const InferRequest& request,
-    bool is_prealloc)
+    const bool is_prealloc)
 {
   for (auto& infer_output : request.outputs_) {
     const char* name = infer_output->Name().c_str();
@@ -898,7 +898,7 @@ TritonServer::PrepareInferenceOutput(
 Error
 TritonServer::AsyncInferHelper(
     TRITONSERVER_InferenceRequest** irequest, const InferRequest& infer_request,
-    bool is_prealloc)
+    const bool is_prealloc)
 {
   bool is_ready = false;
   std::string model_name = infer_request.infer_options_.model_name_.c_str();
@@ -1000,7 +1000,7 @@ InternalServer::InternalServer(ServerOptions options)
 }
 
 Error
-InternalServer::InitializeAllocator(bool is_prealloc)
+InternalServer::InitializeAllocator(const bool is_prealloc)
 {
   allocator_ = nullptr;
   if (is_prealloc) {

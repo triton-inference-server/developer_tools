@@ -48,8 +48,8 @@ struct LoggingOptions {
   LoggingOptions();
 
   LoggingOptions(
-      const uint& verbose, const bool& info, const bool& warn,
-      const bool& error, const LogFormat& format, const std::string& log_file);
+      const uint verbose, const bool info, const bool warn, const bool error,
+      const LogFormat& format, const std::string& log_file);
 
   // Verbose logging level. Default is 0.
   uint verbose_;
@@ -76,7 +76,7 @@ struct MetricsOptions {
   MetricsOptions();
 
   MetricsOptions(
-      const bool& allow_metrics, const bool& allow_gpu_metrics,
+      const bool allow_metrics, const bool allow_gpu_metrics,
       const uint64_t& metrics_interval_ms);
 
   // Enable or disable metrics. Default is true.
@@ -116,7 +116,7 @@ struct ServerOptions {
       const LoggingOptions& logging, const MetricsOptions& metrics,
       std::vector<BackendConfig> be_config, const std::string& server_id,
       const std::string& backend_dir, const std::string& repo_agent_dir,
-      const bool& disable_auto_complete_config,
+      const bool disable_auto_complete_config,
       const ModelControlMode& model_control_mode);
 
   // Paths to model repository directory. Note that if a model is not unique
@@ -274,11 +274,11 @@ class TritonServer {
 
   Error PrepareInferenceOutput(
       TRITONSERVER_InferenceRequest* irequest, const InferRequest& request,
-      bool is_prealloc);
+      const bool is_prealloc);
 
   Error AsyncInferHelper(
       TRITONSERVER_InferenceRequest** irequest,
-      const InferRequest& infer_request, bool is_prealloc);
+      const InferRequest& infer_request, const bool is_prealloc);
 
   // Helper function for parsing data type and shape of an input tensor from
   // model configuration when 'data_type' or 'shape' field is missing.
@@ -302,8 +302,8 @@ struct InferOptions {
   InferOptions(
       const std::string& model_name, const int64_t& model_version,
       const std::string& request_id, const uint64_t& correlation_id,
-      const std::string& correlation_id_str, const bool& sequence_start,
-      const bool& sequence_end, const uint64_t& priority,
+      const std::string& correlation_id_str, const bool sequence_start,
+      const bool sequence_end, const uint64_t& priority,
       const uint64_t& request_timeout, Allocator* custom_allocator);
 
   /// The name of the model to run inference.
