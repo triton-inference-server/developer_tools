@@ -239,7 +239,7 @@ class TritonServer {
   /// the inputs, outputs and infer options for an inference request.
   /// \return Error object indicating success or failure.
   virtual Error AsyncInfer(
-      std::future<InferResult>* result_future,
+      std::future<std::unique_ptr<InferResult>>* result_future,
       const InferRequest& infer_request) = 0;
 
  protected:
@@ -416,7 +416,7 @@ class InferRequest {
 ///
 class InferResult {
  public:
-  virtual ~InferResult();
+  ~InferResult();
 
   /// Get the name of the model which generated this response.
   /// \return Returns the name of the model.

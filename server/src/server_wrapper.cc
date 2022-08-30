@@ -38,26 +38,6 @@
 
 namespace triton { namespace server { namespace wrapper {
 
-// Responses that have been completed. These reponses will not be deleted
-// until function 'ClearCompletedResponse' or TritonServer destructor is called
-// so that the output buffers can still be accessed by users after inference is
-// completed.
-std::vector<TRITONSERVER_InferenceResponse*> completed_responses_ = {};
-
-void
-ClearCompletedResponses()
-{
-  for (auto& response : completed_responses_) {
-    if (response != nullptr) {
-      LOG_IF_ERROR(
-          TRITONSERVER_InferenceResponseDelete(response),
-          "Failed to delete inference response.");
-    }
-  }
-
-  completed_responses_.clear();
-}
-
 //==============================================================================
 /// Helper functions
 ///
@@ -139,7 +119,7 @@ class InternalServer : public TritonServer {
       int64_t memory_type_id);
 
   Error AsyncInfer(
-      std::future<InferResult>* result_future,
+      std::future<std::unique_ptr<InferResult>>* result_future,
       const InferRequest& infer_request) override;
 
   // The allocator object allocating output tensor.
@@ -170,8 +150,6 @@ TRITONSERVER_ResponseAllocator* InternalRequest::custom_triton_allocator_;
 ///
 class InternalResult : public InferResult {
  public:
-  ~InternalResult();
-
   void FinalizeResponse(TRITONSERVER_InferenceResponse* response);
   std::unordered_map<std::string, InferOutput*> Outputs()
   {
@@ -206,9 +184,10 @@ InternalServer::ResponseAlloc(
 
     // Use the pre-allocated buffer.
     *buffer = const_cast<void*>(p->tensor_alloc_map_[tensor_name].first);
-    std::pair<std::string, bool>* free_buffer = new std::pair<std::string, bool>(
-        tensor_name,
-        false /* if the buffer needs to be freed in ResponseReleaseFn */);
+    std::pair<std::string, bool>* free_buffer =
+        new std::pair<std::string, bool>(
+            tensor_name,
+            false /* if the buffer needs to be freed in ResponseReleaseFn */);
     *buffer_userp = reinterpret_cast<void*>(free_buffer);
   } else {
     // *buffer_userp = new std::string(tensor_name);
@@ -319,7 +298,8 @@ InternalServer::ResponseRelease(
 {
   auto p = reinterpret_cast<std::pair<std::string, bool>*>(buffer_userp);
   std::string name = p->first;
-  // No need to free the pre-allocated output buffer as users should release the the buffer they povided.
+  // No need to free the pre-allocated output buffer as users should release the
+  // the buffer they povided.
   if (p->second) {
     std::stringstream ss;
     ss << buffer;
@@ -449,10 +429,12 @@ InferResponseComplete(
     TRITONSERVER_InferenceResponse* response, const uint32_t flags, void* userp)
 {
   if (response != nullptr) {
-    auto p = reinterpret_cast<std::promise<InferResult>*>(userp);
-    InternalResult result;
-    result.FinalizeResponse(response);
-    p->set_value(result);
+    auto p =
+        reinterpret_cast<std::promise<std::unique_ptr<InferResult>>*>(userp);
+    std::unique_ptr<InternalResult> result = std::make_unique<InternalResult>();
+    result->FinalizeResponse(response);
+    std::unique_ptr<InferResult> infer_result = std::move(result);
+    p->set_value(std::move(infer_result));
     delete p;
   }
 }
@@ -984,7 +966,6 @@ InternalServer::InternalServer(const ServerOptions& options)
 
 InternalServer::~InternalServer()
 {
-  ClearCompletedResponses();
   if (allocator_ != nullptr) {
     LOG_IF_ERROR(
         TRITONSERVER_ResponseAllocatorDelete(allocator_),
@@ -997,14 +978,15 @@ InternalServer::~InternalServer()
 
 Error
 InternalServer::AsyncInfer(
-    std::future<InferResult>* result_future, const InferRequest& infer_request)
+    std::future<std::unique_ptr<InferResult>>* result_future,
+    const InferRequest& infer_request)
 {
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
   try {
     THROW_IF_ERR(AsyncInferHelper(&irequest, infer_request));
     {
-      auto p = new std::promise<InferResult>();
+      auto p = new std::promise<std::unique_ptr<InferResult>>();
       *result_future = p->get_future();
 
       if (infer_request.infer_options_->custom_allocator_ == nullptr) {
@@ -1054,7 +1036,8 @@ InternalRequest::InternalRequest(const InferOptions& options)
       options.sequence_start_, options.sequence_end_, options.priority_,
       options.request_timeout_, options.custom_allocator_));
 
-  // Store custom allocator as a static variable as it's needed in global functions.
+  // Store custom allocator as a static variable as it's needed in global
+  // functions.
   custom_allocator_ = options.custom_allocator_;
 
   custom_triton_allocator_ = nullptr;
@@ -1122,9 +1105,7 @@ InferRequest::Reset()
   return Error::Success;
 }
 
-InferResult::~InferResult() {}
-
-InternalResult::~InternalResult()
+InferResult::~InferResult()
 {
   if (completed_response_ != nullptr) {
     LOG_IF_ERROR(
@@ -1199,9 +1180,7 @@ InternalResult::FinalizeResponse(TRITONSERVER_InferenceResponse* response)
         std::string("Error when finalizing the infer response: ") +
         std::string(ex.what()));
   }
-
-  completed_responses_.emplace_back(response);
-  // completed_response_ = response;
+  completed_response_ = response;
 }
 
 bool
