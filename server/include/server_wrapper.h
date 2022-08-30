@@ -77,7 +77,7 @@ struct MetricsOptions {
 
   MetricsOptions(
       const bool allow_metrics, const bool allow_gpu_metrics,
-      const bool allow_cpu_metrics, const uint64_t& metrics_interval_ms);
+      const bool allow_cpu_metrics, const uint64_t metrics_interval_ms);
 
   // Enable or disable metrics. Default is true.
   bool allow_metrics_;
@@ -116,7 +116,7 @@ struct ServerOptions {
   ServerOptions(
       const std::vector<std::string>& model_repository_paths,
       const LoggingOptions& logging, const MetricsOptions& metrics,
-      std::vector<BackendConfig> be_config, const std::string& server_id,
+      const std::vector<BackendConfig>& be_config, const std::string& server_id,
       const std::string& backend_dir, const std::string& repo_agent_dir,
       const bool disable_auto_complete_config,
       const ModelControlMode& model_control_mode);
@@ -212,7 +212,8 @@ struct ErrorCheck {
 class TritonServer {
  public:
   ///  Create a TritonServer instance.
-  static std::unique_ptr<TritonServer> Create(ServerOptions server_options);
+  static std::unique_ptr<TritonServer> Create(
+      const ServerOptions& server_options);
 
   ~TritonServer();
 
@@ -504,6 +505,8 @@ class InferResult {
   std::vector<ResponseParameters*> params_;
   std::unordered_map<std::string, InferOutput*> infer_outputs_;
   Error response_error_;
+
+  TRITONSERVER_InferenceResponse* completed_response_;
 };
 
 //==============================================================================
