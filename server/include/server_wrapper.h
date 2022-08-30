@@ -40,6 +40,8 @@ namespace triton { namespace server { namespace wrapper {
 class InferResult;
 class InferRequest;
 class Allocator;
+using TensorAllocMap =
+    std::unordered_map<std::string, std::pair<const void*, size_t>>;
 
 //==============================================================================
 /// Structure to hold logging options for server parameters.
@@ -192,21 +194,6 @@ struct Tensor {
 };
 
 //==============================================================================
-/// Structure for checking if an error occurs during inference. This structure
-/// is used with calling the overloaded 'AsyncInfer(std::future<ErrorCheck>*
-/// error_check, const InferRequest& infer_request)' function where the output
-/// tensors will be stored in-place in the pre-allocated buffers provided by
-/// users.
-struct ErrorCheck {
-  ErrorCheck();
-
-  // Indicates error if true, false if no error.
-  bool has_error_;
-  // The messsage for the error. Empty if no error.
-  std::string error_message_;
-};
-
-//==============================================================================
 /// Object that encapsulates in-process C API functionalities.
 ///
 class TritonServer {
@@ -215,7 +202,7 @@ class TritonServer {
   static std::unique_ptr<TritonServer> Create(
       const ServerOptions& server_options);
 
-  ~TritonServer();
+  virtual ~TritonServer();
 
   /// Load the requested model or reload the model if it is already loaded.
   /// \param model_name The name of the model.
@@ -255,19 +242,6 @@ class TritonServer {
       std::future<InferResult>* result_future,
       const InferRequest& infer_request) = 0;
 
-  /// Run asynchronous inference on server with pre-allocated buffers for output
-  /// tensors. Each output result will be stored in-place in the buffer provided
-  /// by user using 'Tensor' structure when calling
-  /// 'InferRequest.AddOutput(Tensor& output)' function.
-  /// \param error_check Returns a future of ErrorCheck object indicating if an
-  /// error occurs during inference.
-  /// \param infer_request The InferRequest object contains the inputs, outputs
-  /// and infer options for an inference request.
-  /// \return Error object indicating success or failure.
-  virtual Error AsyncInfer(
-      std::future<ErrorCheck>* error_check,
-      const InferRequest& infer_request) = 0;
-
  protected:
   Error PrepareInferenceRequest(
       TRITONSERVER_InferenceRequest** irequest, const InferRequest& request);
@@ -276,12 +250,11 @@ class TritonServer {
       TRITONSERVER_InferenceRequest* irequest, const InferRequest& request);
 
   Error PrepareInferenceOutput(
-      TRITONSERVER_InferenceRequest* irequest, const InferRequest& request,
-      const bool is_prealloc);
+      TRITONSERVER_InferenceRequest* irequest, InferRequest& request);
 
   Error AsyncInferHelper(
       TRITONSERVER_InferenceRequest** irequest,
-      const InferRequest& infer_request, const bool is_prealloc);
+      const InferRequest& infer_request);
 
   // Helper function for parsing data type and shape of an input tensor from
   // model configuration when 'data_type' or 'shape' field is missing.
@@ -292,8 +265,6 @@ class TritonServer {
 
   // The server object.
   TRITONSERVER_Server* server_;
-  // The allocator object allocating output tensor.
-  TRITONSERVER_ResponseAllocator* allocator_;
 };
 
 //==============================================================================
@@ -349,7 +320,6 @@ struct InferOptions {
   /// provided, the server will handle the request using default setting
   /// for the model.
   uint64_t request_timeout_;
-
   /// User-provided custom reponse allocator object. Default is nullptr.
   Allocator* custom_allocator_;
 };
@@ -359,7 +329,11 @@ struct InferOptions {
 ///
 class InferRequest {
  public:
-  InferRequest(InferOptions infer_options);
+  ///  Create an InferRequest instance.
+  static std::unique_ptr<InferRequest> Create(
+      const InferOptions& infer_options);
+
+  virtual ~InferRequest();
 
   /// Add an input tensor to be sent within an InferRequest object.
   /// \param input A Tensor object that describes an input tensor.
@@ -422,12 +396,18 @@ class InferRequest {
   Error Reset();
 
   friend class TritonServer;
+  friend class InternalServer;
 
- private:
-  InferOptions infer_options_;
+ protected:
+  std::unique_ptr<InferOptions> infer_options_;
   std::list<std::string> str_bufs_;
   std::vector<InferInput*> inputs_ = {};
   std::vector<InferRequestedOutput*> outputs_ = {};
+
+  // The map for each output tensor and a pair of it's pre-allocated buffer and
+  // byte size. [key:value -> output name : pair<pre-allocated buffer, byte
+  // size>]
+  TensorAllocMap tensor_alloc_map_;
 };
 
 //==============================================================================
@@ -436,6 +416,8 @@ class InferRequest {
 ///
 class InferResult {
  public:
+  virtual ~InferResult();
+
   /// Get the name of the model which generated this response.
   /// \return Returns the name of the model.
   std::string ModelName();
@@ -506,7 +488,7 @@ class InferResult {
   std::unordered_map<std::string, InferOutput*> infer_outputs_;
   Error response_error_;
 
-  TRITONSERVER_InferenceResponse* completed_response_;
+  TRITONSERVER_InferenceResponse* completed_response_ = nullptr;
 };
 
 //==============================================================================

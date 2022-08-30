@@ -83,7 +83,7 @@ namespace triton { namespace server { namespace wrapper {
     TRITONSERVER_Error* lie_err__ = (X);                                       \
     if (lie_err__ != nullptr) {                                                \
       IGNORE_ERROR(TRITONSERVER_LogMessage(                                    \
-          TRITONSERVER_LOG_INFO, __FILE__, __LINE__,                           \
+          TRITONSERVER_LOG_ERROR, __FILE__, __LINE__,                          \
           (std::string(MSG) + ": " + TRITONSERVER_ErrorCodeString(lie_err__) + \
            " - " + TRITONSERVER_ErrorMessage(lie_err__))                       \
               .c_str()));                                                      \
