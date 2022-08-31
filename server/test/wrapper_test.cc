@@ -33,10 +33,11 @@ namespace tsw = triton::server::wrapper;
 
 namespace {
 
-TEST(TritonServer, SanityCheck)
+TEST(TritonServer, LibraryVersionCheck)
 {
-  // Sanity check that proper 'libtritonserver.so' is used
-  uint32_t major = 0, minor = 0;
+  // Check that proper 'libtritonserver.so' is used
+  uint32_t major = 0;
+  uint32_t minor = 0;
   auto err = TRITONSERVER_ApiVersion(&major, &minor);
   ASSERT_TRUE(err == nullptr) << "Unexpected error from API version call";
   ASSERT_EQ(major, TRITONSERVER_API_VERSION_MAJOR) << "Mismatch major version";
@@ -156,14 +157,14 @@ TEST_F(TritonServerTest, InferMinimal)
     // OUTPUT0 -> sum
     {
       std::string out_name("OUTPUT0");
-      tsw::Tensor out(out_name);
-      ASSERT_TRUE((err = result->Output(&out)).IsOk()) << err.Message();
-      ASSERT_EQ(out.shape_, std::vector<int64_t>{16});
-      ASSERT_EQ(out.data_type_, tsw::DataType::INT32);
-      ASSERT_EQ(out.byte_size_, (input_data.size() * sizeof(int32_t)));
+      std::shared_ptr<tsw::Tensor> out(new tsw::Tensor(out_name));
+      ASSERT_TRUE((err = result->Output(out)).IsOk()) << err.Message();
+      ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
+      ASSERT_EQ(out->data_type_, tsw::DataType::INT32);
+      ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
       for (size_t i = 0; i < input_data.size(); ++i) {
         EXPECT_EQ(
-            reinterpret_cast<const int32_t*>(out.buffer_)[i],
+            reinterpret_cast<const int32_t*>(out->buffer_)[i],
             (2 * input_data[i]));
       }
     }
@@ -171,13 +172,13 @@ TEST_F(TritonServerTest, InferMinimal)
     // OUTPUT1 -> diff
     {
       std::string out_name("OUTPUT1");
-      tsw::Tensor out(out_name);
-      ASSERT_TRUE((err = result->Output(&out)).IsOk()) << err.Message();
-      ASSERT_EQ(out.shape_, std::vector<int64_t>{16});
-      ASSERT_EQ(out.data_type_, tsw::DataType::INT32);
-      ASSERT_EQ(out.byte_size_, (input_data.size() * sizeof(int32_t)));
+      std::shared_ptr<tsw::Tensor> out(new tsw::Tensor(out_name));
+      ASSERT_TRUE((err = result->Output(out)).IsOk()) << err.Message();
+      ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
+      ASSERT_EQ(out->data_type_, tsw::DataType::INT32);
+      ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
       for (size_t i = 0; i < input_data.size(); ++i) {
-        EXPECT_EQ(reinterpret_cast<const int32_t*>(out.buffer_)[i], 0);
+        EXPECT_EQ(reinterpret_cast<const int32_t*>(out->buffer_)[i], 0);
       }
     }
   }
@@ -225,10 +226,10 @@ TEST_F(TritonServerTest, InferString)
     // OUTPUT0 -> sum
     {
       std::string out_name("OUTPUT0");
-      tsw::Tensor out(out_name);
-      ASSERT_TRUE((err = result->Output(&out)).IsOk()) << err.Message();
-      ASSERT_EQ(out.shape_, std::vector<int64_t>{16});
-      ASSERT_EQ(out.data_type_, tsw::DataType::BYTES);
+      std::shared_ptr<tsw::Tensor> out(new tsw::Tensor(out_name));
+      ASSERT_TRUE((err = result->Output(out)).IsOk()) << err.Message();
+      ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
+      ASSERT_EQ(out->data_type_, tsw::DataType::BYTES);
       ASSERT_TRUE((err = result->StringData(out_name, &out_str)).IsOk())
           << err.Message();
       for (size_t i = 0; i < input_data.size(); ++i) {
@@ -239,10 +240,10 @@ TEST_F(TritonServerTest, InferString)
     // OUTPUT1 -> diff
     {
       std::string out_name("OUTPUT1");
-      tsw::Tensor out(out_name);
-      ASSERT_TRUE((err = result->Output(&out)).IsOk()) << err.Message();
-      ASSERT_EQ(out.shape_, std::vector<int64_t>{16});
-      ASSERT_EQ(out.data_type_, tsw::DataType::BYTES);
+      std::shared_ptr<tsw::Tensor> out(new tsw::Tensor(out_name));
+      ASSERT_TRUE((err = result->Output(out)).IsOk()) << err.Message();
+      ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
+      ASSERT_EQ(out->data_type_, tsw::DataType::BYTES);
       ASSERT_TRUE((err = result->StringData(out_name, &out_str)).IsOk())
           << err.Message();
       for (size_t i = 0; i < input_data.size(); ++i) {

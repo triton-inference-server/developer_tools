@@ -30,7 +30,8 @@ namespace triton { namespace server { namespace wrapper {
 
 Error
 WrapperToTritonModelControlMode(
-    TRITONSERVER_ModelControlMode* model_control_mode, ModelControlMode mode)
+    TRITONSERVER_ModelControlMode* model_control_mode,
+    const ModelControlMode& mode)
 {
   switch (mode) {
     case MODEL_CONTROL_NONE:
@@ -51,7 +52,8 @@ WrapperToTritonModelControlMode(
 }
 
 Error
-WrapperToTritonLogFormat(TRITONSERVER_LogFormat* log_format, LogFormat format)
+WrapperToTritonLogFormat(
+    TRITONSERVER_LogFormat* log_format, const LogFormat& format)
 {
   switch (format) {
     case LOG_DEFAULT:
@@ -69,7 +71,7 @@ WrapperToTritonLogFormat(TRITONSERVER_LogFormat* log_format, LogFormat format)
 }
 
 TRITONSERVER_DataType
-WrapperToTritonDataType(DataType dtype)
+WrapperToTritonDataType(const DataType& dtype)
 {
   switch (dtype) {
     case BOOL:
@@ -107,7 +109,7 @@ WrapperToTritonDataType(DataType dtype)
 }
 
 DataType
-TritonToWrapperDataType(TRITONSERVER_DataType dtype)
+TritonToWrapperDataType(const TRITONSERVER_DataType& dtype)
 {
   switch (dtype) {
     case TRITONSERVER_TYPE_BOOL:
@@ -146,7 +148,7 @@ TritonToWrapperDataType(TRITONSERVER_DataType dtype)
 
 Error
 WrapperToTritonMemoryType(
-    TRITONSERVER_MemoryType* memory_type, MemoryType mem_type)
+    TRITONSERVER_MemoryType* memory_type, const MemoryType& mem_type)
 {
   switch (mem_type) {
     case CPU:
@@ -168,7 +170,7 @@ WrapperToTritonMemoryType(
 
 Error
 TritonToWrapperMemoryType(
-    MemoryType* memory_type, TRITONSERVER_MemoryType mem_type)
+    MemoryType* memory_type, const TRITONSERVER_MemoryType& mem_type)
 {
   switch (mem_type) {
     case TRITONSERVER_MEMORY_CPU:
@@ -186,6 +188,24 @@ TritonToWrapperMemoryType(
   }
 
   return Error::Success;
+}
+
+ModelReadyState
+StringToWrapperModelReadyState(const std::string& state)
+{
+  if (state == "UNKNOWN") {
+    return UNKNOWN;
+  } else if (state == "READY") {
+    return READY;
+  } else if (state == "UNAVAILABLE") {
+    return UNAVAILABLE;
+  } else if (state == "LOADING") {
+    return LOADING;
+  } else if (state == "UNLOADING") {
+    return UNLOADING;
+  } else {
+    return UNKNOWN;
+  }
 }
 
 const Error Error::Success("");

@@ -97,6 +97,24 @@ WrapperMemoryTypeString(const MemoryType& memory_type)
   return "<invalid>";
 }
 
+std::string
+WrapperModelReadyStateString(const ModelReadyState& state)
+{
+  switch (state) {
+    case UNKNOWN:
+      return "UNKNOWN";
+    case READY:
+      return "READY";
+    case UNAVAILABLE:
+      return "UNAVAILABLE";
+    case LOADING:
+      return "LOADING";
+    case UNLOADING:
+      return "UNLOADING";
+    default:
+      return "UNKNOWN";
+  }
+}
 //==============================================================================
 /// InternalServer class
 ///
@@ -151,10 +169,6 @@ TRITONSERVER_ResponseAllocator* InternalRequest::custom_triton_allocator_;
 class InternalResult : public InferResult {
  public:
   void FinalizeResponse(TRITONSERVER_InferenceResponse* response);
-  std::unordered_map<std::string, InferOutput*> Outputs()
-  {
-    return infer_outputs_;
-  }
 };
 
 //==============================================================================
@@ -541,7 +555,7 @@ ServerOptions::ServerOptions(
 
 RepositoryIndex::RepositoryIndex(
     const std::string& name, const std::string& version,
-    const std::string& state)
+    const ModelReadyState& state)
 {
   name_ = name;
   version_ = version;
@@ -631,7 +645,7 @@ Error
 TritonServer::LoadModel(const std::string& model_name)
 {
   RETURN_ERR_IF_TRITON_ERR(
-      TRITONSERVER_ServerLoadModel(server_, model_name.c_str()));
+      TRITONSERVER_ServerLoadModel(server_.get(), model_name.c_str()));
 
   return Error::Success;
 }
@@ -639,8 +653,8 @@ TritonServer::LoadModel(const std::string& model_name)
 Error
 TritonServer::UnloadModel(const std::string& model_name)
 {
-  RETURN_ERR_IF_TRITON_ERR(
-      TRITONSERVER_ServerUnloadModelAndDependents(server_, model_name.c_str()));
+  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ServerUnloadModelAndDependents(
+      server_.get(), model_name.c_str()));
 
   return Error::Success;
 }
@@ -666,7 +680,7 @@ TritonServer::ModelIndex(std::vector<RepositoryIndex>* repository_index)
   TRITONSERVER_Message* message = nullptr;
   uint32_t flags = TRITONSERVER_INDEX_FLAG_READY;
   RETURN_ERR_IF_TRITON_ERR(
-      TRITONSERVER_ServerModelIndex(server_, flags, &message));
+      TRITONSERVER_ServerModelIndex(server_.get(), flags, &message));
   const char* buffer;
   size_t byte_size;
   RETURN_ERR_IF_TRITON_ERR(
@@ -683,7 +697,8 @@ TritonServer::ModelIndex(std::vector<RepositoryIndex>* repository_index)
     RETURN_ERR_IF_TRITON_ERR(index.MemberAsString("name", &name));
     RETURN_ERR_IF_TRITON_ERR(index.MemberAsString("version", &version));
     RETURN_ERR_IF_TRITON_ERR(index.MemberAsString("state", &state));
-    repository_index->push_back(RepositoryIndex(name, version, state));
+    repository_index->push_back(
+        RepositoryIndex(name, version, StringToWrapperModelReadyState(state)));
   }
 
   return Error::Success;
@@ -693,7 +708,7 @@ Error
 TritonServer::Metrics(std::string* metrics_str)
 {
   TRITONSERVER_Metrics* metrics = nullptr;
-  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ServerMetrics(server_, &metrics));
+  RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ServerMetrics(server_.get(), &metrics));
   const char* base;
   size_t byte_size;
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_MetricsFormatted(
@@ -709,7 +724,7 @@ TritonServer::PrepareInferenceRequest(
     TRITONSERVER_InferenceRequest** irequest, const InferRequest& request)
 {
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestNew(
-      irequest, server_, request.infer_options_->model_name_.c_str(),
+      irequest, server_.get(), request.infer_options_->model_name_.c_str(),
       request.infer_options_->model_version_));
 
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetId(
@@ -752,7 +767,7 @@ TritonServer::ParseDataTypeAndShape(
 {
   TRITONSERVER_Message* message;
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ServerModelConfig(
-      server_, model_name.c_str(), model_version, 1 /* config_version */,
+      server_.get(), model_name.c_str(), model_version, 1 /* config_version */,
       &message));
   const char* buffer;
   size_t byte_size;
@@ -859,8 +874,8 @@ TritonServer::AsyncInferHelper(
   bool is_ready = false;
   std::string model_name = infer_request.infer_options_->model_name_.c_str();
   RETURN_ERR_IF_TRITON_ERR(TRITONSERVER_ServerModelIsReady(
-      server_, model_name.c_str(), infer_request.infer_options_->model_version_,
-      &is_ready));
+      server_.get(), model_name.c_str(),
+      infer_request.infer_options_->model_version_, &is_ready));
 
   if (!is_ready) {
     return Error(
@@ -884,7 +899,7 @@ InternalServer::InternalServer(const ServerOptions& options)
       TRITONSERVER_ApiVersion(&api_version_major, &api_version_minor));
   if ((TRITONSERVER_API_VERSION_MAJOR != api_version_major) ||
       (TRITONSERVER_API_VERSION_MINOR > api_version_minor)) {
-    throw Exception("triton server API version mismatch");
+    throw ServerWrapperException("triton server API version mismatch");
   }
 
   TRITONSERVER_ServerOptions* server_options = nullptr;
@@ -952,8 +967,11 @@ InternalServer::InternalServer(const ServerOptions& options)
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelControlMode(
       server_options, model_control_mode));
 
-  THROW_IF_TRITON_ERR(TRITONSERVER_ServerNew(&server_, server_options));
+  TRITONSERVER_Server* server_ptr;
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerNew(&server_ptr, server_options));
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsDelete(server_options));
+  server_ = std::shared_ptr<TRITONSERVER_Server>(
+      server_ptr, TRITONSERVER_ServerDelete);
 
   // Initialize allocator
   allocator_ = nullptr;
@@ -971,9 +989,6 @@ InternalServer::~InternalServer()
         TRITONSERVER_ResponseAllocatorDelete(allocator_),
         "Failed to delete allocator.");
   }
-
-  FAIL_IF_TRITON_ERR(
-      TRITONSERVER_ServerDelete(server_), "Failed to delete server object");
 }
 
 Error
@@ -1005,10 +1020,10 @@ InternalServer::AsyncInfer(
       }
 
       THROW_ERR_IF_TRITON_ERR(TRITONSERVER_ServerInferAsync(
-          server_, irequest, nullptr /* trace */));
+          server_.get(), irequest, nullptr /* trace */));
     }
   }
-  catch (const Exception& ex) {
+  catch (const ServerWrapperException& ex) {
     LOG_IF_ERROR(
         TRITONSERVER_InferenceRequestDelete(irequest),
         "Failed to delete inference request.");
@@ -1069,12 +1084,12 @@ InternalRequest::~InternalRequest()
 Error
 InferRequest::AddInput(const Tensor& input_tensor)
 {
-  InferInput* input;
+  std::unique_ptr<InferInput> input;
   RETURN_IF_ERR(InferInput::Create(
-      &input, input_tensor.name_, input_tensor.shape_, input_tensor.data_type_,
+      input, input_tensor.name_, input_tensor.shape_, input_tensor.data_type_,
       input_tensor.buffer_, input_tensor.byte_size_, input_tensor.memory_type_,
       input_tensor.memory_type_id_));
-  inputs_.push_back(input);
+  inputs_.push_back(std::move(input));
 
   return Error::Success;
 }
@@ -1082,16 +1097,15 @@ InferRequest::AddInput(const Tensor& input_tensor)
 Error
 InferRequest::AddOutput(Tensor& output_tensor)
 {
-  InferRequestedOutput* output;
+  std::unique_ptr<InferRequestedOutput> output;
   if (output_tensor.buffer_ == nullptr) {
-    RETURN_IF_ERR(InferRequestedOutput::Create(&output, output_tensor.name_));
+    output = InferRequestedOutput::Create(output_tensor.name_);
   } else {
-    RETURN_IF_ERR(InferRequestedOutput::Create(
-        &output, output_tensor.name_, output_tensor.buffer_,
-        output_tensor.byte_size_));
+    output = InferRequestedOutput::Create(
+        output_tensor.name_, output_tensor.buffer_, output_tensor.byte_size_);
   }
 
-  outputs_.push_back(output);
+  outputs_.push_back(std::move(output));
 
   return Error::Success;
 }
@@ -1101,6 +1115,7 @@ InferRequest::Reset()
 {
   inputs_.clear();
   outputs_.clear();
+  tensor_alloc_map_.clear();
 
   return Error::Success;
 }
@@ -1140,7 +1155,8 @@ InternalResult::FinalizeResponse(TRITONSERVER_InferenceResponse* response)
       const void* vvalue;
       THROW_IF_TRITON_ERR(TRITONSERVER_InferenceResponseParameter(
           response, pidx, &name, &type, &vvalue));
-      params_.push_back(std::move(new ResponseParameters(name, type, vvalue)));
+      params_.push_back(std::move(std::unique_ptr<ResponseParameters>(
+          new ResponseParameters(name, type, vvalue))));
     }
 
     uint32_t output_count;
@@ -1161,15 +1177,15 @@ InternalResult::FinalizeResponse(TRITONSERVER_InferenceResponse* response)
       THROW_IF_TRITON_ERR(TRITONSERVER_InferenceResponseOutput(
           response, idx, &cname, &datatype, &shape, &dim_count, &base,
           &byte_size, &memory_type, &memory_type_id, &userp));
-      InferOutput* output;
-      THROW_IF_ERR(InferOutput::Create(
-          &output, cname, datatype, shape, dim_count, byte_size, memory_type,
-          memory_type_id, base, userp));
+
+      std::unique_ptr<InferOutput> output = InferOutput::Create(
+          cname, datatype, shape, dim_count, byte_size, memory_type,
+          memory_type_id, base, userp);
       std::string name(cname);
-      infer_outputs_[name] = output;
+      infer_outputs_[name] = std::move(output);
     }
   }
-  catch (const Exception& ex) {
+  catch (const ServerWrapperException& ex) {
     if (response != nullptr) {
       LOG_IF_ERROR(
           TRITONSERVER_InferenceResponseDelete(response),
@@ -1214,8 +1230,14 @@ InferResult::Id()
 }
 
 Error
-InferResult::Output(Tensor* output)
+InferResult::Output(std::shared_ptr<Tensor> output)
 {
+  if (!response_error_.IsOk()) {
+    return Error(
+        "Error when retrieving DebugString. An error occurs during inference. "
+        "Use 'ErrorMsg()' to check for error message.");
+  }
+
   if (infer_outputs_.find(output->name_) != infer_outputs_.end()) {
     RawData(output->name_, (const char**)&output->buffer_, &output->byte_size_);
     output->data_type_ =
@@ -1281,6 +1303,12 @@ InferResult::StringData(
 Error
 InferResult::DebugString(std::string* string_result)
 {
+  if (!response_error_.IsOk()) {
+    return Error(
+        "Error when retrieving DebugString. An error occurs during inference. "
+        "Use 'ErrorMsg()' to check for error message.");
+  }
+
   triton::common::TritonJson::Value response_json(
       triton::common::TritonJson::ValueType::OBJECT);
   if ((request_id_ != nullptr) && (request_id_[0] != '\0')) {
@@ -1324,10 +1352,11 @@ InferResult::DebugString(std::string* string_result)
   triton::common::TritonJson::Value response_outputs(
       response_json, triton::common::TritonJson::ValueType::ARRAY);
   for (auto& infer_output : infer_outputs_) {
-    InferOutput* output = infer_output.second;
+    InferOutput* output = infer_output.second.get();
     triton::common::TritonJson::Value output_json(
         response_json, triton::common::TritonJson::ValueType::OBJECT);
-    RETURN_ERR_IF_TRITON_ERR(output_json.AddStringRef("name", output->Name()));
+    RETURN_ERR_IF_TRITON_ERR(
+        output_json.AddStringRef("name", output->Name().c_str()));
     const char* datatype_str = TRITONSERVER_DataTypeString(output->DataType());
     RETURN_ERR_IF_TRITON_ERR(
         output_json.AddStringRef("datatype", datatype_str));
