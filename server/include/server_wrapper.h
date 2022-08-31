@@ -73,7 +73,8 @@ struct LoggingOptions {
 
 //==============================================================================
 /// Structure to hold metrics options for server parameters.
-///
+/// See here for more information:
+/// https://github.com/triton-inference-server/server/blob/main/docs/metrics.md.
 struct MetricsOptions {
   MetricsOptions();
 
@@ -93,7 +94,10 @@ struct MetricsOptions {
 
 //==============================================================================
 /// Structure to hold backend configuration for server parameters.
-///
+/// Different Triton-supported backends have different backend configuration
+/// options. Please refer to the 'Command line options' section in the
+/// documentation of each backend to see the options (e.g. Tensorflow Backend:
+/// https://github.com/triton-inference-server/tensorflow_backend#command-line-options)
 struct BackendConfig {
   BackendConfig();
 
@@ -125,28 +129,36 @@ struct ServerOptions {
 
   // Paths to model repository directory. Note that if a model is not unique
   // across all model repositories at any time, the model will not be available.
+  // See here for more information:
+  // https://github.com/triton-inference-server/server/blob/main/docs/model_repository.md.
   std::vector<std::string> model_repository_paths_;
-  // Logging options.
+  // Logging options. See the 'LoggingOptions' structure for more information.
   LoggingOptions logging_;
-  // Metrics options.
+  // Metrics options. See the 'MetricsOptions' structure for more information.
   MetricsOptions metrics_;
-  // Backend configuration.
+  // Backend configuration. See the 'BackendConfig' structure for more
+  // information.
   std::vector<BackendConfig> be_config_;
   // The ID of the server.
   std::string server_id_;
   // The global directory searched for backend shared libraries. Default is
-  // "/opt/tritonserver/backends".
+  // "/opt/tritonserver/backends". See here for more information:
+  // https://github.com/triton-inference-server/backend#backends.
   std::string backend_dir_;
   // The global directory searched for repository agent shared libraries.
-  // Default is "/opt/tritonserver/repoagents".
+  // Default is "/opt/tritonserver/repoagents". See here for more information:
+  // https://github.com/triton-inference-server/server/blob/main/docs/repository_agents.md.
   std::string repo_agent_dir_;
   // If set, disables the triton and backends from auto completing model
   // configuration files. Model configuration files must be provided and
   // all required configuration settings must be specified. Default is false.
+  // See here for more information:
+  // https://github.com/triton-inference-server/server/blob/main/docs/model_configuration.md#auto-generated-model-configuration.
   bool disable_auto_complete_config_;
   // Specify the mode for model management. Options are "MODEL_CONTROL_NONE",
   // "MODEL_CONTROL_POLL" and "MODEL_CONTROL_EXPLICIT". Default is
-  // "MODEL_CONTROL_NONE".
+  // "MODEL_CONTROL_NONE". See here for more information:
+  // https://github.com/triton-inference-server/server/blob/main/docs/model_management.md.
   ModelControlMode model_control_mode_;
 };
 
@@ -177,7 +189,9 @@ struct RepositoryIndex {
 };
 
 //==============================================================================
-/// Structure to hold information of a tensor.
+/// Structure to hold information of a tensor. This object is used for adding
+/// input/requested output to an inference request, and retrieving the output
+/// result from inference result.
 ///
 struct Tensor {
   Tensor(
@@ -202,7 +216,8 @@ struct Tensor {
   // The memory type of the tensor. Valid memory types are "CPU", "CPU_PINNED"
   // and "GPU".
   MemoryType memory_type_;
-  // The memory type ID of the tensor.
+  // The ID of the memory for the tensor. (e.g. '0' is the memory type id of
+  // 'GPU-0')
   int64_t memory_type_id_;
 };
 
@@ -368,8 +383,8 @@ class InferRequest {
   /// \param shape The shape of the input. This field is optional.
   /// \param memory_type The memory type of the input.
   /// This field is optional. Default is CPU.
-  /// \param memory_type_id The memory type id of the input.
-  /// This field is optional. Default is 0.
+  /// \param memory_type_id The ID of the memory for the tensor. (e.g. '0' is
+  /// the memory type id of 'GPU-0') This field is optional. Default is 0.
   /// \return Error object indicating success or failure.
   template <typename Iterator>
   Error AddInput(
@@ -387,8 +402,8 @@ class InferRequest {
   /// \param shape The shape of the input. This field is optional.
   /// \param memory_type The memory type of the input.
   /// This field is optional. Default is CPU.
-  /// \param memory_type_id The memory type id of the input.
-  /// This field is optional. Default is 0.
+  /// \param memory_type_id The ID of the memory for the tensor. (e.g. '0' is
+  /// the memory type id of 'GPU-0') This field is optional. Default is 0.
   /// \return Error object indicating success or failure.
   template <
       typename Iterator,
@@ -519,28 +534,66 @@ class InferResult {
 ///
 class Allocator {
   /***
-  * ResponseAllocatorAllocFn_t: The custom response allocation for the model. If
-  not set, will use the provided default allocator.
+  * ResponseAllocatorAllocFn_t: The custom response allocation that allocates a
+  buffer to hold an output tensor. If not set, will use the provided default
+  allocator.
 
   * ResponseAllocatorReleaseFn_t: The custom response release callback function
-  for the model. If not set, will use the provided default response release
-  callback function.
+  that is called when the server no longer holds any reference to a buffer
+  allocated by 'ResponseAllocatorAllocFn_t'. f not set, will use the provided
+  default response release callback function.
 
-  * ResponseAllocatorStartFn_t: The custom start callback function for the
-  model. If not set, will not provide any start callback function as it’s
+  * ResponseAllocatorStartFn_t: The custom start callback function that is
+  called to indicate that subsequent allocation requests will refer to a new
+  response. If not set, will not provide any start callback function as it’s
   typically not used.
 
   The signature of each function:
-   * using ResponseAllocatorAllocFn_t = Error (*)(
-    const char* tensor_name, size_t byte_size, MemoryType preferred_memory_type,
-    int64_t preferred_memory_type_id, void* userp, void** buffer,
-    void** buffer_userp, MemoryType* actual_memory_type,
+
+    \param tensor_name The name of the output tensor to allocate for.
+    \param byte_size The size of the buffer to allocate.
+    \param memory_type The type of memory that the caller prefers for
+    the buffer allocation.
+    \param memory_type_id The ID of the memory that the caller prefers
+    for the buffer allocation.
+    \param userp The user data pointer that is passed to the
+    'ResponseAllocatorAllocFn_t' callback function.
+    \param buffer Returns a pointer to the allocated memory.
+    \param buffer_userp Returns a user-specified value to associate
+    with the buffer, or nullptr if no user-specified value should be
+    associated with the buffer. This value will be passed to the
+    'ResponseAllocatorReleaseFn_t' callback function when the buffer
+    is released.
+    \param actual_memory_type Returns the type of memory where the
+    allocation resides. May be different than the type of memory
+    requested by 'memory_type'.
+    \param actual_memory_type_id Returns the ID of the memory where
+    the allocation resides. May be different than the ID of the memory
+    requested by 'memory_type_id'.
+    \return Error object indicating if a failure occurs while
+    attempting an allocation. If an error is returned all other return
+    values will be ignored.
+  * using ResponseAllocatorAllocFn_t = Error (*)(const char* tensor_name,
+    size_t byte_size, MemoryType memory_type, int64_t memory_type_id, void*
+    userp, void** buffer, void** buffer_userp, MemoryType* actual_memory_type,
     int64_t* actual_memory_type_id);
 
-   * using ResponseAllocatorReleaseFn_t = Error (*)(
+    \param buffer Pointer to the buffer to be freed.
+    \param buffer_userp The user-specified value associated
+    with the buffer in 'ResponseAllocatorAllocFn_t'.
+    \param byte_size The size of the buffer.
+    \param memory_type The type of memory holding the buffer.
+    \param memory_type_id The ID of the memory holding the buffer.
+    \return Error object indicating if a failure occurs while
+    attempting the release. If an error is returned Triton will not
+    attempt to release the buffer again.
+  * using ResponseAllocatorReleaseFn_t = Error (*)(
     void* buffer, void* buffer_userp, size_t byte_size, MemoryType memory_type,
     int64_t memory_type_id);
 
+    \param userp The user data pointer that is passed to the
+    'ResponseAllocatorStartFn_t' callback function.
+    \return Error object indicating  if a failure occurs
    * using ResponseAllocatorStartFn_t = Error (*)(void* userp);
   ***/
  public:

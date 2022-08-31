@@ -185,8 +185,13 @@ struct ResponseParameters {
   {
   }
 
+  // The name of the parameter.
   const char* name_;
+  // The type of the parameter. Valid types are TRITONSERVER_PARAMETER_STRING,
+  // TRITONSERVER_PARAMETER_INT, TRITONSERVER_PARAMETER_BOOL, and
+  // TRITONSERVER_PARAMETER_BYTES.
   TRITONSERVER_ParameterType type_;
+  // The pointer to the parameter value.
   const void* vvalue_;
 };
 
