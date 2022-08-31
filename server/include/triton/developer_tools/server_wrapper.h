@@ -275,7 +275,14 @@ class TritonServer {
 
   /// Get the metrics of the server.
   /// \return Returns a string representing the metrics.
-  std::string Metrics();
+  std::string ServerMetrics();
+
+  /// Get the inference statistics of the specified model.
+  /// \param model_name The name of the model 
+  /// \param model_version the version of the model requested
+  /// \return Returns a json string representing the model metrics
+  std::string ModelStatistics(
+    const std::string& model_name, const int64_t model_version);
 
   /// Run asynchronous inference on server.
   /// \param infer_request The InferRequest object contains
