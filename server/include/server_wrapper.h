@@ -40,8 +40,9 @@ namespace triton { namespace server { namespace wrapper {
 class InferResult;
 class InferRequest;
 class Allocator;
-using TensorAllocMap =
-    std::unordered_map<std::string, std::pair<const void*, size_t>>;
+using TensorAllocMap = std::unordered_map<
+    std::string,
+    std::tuple<const void*, size_t, TRITONSERVER_MemoryType, int64_t>>;
 
 //==============================================================================
 /// Structure to hold logging options for server parameters.
@@ -201,7 +202,9 @@ struct Tensor {
 
   Tensor(const std::string& name);
 
-  Tensor(const std::string& name, char* buffer, size_t byte_size);
+  Tensor(
+      const std::string& name, char* buffer, size_t byte_size,
+      MemoryType memory_type, int64_t memory_type_id);
 
   // The name of the tensor.
   std::string name_;
@@ -438,9 +441,9 @@ class InferRequest {
   std::vector<std::unique_ptr<InferInput>> inputs_ = {};
   std::vector<std::unique_ptr<InferRequestedOutput>> outputs_ = {};
 
-  // The map for each output tensor and a pair of it's pre-allocated buffer and
-  // byte size. [key:value -> output name : pair<pre-allocated buffer, byte
-  // size>]
+  // The map for each output tensor and a tuple of it's pre-allocated buffer,
+  // byte size, memory type and memory type id. [key:value -> output name :
+  // tuple<pre-allocated buffer, byte_size, memory_type, memory_type_id>]
   TensorAllocMap tensor_alloc_map_;
 };
 

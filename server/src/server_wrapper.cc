@@ -184,25 +184,28 @@ InternalServer::ResponseAlloc(
 {
   auto p = reinterpret_cast<InferRequest*>(userp);
   if ((p->tensor_alloc_map_.find(tensor_name) != p->tensor_alloc_map_.end() &&
-       p->tensor_alloc_map_[tensor_name].first != nullptr)) {
-    if (byte_size != p->tensor_alloc_map_[tensor_name].second) {
+       std::get<0>(p->tensor_alloc_map_[tensor_name]) != nullptr)) {
+    if (byte_size != std::get<1>(p->tensor_alloc_map_[tensor_name])) {
       return TRITONSERVER_ErrorNew(
           TRITONSERVER_ERROR_INTERNAL,
           std::string(
               "Unexpected byte-size of pre-allocated buffer for '" +
               std::string(tensor_name) + "'. Expected " +
               std::to_string(byte_size) + ", got " +
-              std::to_string(p->tensor_alloc_map_[tensor_name].second))
+              std::to_string(std::get<1>(p->tensor_alloc_map_[tensor_name])))
               .c_str());
     }
 
     // Use the pre-allocated buffer.
-    *buffer = const_cast<void*>(p->tensor_alloc_map_[tensor_name].first);
+    *buffer = const_cast<void*>(std::get<0>(p->tensor_alloc_map_[tensor_name]));
     std::pair<std::string, bool>* free_buffer =
         new std::pair<std::string, bool>(
             tensor_name,
             false /* if the buffer needs to be freed in ResponseReleaseFn */);
     *buffer_userp = reinterpret_cast<void*>(free_buffer);
+
+    *actual_memory_type = std::get<2>(p->tensor_alloc_map_[tensor_name]);
+    *actual_memory_type_id = std::get<3>(p->tensor_alloc_map_[tensor_name]);
   } else {
     // *buffer_userp = new std::string(tensor_name);
     // Initially attempt to make the actual memory type and id that we
@@ -587,15 +590,17 @@ Tensor::Tensor(const std::string& name)
   memory_type_id_ = 0;
 }
 
-Tensor::Tensor(const std::string& name, char* buffer, size_t byte_size)
+Tensor::Tensor(
+    const std::string& name, char* buffer, size_t byte_size,
+    MemoryType memory_type, int64_t memory_type_id)
 {
   name_ = name;
   buffer_ = buffer;
   byte_size_ = byte_size;
   data_type_ = INVALID;
   shape_ = {};
-  memory_type_ = CPU;
-  memory_type_id_ = 0;
+  memory_type_ = memory_type;
+  memory_type_id_ = memory_type_id;
 }
 
 InferOptions::InferOptions(const std::string& model_name)
@@ -859,8 +864,9 @@ TritonServer::PrepareInferenceOutput(
     RETURN_ERR_IF_TRITON_ERR(
         TRITONSERVER_InferenceRequestAddRequestedOutput(irequest, name));
     if (infer_output->Buffer() != nullptr) {
-      request.tensor_alloc_map_[name] =
-          std::make_pair(infer_output->Buffer(), infer_output->ByteSize());
+      request.tensor_alloc_map_[name] = std::make_tuple(
+          infer_output->Buffer(), infer_output->ByteSize(),
+          infer_output->MemoryType(), infer_output->MemoryTypeId());
     }
   }
 
@@ -1101,8 +1107,10 @@ InferRequest::AddOutput(Tensor& output_tensor)
   if (output_tensor.buffer_ == nullptr) {
     output = InferRequestedOutput::Create(output_tensor.name_);
   } else {
-    output = InferRequestedOutput::Create(
-        output_tensor.name_, output_tensor.buffer_, output_tensor.byte_size_);
+    RETURN_IF_ERR(InferRequestedOutput::Create(
+        output, output_tensor.name_, output_tensor.buffer_,
+        output_tensor.byte_size_, output_tensor.memory_type_,
+        output_tensor.memory_type_id_));
   }
 
   outputs_.push_back(std::move(output));

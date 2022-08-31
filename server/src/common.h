@@ -259,7 +259,7 @@ ModelReadyState StringToWrapperModelReadyState(const std::string& state);
 class InferInput {
  public:
   /// Create an InferInput instance that describes a model input.
-  /// \param infer_input Returns a new InferInput object.
+  /// \param[out] infer_input Returns a new InferInput object.
   /// \param name The name of input whose data will be described by this object.
   /// \param dims The shape of the input.
   /// \param datatype The datatype of the input.
@@ -351,15 +351,23 @@ class InferRequestedOutput {
 
   /// Create a InferRequestedOutput instance that describes a model output being
   /// requested with pre-allocated output buffer.
+  /// \param[out] infer_output Returns a new InferInput object.
   /// \param name The name of output being requested.
   /// \param buffer The pointer to the start of the pre-allocated buffer.
   /// \param byte_size The size of buffer in bytes.
-  /// \return  Returns a new InferRequestedOutput object.
-  static std::unique_ptr<InferRequestedOutput> Create(
-      const std::string& name, const char* buffer, size_t byte_size)
+  /// \param memory_type The memory type of the input.
+  /// \param memory_type_id The memory type id of the input.
+  /// \return Error object indicating success or failure.
+  static Error Create(
+      std::unique_ptr<InferRequestedOutput>& infer_output,
+      const std::string& name, const char* buffer, size_t byte_size,
+      MemoryType memory_type, int64_t memory_type_id)
   {
-    return std::unique_ptr<InferRequestedOutput>(
-        new InferRequestedOutput(name, buffer, byte_size));
+    TRITONSERVER_MemoryType output_memory_type;
+    RETURN_IF_ERR(WrapperToTritonMemoryType(&output_memory_type, memory_type));
+    infer_output.reset(new InferRequestedOutput(
+        name, buffer, byte_size, output_memory_type, memory_type_id));
+    return Error::Success;
   }
 
   /// Gets name of the associated output tensor.
@@ -374,14 +382,24 @@ class InferRequestedOutput {
   /// \return The name of the tensor.
   size_t ByteSize() { return byte_size_; }
 
+  /// Gets the memory type of the output tensor.
+  /// \return The memory type of the tensor.
+  const TRITONSERVER_MemoryType& MemoryType() const { return memory_type_; }
+
+  /// Gets the memory type id of the output tensor.
+  /// \return The memory type id of the tensor.
+  const int64_t& MemoryTypeId() const { return memory_type_id_; }
+
   InferRequestedOutput(const std::string& name)
       : name_(name), buffer_(nullptr), byte_size_(0)
   {
   }
 
   InferRequestedOutput(
-      const std::string& name, const char* buffer, size_t byte_size)
-      : name_(name), buffer_(buffer), byte_size_(byte_size)
+      const std::string& name, const char* buffer, size_t byte_size,
+      TRITONSERVER_MemoryType memory_type, int64_t memory_type_id)
+      : name_(name), buffer_(buffer), byte_size_(byte_size),
+        memory_type_(memory_type), memory_type_id_(memory_type_id)
   {
   }
 
@@ -389,6 +407,8 @@ class InferRequestedOutput {
   std::string name_;
   const char* buffer_;
   size_t byte_size_;
+  TRITONSERVER_MemoryType memory_type_;
+  int64_t memory_type_id_;
 };
 
 //==============================================================================
