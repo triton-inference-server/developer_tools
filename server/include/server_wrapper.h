@@ -196,18 +196,16 @@ struct RepositoryIndex {
 ///
 struct Tensor {
   Tensor(
-      const std::string& name, char* buffer, const size_t& byte_size,
-      DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
+      char* buffer, const size_t& byte_size, DataType data_type,
+      std::vector<int64_t> shape, MemoryType memory_type,
       int64_t memory_type_id);
 
-  Tensor(const std::string& name);
-
   Tensor(
-      const std::string& name, char* buffer, size_t byte_size,
-      MemoryType memory_type, int64_t memory_type_id);
+      char* buffer, size_t byte_size, MemoryType memory_type,
+      int64_t memory_type_id);
 
-  // The name of the tensor.
-  std::string name_;
+  ~Tensor();
+
   // The pointer to the start of the buffer.
   char* buffer_;
   // The size of buffer in bytes.
@@ -222,6 +220,17 @@ struct Tensor {
   // The ID of the memory for the tensor. (e.g. '0' is the memory type id of
   // 'GPU-0')
   int64_t memory_type_id_;
+
+  friend class InternalResult;
+
+ private:
+  // Store the custom allocator object in case we need to use it to release
+  // the buffer.
+  std::shared_ptr<Allocator> custom_allocator_;
+  // Indicate if the buffer of this tensor is pre-allocated.
+  bool is_pre_alloc_;
+  // Indicate if thie tensor is an output from inference.
+  bool is_output_;
 };
 
 //==============================================================================
@@ -287,13 +296,6 @@ class TritonServer {
       TRITONSERVER_InferenceRequest** irequest,
       const InferRequest& infer_request);
 
-  // Helper function for parsing data type and shape of an input tensor from
-  // model configuration when 'data_type' or 'shape' field is missing.
-  Error ParseDataTypeAndShape(
-      const std::string& model_name, const int64_t model_version,
-      const std::string& input_name, TRITONSERVER_DataType* datatype,
-      std::vector<int64_t>* shape);
-
   // The server object.
   std::shared_ptr<TRITONSERVER_Server> server_;
 };
@@ -309,7 +311,8 @@ struct InferOptions {
       const std::string& request_id, const uint64_t& correlation_id,
       const std::string& correlation_id_str, const bool sequence_start,
       const bool sequence_end, const uint64_t& priority,
-      const uint64_t& request_timeout, Allocator* custom_allocator);
+      const uint64_t& request_timeout,
+      std::shared_ptr<Allocator> custom_allocator);
 
   /// The name of the model to run inference.
   std::string model_name_;
@@ -355,8 +358,8 @@ struct InferOptions {
   /// If using custom allocator, the lifetime of this 'Allocator' object should
   /// be long enough until `InferResult` object goes out of scope as we need
   /// this `Allocator` object to call 'ResponseAllocatorReleaseFn_t' for
-  // releasing the response.
-  Allocator* custom_allocator_;
+  /// releasing the response.
+  std::shared_ptr<Allocator> custom_allocator_;
 };
 
 //==============================================================================
@@ -371,15 +374,16 @@ class InferRequest {
   virtual ~InferRequest();
 
   /// Add an input tensor to be sent within an InferRequest object.
+  /// \param name The name of the input tensor.
   /// \param input A Tensor object that describes an input tensor.
   /// \return Error object indicating success or failure.
-  Error AddInput(const Tensor& input);
+  Error AddInput(const std::string& name, const Tensor& input);
 
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding 'non-string' data elements. Data in the
-  /// container should be contiguous, and the the container must
-  // not be modified before the result is returned.
-  /// \param model_name The name of the input tensor.
+  /// container should be contiguous, and the the container must not be modified
+  /// before the result is returned.
+  /// \param name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
   /// \param data_type The data type of the input. This field is optional.
@@ -392,14 +396,14 @@ class InferRequest {
   template <typename Iterator>
   Error AddInput(
       const std::string& name, const Iterator begin, const Iterator end,
-      DataType data_type = INVALID, std::vector<int64_t> shape = {},
-      MemoryType memory_type = CPU, int64_t memory_type_id = 0);
+      DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
+      int64_t memory_type_id);
 
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding 'string' elements. Data in the
   /// container should be contiguous, and the the container must
   // not be modified before the result is returned.
-  /// \param model_name The name of the input tensor.
+  /// \param name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
   /// \param shape The shape of the input. This field is optional.
@@ -415,17 +419,27 @@ class InferRequest {
           bool> = true>
   Error AddInput(
       const std::string& name, const Iterator begin, const Iterator end,
-      std::vector<int64_t> shape = {}, MemoryType memory_type = CPU,
-      int64_t memory_type_id = 0);
+      std::vector<int64_t> shape, MemoryType memory_type,
+      int64_t memory_type_id);
 
-  /// Add a requested output tensor to be sent within an InferRequest object.
+  /// Add a requested output to be sent within an InferRequest object.
   /// Calling this function is optional. If no output(s) are specifically
   /// requested then all outputs defined by the model will be calculated and
-  /// returned. Pre-allocated buffer for each output can be specified within the
-  /// 'Tensor' object.
-  /// \param output A Tensor object that describes an output tensor.
+  /// returned. Pre-allocated buffer for each output should be specified within
+  /// the 'Tensor' object.
+  /// \param name The name of the output tensor.
+  /// \param output A Tensor object that describes an output tensor containing
+  /// the pre-allocated buffer.
   /// \return Error object indicating success or failure.
-  Error AddOutput(Tensor& output);
+  Error AddRequestedOutput(const std::string& name, Tensor& output);
+
+  /// Add a requested output to be sent within an InferRequest object.
+  /// Calling this function is optional. If no output(s) are specifically
+  /// requested then all outputs defined by the model will be calculated and
+  /// returned.
+  /// \param name The name of the output tensor.
+  /// \return Error object indicating success or failure.
+  Error AddRequestedOutput(const std::string& name);
 
   /// Clear inputs and outputs of the request except for the callback functions.
   /// This allows users to reuse the InferRequest object if needed.
@@ -438,7 +452,7 @@ class InferRequest {
  protected:
   std::unique_ptr<InferOptions> infer_options_;
   std::list<std::string> str_bufs_;
-  std::vector<std::unique_ptr<InferInput>> inputs_ = {};
+  std::unordered_map<std::string, std::unique_ptr<Tensor>> inputs_ = {};
   std::vector<std::unique_ptr<InferRequestedOutput>> outputs_ = {};
 
   // The map for each output tensor and a tuple of it's pre-allocated buffer,
@@ -471,11 +485,11 @@ class InferResult {
   /// output is owned by InferResult instance. Users can copy out the data if
   /// required to extend the lifetime. Note that for string data, need to use
   /// 'StringData' function for string data result.
+  /// \param name The name of the output tensor to be retrieved.
   /// \param[out] output Contains the requested output tensor name. The output
-  /// data
-  // will be returned in the same 'Tensor' object.
+  /// data will be returned in the same 'Tensor' object.
   /// \return Error object indicating success or failure of the request.
-  Error Output(std::shared_ptr<Tensor> output);
+  Error Output(const std::string& name, std::shared_ptr<Tensor>& output);
 
   /// Get the result data as a vector of strings. The vector will
   /// receive a copy of result data. An error will be generated if
@@ -493,9 +507,7 @@ class InferResult {
   /// \return The string describing the complete response.
   Error DebugString(std::string* string_result);
 
-  /// Returns if there is an error within this result. If so, should not call
-  /// other member functions to retreive result as the output result may be
-  /// incorrect.
+  /// Returns if there is an error within this result.
   /// \return True if this 'InferResult' object has an error, false if no error.
   bool HasError();
 
@@ -504,27 +516,11 @@ class InferResult {
   std::string ErrorMsg();
 
  protected:
-  /// Get the shape of output result returned in the response.
-  /// \param output_name The name of the ouput to get shape.
-  /// \param shape Returns the shape of result for specified output name.
-  /// \return Error object indicating success or failure.
-  void ShapeHelper(const std::string& output_name, std::vector<int64_t>* shape);
-
-  /// Get access to the buffer holding raw results of specified output
-  /// returned by the server.
-  /// \param output_name The name of the output to get result data.
-  /// \param buf Returns the pointer to the start of the buffer.
-  /// \param byte_size Returns the size of buffer in bytes.
-  /// \return Error object indicating success or failure of the
-  /// request.
-  void RawData(
-      const std::string& output_name, const char** buf, size_t* byte_size);
-
   const char* model_name_;
   int64_t model_version_;
   const char* request_id_;
   std::vector<std::unique_ptr<ResponseParameters>> params_;
-  std::unordered_map<std::string, std::unique_ptr<InferOutput>> infer_outputs_;
+  std::unordered_map<std::string, std::shared_ptr<Tensor>> infer_outputs_;
   Error response_error_;
 
   TRITONSERVER_InferenceResponse* completed_response_ = nullptr;
@@ -532,19 +528,18 @@ class InferResult {
 
 //==============================================================================
 /// Custom Allocator object for providing custom functions for allocator.
-/// If there are no custom functions set, will use the provided default
-/// functions for allocator.
+/// If there is no custom allocator provided, will use the default allocator.
 ///
 class Allocator {
   /***
   * ResponseAllocatorAllocFn_t: The custom response allocation that allocates a
-  buffer to hold an output tensor. If not set, will use the provided default
-  allocator.
+  buffer to hold an output tensor.
 
-  * ResponseAllocatorReleaseFn_t: The custom response release callback function
-  that is called when the server no longer holds any reference to a buffer
-  allocated by 'ResponseAllocatorAllocFn_t'. f not set, will use the provided
-  default response release callback function.
+  * OutputBufferReleaseFn_t: The custom output buffer release function
+  that is called to release a buffer allocated by 'ResponseAllocatorAllocFn_t'.
+  This function is called in the destructor of 'Tensor' object when the output
+  tensor goes out of scope. User has the responsibility to clean the buffer
+  correctly.
 
   * ResponseAllocatorStartFn_t: The custom start callback function that is
   called to indicate that subsequent allocation requests will refer to a new
@@ -559,14 +554,7 @@ class Allocator {
     the buffer allocation.
     \param memory_type_id The ID of the memory that the caller prefers
     for the buffer allocation.
-    \param userp The user data pointer that is passed to the
-    'ResponseAllocatorAllocFn_t' callback function.
     \param buffer Returns a pointer to the allocated memory.
-    \param buffer_userp Returns a user-specified value to associate
-    with the buffer, or nullptr if no user-specified value should be
-    associated with the buffer. This value will be passed to the
-    'ResponseAllocatorReleaseFn_t' callback function when the buffer
-    is released.
     \param actual_memory_type Returns the type of memory where the
     allocation resides. May be different than the type of memory
     requested by 'memory_type'.
@@ -577,22 +565,19 @@ class Allocator {
     attempting an allocation. If an error is returned all other return
     values will be ignored.
   * using ResponseAllocatorAllocFn_t = Error (*)(const char* tensor_name,
-    size_t byte_size, MemoryType memory_type, int64_t memory_type_id, void*
-    userp, void** buffer, void** buffer_userp, MemoryType* actual_memory_type,
-    int64_t* actual_memory_type_id);
+    size_t byte_size, MemoryType memory_type, int64_t memory_type_id, void**
+    buffer, MemoryType* actual_memory_type, int64_t* actual_memory_type_id);
 
     \param buffer Pointer to the buffer to be freed.
-    \param buffer_userp The user-specified value associated
-    with the buffer in 'ResponseAllocatorAllocFn_t'.
     \param byte_size The size of the buffer.
     \param memory_type The type of memory holding the buffer.
     \param memory_type_id The ID of the memory holding the buffer.
     \return Error object indicating if a failure occurs while
     attempting the release. If an error is returned Triton will not
     attempt to release the buffer again.
-  * using ResponseAllocatorReleaseFn_t = Error (*)(
-    void* buffer, void* buffer_userp, size_t byte_size, MemoryType memory_type,
-    int64_t memory_type_id);
+  * using OutputBufferReleaseFn_t = Error (*)(
+    void* buffer, size_t byte_size, MemoryType memory_type, int64_t
+    memory_type_id);
 
     \param userp The user data pointer that is passed to the
     'ResponseAllocatorStartFn_t' callback function.
@@ -601,20 +586,19 @@ class Allocator {
   ***/
  public:
   explicit Allocator(
-      ResponseAllocatorAllocFn_t alloc_fn,
-      ResponseAllocatorReleaseFn_t release_fn,
+      ResponseAllocatorAllocFn_t alloc_fn, OutputBufferReleaseFn_t release_fn,
       ResponseAllocatorStartFn_t start_fn = nullptr)
       : alloc_fn_(alloc_fn), release_fn_(release_fn), start_fn_(start_fn)
   {
   }
 
   ResponseAllocatorAllocFn_t AllocFn() { return alloc_fn_; }
-  ResponseAllocatorReleaseFn_t ReleaseFn() { return release_fn_; }
+  OutputBufferReleaseFn_t ReleaseFn() { return release_fn_; }
   ResponseAllocatorStartFn_t StartFn() { return start_fn_; }
 
  private:
   ResponseAllocatorAllocFn_t alloc_fn_;
-  ResponseAllocatorReleaseFn_t release_fn_;
+  OutputBufferReleaseFn_t release_fn_;
   ResponseAllocatorStartFn_t start_fn_;
 };
 
@@ -651,10 +635,10 @@ InferRequest::AddInput(
     sbuf.append(*it);
   }
   Tensor input(
-      name, reinterpret_cast<char*>(&sbuf[0]), sbuf.size(), BYTES, shape,
-      memory_type, memory_type_id);
+      reinterpret_cast<char*>(&sbuf[0]), sbuf.size(), BYTES, shape, memory_type,
+      memory_type_id);
 
-  return AddInput(input);
+  return AddInput(name, input);
 }
 
 template <typename Iterator>
@@ -667,9 +651,9 @@ InferRequest::AddInput(
   size_t bytes = sizeof(*begin) * std::distance(begin, end);
 
   Tensor input(
-      name, reinterpret_cast<char*>(&(*begin)), bytes, data_type, shape,
-      memory_type, memory_type_id);
-  return AddInput(input);
+      reinterpret_cast<char*>(&(*begin)), bytes, data_type, shape, memory_type,
+      memory_type_id);
+  return AddInput(name, input);
 }
 
 }}}  // namespace triton::server::wrapper

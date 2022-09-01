@@ -176,8 +176,11 @@ struct ServerWrapperException : std::exception {
 };
 
 //==============================================================================
-/// Structure to hold response parameters for InfeResult object.
-///
+/// Structure to hold response parameters for InfeResult object. The kinds
+/// of parameters in a response can be created by the backend side using
+/// 'TRITONBACKEND_ResponseSet*Parameter' APIs.
+/// See here for more information:
+/// https://github.com/triton-inference-server/backend/tree/main/examples#add-key-value-parameters-to-a-response
 struct ResponseParameters {
   explicit ResponseParameters(
       const char* name, TRITONSERVER_ParameterType type, const void* vvalue)
@@ -227,13 +230,11 @@ class Error {
 ///
 using ResponseAllocatorAllocFn_t = Error (*)(
     const char* tensor_name, size_t byte_size, MemoryType preferred_memory_type,
-    int64_t preferred_memory_type_id, void* userp, void** buffer,
-    void** buffer_userp, MemoryType* actual_memory_type,
-    int64_t* actual_memory_type_id);
-using ResponseAllocatorReleaseFn_t = Error (*)(
-    void* buffer, void* buffer_userp, size_t byte_size, MemoryType memory_type,
+    int64_t preferred_memory_type_id, void** buffer,
+    MemoryType* actual_memory_type, int64_t* actual_memory_type_id);
+using OutputBufferReleaseFn_t = Error (*)(
+    void* buffer, size_t byte_size, MemoryType memory_type,
     int64_t memory_type_id);
-
 using ResponseAllocatorStartFn_t = Error (*)(void* userp);
 
 //==============================================================================
@@ -253,96 +254,15 @@ Error TritonToWrapperMemoryType(
 ModelReadyState StringToWrapperModelReadyState(const std::string& state);
 
 //==============================================================================
-/// An interface for InferInput object to describe the model input for
-/// inference.
-///
-class InferInput {
- public:
-  /// Create an InferInput instance that describes a model input.
-  /// \param[out] infer_input Returns a new InferInput object.
-  /// \param name The name of input whose data will be described by this object.
-  /// \param dims The shape of the input.
-  /// \param datatype The datatype of the input.
-  /// \param data_ptr The data pointer of the input.
-  /// \param byte_size The byte size of the input.
-  /// \param memory_type The memory type of the input.
-  /// \param memory_type_id The memory type id of the input.
-  /// \return Error object indicating success or failure.
-  static Error Create(
-      std::unique_ptr<InferInput>& infer_input, const std::string name,
-      const std::vector<int64_t>& dims, const DataType datatype,
-      const char* data_ptr, const uint64_t byte_size,
-      const MemoryType memory_type, const int64_t memory_type_id)
-  {
-    TRITONSERVER_MemoryType input_memory_type;
-    TRITONSERVER_DataType dtype = WrapperToTritonDataType(datatype);
-    RETURN_IF_ERR(WrapperToTritonMemoryType(&input_memory_type, memory_type));
-
-    infer_input.reset(new InferInput(
-        name, dims, dtype, data_ptr, byte_size, input_memory_type,
-        memory_type_id));
-    return Error::Success;
-  }
-
-  /// Gets name of the associated input tensor.
-  /// \return The name of the tensor.
-  const std::string& Name() const { return name_; }
-
-  /// Gets datatype of the associated input tensor.
-  /// \return The datatype of the tensor.
-  const TRITONSERVER_DataType& DataType() const { return datatype_; }
-
-  /// Gets the shape of the input tensor.
-  /// \return The shape of the tensor.
-  const std::vector<int64_t>& Shape() const { return shape_; }
-
-  /// Gets the memory type of the input tensor.
-  /// \return The memory type of the tensor.
-  const TRITONSERVER_MemoryType& MemoryType() const { return memory_type_; }
-
-  /// Gets the memory type id of the input tensor.
-  /// \return The memory type id of the tensor.
-  const int64_t& MemoryTypeId() const { return memory_type_id_; }
-
-  /// Get the data ptr
-  /// \return Get the raw pointer.
-  const char* DataPtr() { return data_ptr_; };
-
-  /// Get the total byte size of the tensor.
-  uint64_t ByteSize() const { return byte_size_; };
-
-  InferInput(
-      const std::string name, const std::vector<int64_t>& shape,
-      const TRITONSERVER_DataType datatype, const char* data_ptr,
-      const uint64_t byte_size, const TRITONSERVER_MemoryType memory_type,
-      const int64_t memory_type_id)
-      : name_(name), shape_(shape), datatype_(datatype), data_ptr_(data_ptr),
-        byte_size_(byte_size), memory_type_(memory_type),
-        memory_type_id_(memory_type_id)
-  {
-  }
-
- private:
-  std::string name_;
-  std::vector<int64_t> shape_;
-  TRITONSERVER_DataType datatype_;
-
-  const char* data_ptr_;
-  uint64_t byte_size_;
-
-  TRITONSERVER_MemoryType memory_type_;
-  int64_t memory_type_id_;
-};
-
-//==============================================================================
 /// An InferRequestedOutput object is used to describe the requested model
 /// output for inference.
 ///
 class InferRequestedOutput {
  public:
   /// Create an InferRequestedOutput instance that describes a model output
-  /// being requested. \param name The name of output being requested. \return
-  /// Returns a new InferRequestedOutput object.
+  /// being requested.
+  /// \param name The name of output being requested.
+  /// \return Returns a new InferRequestedOutput object.
   static std::unique_ptr<InferRequestedOutput> Create(const std::string& name)
   {
     return std::unique_ptr<InferRequestedOutput>(
@@ -351,12 +271,12 @@ class InferRequestedOutput {
 
   /// Create a InferRequestedOutput instance that describes a model output being
   /// requested with pre-allocated output buffer.
-  /// \param[out] infer_output Returns a new InferInput object.
+  /// \param[out] infer_output Returns a new InferRequestedOutput object.
   /// \param name The name of output being requested.
   /// \param buffer The pointer to the start of the pre-allocated buffer.
   /// \param byte_size The size of buffer in bytes.
-  /// \param memory_type The memory type of the input.
-  /// \param memory_type_id The memory type id of the input.
+  /// \param memory_type The memory type of the output.
+  /// \param memory_type_id The memory type id of the output.
   /// \return Error object indicating success or failure.
   static Error Create(
       std::unique_ptr<InferRequestedOutput>& infer_output,
@@ -391,7 +311,8 @@ class InferRequestedOutput {
   const int64_t& MemoryTypeId() const { return memory_type_id_; }
 
   InferRequestedOutput(const std::string& name)
-      : name_(name), buffer_(nullptr), byte_size_(0)
+      : name_(name), buffer_(nullptr), byte_size_(0),
+        memory_type_(TRITONSERVER_MEMORY_CPU), memory_type_id_(0)
   {
   }
 
@@ -409,89 +330,6 @@ class InferRequestedOutput {
   size_t byte_size_;
   TRITONSERVER_MemoryType memory_type_;
   int64_t memory_type_id_;
-};
-
-//==============================================================================
-/// An interface for InferOutput object to describe the infer output for
-/// inference.
-///
-class InferOutput {
- public:
-  /// Create an InferOutput instance that describes a inference output.
-  /// \param name The name of output being requested.
-  /// \param datatype The datatype of the output.
-  /// \param shape The shape of the output.
-  /// \param dims_count The dims count of the output.
-  /// \param byte_size The byte size of the output.
-  /// \param memory_type The memory type of the output.
-  /// \param memory_type_id The memory type id of the output.
-  /// \param base The data pointer of the output.
-  /// \param userp The userp function.
-  /// \return Returns a new InferOutput object.
-  static std::unique_ptr<InferOutput> Create(
-      const char* name, TRITONSERVER_DataType data_type, const int64_t* shape,
-      uint64_t dims_count, size_t byte_size,
-      TRITONSERVER_MemoryType memory_type, int64_t memory_type_id,
-      const void* base, void* userp)
-  {
-    return std::unique_ptr<InferOutput>(new InferOutput(
-        name, data_type, shape, dims_count, byte_size, memory_type,
-        memory_type_id, base, userp));
-  }
-
-  InferOutput(
-      const char* name, TRITONSERVER_DataType data_type, const int64_t* shape,
-      uint64_t dims_count, size_t byte_size,
-      TRITONSERVER_MemoryType memory_type, int64_t memory_type_id,
-      const void* base, void* userp)
-      : name_(name), datatype(data_type), shape(shape), dims_count_(dims_count),
-        output_byte_size_(byte_size), memory_type_(memory_type),
-        memory_type_id_(memory_type_id), base_(base), userp_(userp)
-  {
-  }
-
-  /// Gets name of the associated output tensor.
-  /// \return The name of the tensor.
-  const std::string& Name() const { return name_; }
-
-  /// Gets datatype of the associated output tensor.
-  /// \return The datatype of the tensor.
-  TRITONSERVER_DataType DataType() { return datatype; }
-
-  /// Gets the shape of the output tensor.
-  /// \return The shape of the tensor.
-  const int64_t* Shape() { return shape; }
-
-  /// Gets dims count of the associated output tensor.
-  /// \return The dims count of the tensor.
-  uint64_t DimsCount() { return dims_count_; }
-
-  /// Gets byte size of the associated output tensor.
-  /// \return The name of the tensor.
-  size_t ByteSize() { return output_byte_size_; }
-
-  /// Gets the memory type of the output tensor.
-  /// \return The memory type of the tensor.
-  TRITONSERVER_MemoryType MemoryType() { return memory_type_; }
-
-  /// Gets the memory type id of the output tensor.
-  /// \return The memory type id of the tensor.
-  int64_t MemoryTypeId() { return memory_type_id_; }
-
-  /// Gets data pointer of the associated output tensor.
-  /// \return The name of the tensor.
-  const void* DataPtr() { return base_; }
-
- private:
-  std::string name_;
-  TRITONSERVER_DataType datatype;
-  const int64_t* shape;
-  uint64_t dims_count_;
-  size_t output_byte_size_;
-  TRITONSERVER_MemoryType memory_type_;
-  int64_t memory_type_id_;
-  const void* base_;
-  void* userp_;
 };
 
 }}}  // namespace triton::server::wrapper

@@ -131,17 +131,16 @@ TEST_F(TritonServerTest, InferMinimal)
     while (input_data.size() < 16) {
       input_data.emplace_back(input_data.size());
     }
-    std::vector<tsw::Tensor> inputs;
-    for (const auto& name : std::vector<std::string>{"INPUT0", "INPUT1"}) {
-      inputs.emplace_back(tsw::Tensor(
-          name, reinterpret_cast<char*>(input_data.data()),
-          input_data.size() * sizeof(int32_t), tsw::DataType::INT32, {16},
-          tsw::MemoryType::CPU, 0));
-    }
-
     auto request = tsw::InferRequest::Create(tsw::InferOptions("add_sub"));
-    for (const auto& input : inputs) {
-      ASSERT_TRUE((err = request->AddInput(input)).IsOk()) << err.Message();
+    for (const auto& name : std::vector<std::string>{"INPUT0", "INPUT1"}) {
+      ASSERT_TRUE(
+          (err = request->AddInput(
+               name, tsw::Tensor(
+                         reinterpret_cast<char*>(input_data.data()),
+                         input_data.size() * sizeof(int32_t),
+                         tsw::DataType::INT32, {16}, tsw::MemoryType::CPU, 0)))
+              .IsOk())
+          << err.Message();
     }
     std::future<std::unique_ptr<tsw::InferResult>> result_future;
     ASSERT_TRUE((err = server->AsyncInfer(&result_future, *request)).IsOk())
@@ -157,8 +156,9 @@ TEST_F(TritonServerTest, InferMinimal)
     // OUTPUT0 -> sum
     {
       std::string out_name("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> out(new tsw::Tensor(out_name));
-      ASSERT_TRUE((err = result->Output(out)).IsOk()) << err.Message();
+      std::shared_ptr<tsw::Tensor> out;
+      ASSERT_TRUE((err = result->Output(out_name, out)).IsOk())
+          << err.Message();
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
       ASSERT_EQ(out->data_type_, tsw::DataType::INT32);
       ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
@@ -172,8 +172,9 @@ TEST_F(TritonServerTest, InferMinimal)
     // OUTPUT1 -> diff
     {
       std::string out_name("OUTPUT1");
-      std::shared_ptr<tsw::Tensor> out(new tsw::Tensor(out_name));
-      ASSERT_TRUE((err = result->Output(out)).IsOk()) << err.Message();
+      std::shared_ptr<tsw::Tensor> out;
+      ASSERT_TRUE((err = result->Output(out_name, out)).IsOk())
+          << err.Message();
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
       ASSERT_EQ(out->data_type_, tsw::DataType::INT32);
       ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
@@ -202,10 +203,10 @@ TEST_F(TritonServerTest, InferString)
 
     auto request = tsw::InferRequest::Create(tsw::InferOptions("add_sub_str"));
     for (const auto& name : std::vector<std::string>{"INPUT0", "INPUT1"}) {
-      ASSERT_TRUE(
-          (err = request->AddInput(
-               name, input_data_str.begin(), input_data_str.end(), {16}))
-              .IsOk())
+      ASSERT_TRUE((err = request->AddInput(
+                       name, input_data_str.begin(), input_data_str.end(), {16},
+                       tsw::MemoryType::CPU, 0))
+                      .IsOk())
           << err.Message();
     }
 
@@ -226,8 +227,9 @@ TEST_F(TritonServerTest, InferString)
     // OUTPUT0 -> sum
     {
       std::string out_name("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> out(new tsw::Tensor(out_name));
-      ASSERT_TRUE((err = result->Output(out)).IsOk()) << err.Message();
+      std::shared_ptr<tsw::Tensor> out;
+      ASSERT_TRUE((err = result->Output(out_name, out)).IsOk())
+          << err.Message();
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
       ASSERT_EQ(out->data_type_, tsw::DataType::BYTES);
       ASSERT_TRUE((err = result->StringData(out_name, &out_str)).IsOk())
@@ -240,8 +242,9 @@ TEST_F(TritonServerTest, InferString)
     // OUTPUT1 -> diff
     {
       std::string out_name("OUTPUT1");
-      std::shared_ptr<tsw::Tensor> out(new tsw::Tensor(out_name));
-      ASSERT_TRUE((err = result->Output(out)).IsOk()) << err.Message();
+      std::shared_ptr<tsw::Tensor> out;
+      ASSERT_TRUE((err = result->Output(out_name, out)).IsOk())
+          << err.Message();
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
       ASSERT_EQ(out->data_type_, tsw::DataType::BYTES);
       ASSERT_TRUE((err = result->StringData(out_name, &out_str)).IsOk())
