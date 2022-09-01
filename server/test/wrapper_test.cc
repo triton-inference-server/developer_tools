@@ -26,7 +26,7 @@
 #include "gtest/gtest.h"
 
 #include <exception>
-#include "server_wrapper.h"
+#include "triton/developer_tools/server_wrapper.h"
 #include "triton/core/tritonserver.h"
 
 namespace tsw = triton::server::wrapper;
