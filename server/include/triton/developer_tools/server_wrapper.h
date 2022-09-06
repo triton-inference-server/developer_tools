@@ -51,11 +51,12 @@ struct LoggingOptions {
   LoggingOptions();
 
   LoggingOptions(
-      const uint verbose, const bool info, const bool warn, const bool error,
-      const LogFormat& format, const std::string& log_file);
+      const triton::server::wrapper::VerboseLevel verbose, const bool info,
+      const bool warn, const bool error, const LogFormat& format,
+      const std::string& log_file);
 
-  // Verbose logging level. Default is 0.
-  uint verbose_;
+  // Verbose logging level. The range is [0, UINT_MAX]. Default is 0.
+  triton::server::wrapper::VerboseLevel verbose_;
   // Enable or disable info logging level. Default is true.
   bool info_;
   // Enable or disable warn logging level. Default is true.
@@ -246,58 +247,53 @@ class TritonServer {
 
   /// Load the requested model or reload the model if it is already loaded.
   /// \param model_name The name of the model.
-  /// \return Error object indicating success or failure.
-  Error LoadModel(const std::string& model_name);
+  void LoadModel(const std::string& model_name);
 
   /// Unload the requested model. Unloading a model that is not loaded
-  /// on server has no affect and success code will be returned.
+  /// on server has no affect.
   /// \param model_name The name of the model.
-  /// \return Error object indicating success or failure.
-  Error UnloadModel(const std::string& model_name);
+  void UnloadModel(const std::string& model_name);
 
   /// Get the set of names of models that are loaded and ready for inference.
-  /// \param[out] loaded_models Returns the set of names of models that are
-  /// loaded and ready for inference
-  /// \return Error object indicating success or failure.
-  Error LoadedModels(std::set<std::string>* loaded_models);
+  /// \return Returns the set of names of models that are
+  /// loaded and ready for inference.
+  std::set<std::string> LoadedModels();
 
   /// Get the index of model repository contents.
-  /// \param[out] repository_index Returns a vector of RepositoryIndex object
+  /// \return Returns a vector of 'RepositoryIndex' object
   /// representing the repository index.
-  /// \return Error object indicating success or failure.
-  Error ModelIndex(std::vector<RepositoryIndex>* repository_index);
+  std::vector<RepositoryIndex> ModelIndex();
 
   /// Get the metrics of the server.
-  /// \param[out] metrics_str Returns a string representing the metrics.
-  /// \return Error object indicating success or failure.
-  Error Metrics(std::string* metrics_str);
+  /// \return Returns a string representing the metrics.
+  std::string Metrics();
 
   /// Run asynchronous inference on server.
-  /// \param[out] result_future Returns the result of inference as a future of
-  /// InferResult object.
   /// \param infer_request The InferRequest object contains
   /// the inputs, outputs and infer options for an inference request.
-  /// \return Error object indicating success or failure.
-  virtual Error AsyncInfer(
-      std::future<std::unique_ptr<InferResult>>* result_future,
+  /// \return Returns the result of inference as a future of
+  /// a unique pointer of InferResult object.
+  virtual std::future<std::unique_ptr<InferResult>> AsyncInfer(
       const InferRequest& infer_request) = 0;
 
  protected:
-  Error PrepareInferenceRequest(
+  void PrepareInferenceRequest(
       TRITONSERVER_InferenceRequest** irequest, const InferRequest& request);
 
-  Error PrepareInferenceInput(
+  void PrepareInferenceInput(
       TRITONSERVER_InferenceRequest* irequest, const InferRequest& request);
 
-  Error PrepareInferenceOutput(
+  void PrepareInferenceOutput(
       TRITONSERVER_InferenceRequest* irequest, InferRequest& request);
 
-  Error AsyncInferHelper(
+  void AsyncInferHelper(
       TRITONSERVER_InferenceRequest** irequest,
       const InferRequest& infer_request);
 
   // The server object.
   std::shared_ptr<TRITONSERVER_Server> server_;
+  // The allocator object allocating output tensor.
+  TRITONSERVER_ResponseAllocator* allocator_;
 };
 
 //==============================================================================
@@ -376,8 +372,7 @@ class InferRequest {
   /// Add an input tensor to be sent within an InferRequest object.
   /// \param name The name of the input tensor.
   /// \param input A Tensor object that describes an input tensor.
-  /// \return Error object indicating success or failure.
-  Error AddInput(const std::string& name, const Tensor& input);
+  void AddInput(const std::string& name, const Tensor& input) noexcept;
 
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding 'non-string' data elements. Data in the
@@ -386,18 +381,20 @@ class InferRequest {
   /// \param name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
-  /// \param data_type The data type of the input. This field is optional.
-  /// \param shape The shape of the input. This field is optional.
+  /// \param data_type The data type of the input.
+  /// \param shape The shape of the input.
   /// \param memory_type The memory type of the input.
-  /// This field is optional. Default is CPU.
   /// \param memory_type_id The ID of the memory for the tensor. (e.g. '0' is
-  /// the memory type id of 'GPU-0') This field is optional. Default is 0.
-  /// \return Error object indicating success or failure.
-  template <typename Iterator>
-  Error AddInput(
+  /// the memory type id of 'GPU-0')
+  template <
+      typename Iterator,
+      typename std::enable_if<std::is_same<
+          typename std::iterator_traits<Iterator>::value_type,
+          std::string>::value>::type* = nullptr>
+  void AddInput(
       const std::string& name, const Iterator begin, const Iterator end,
       DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
-      int64_t memory_type_id);
+      int64_t memory_type_id) noexcept;
 
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding 'string' elements. Data in the
@@ -406,21 +403,21 @@ class InferRequest {
   /// \param name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
-  /// \param shape The shape of the input. This field is optional.
+  /// \param data_type The data type of the input. For 'string' input, data type
+  /// should be 'BYTES'.
+  /// \param shape The shape of the input.
   /// \param memory_type The memory type of the input.
-  /// This field is optional. Default is CPU.
   /// \param memory_type_id The ID of the memory for the tensor. (e.g. '0' is
-  /// the memory type id of 'GPU-0') This field is optional. Default is 0.
-  /// \return Error object indicating success or failure.
+  /// the memory type id of 'GPU-0')
   template <
       typename Iterator,
-      std::enable_if_t<
-          std::is_same<typename Iterator::value_type, std::string>::value,
-          bool> = true>
-  Error AddInput(
+      typename std::enable_if<!std::is_same<
+          typename std::iterator_traits<Iterator>::value_type,
+          std::string>::value>::type* = nullptr>
+  void AddInput(
       const std::string& name, const Iterator begin, const Iterator end,
-      std::vector<int64_t> shape, MemoryType memory_type,
-      int64_t memory_type_id);
+      DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
+      int64_t memory_type_id) noexcept;
 
   /// Add a requested output to be sent within an InferRequest object.
   /// Calling this function is optional. If no output(s) are specifically
@@ -429,22 +426,19 @@ class InferRequest {
   /// the 'Tensor' object.
   /// \param name The name of the output tensor.
   /// \param output A Tensor object that describes an output tensor containing
-  /// the pre-allocated buffer.
-  /// \return Error object indicating success or failure.
-  Error AddRequestedOutput(const std::string& name, Tensor& output);
+  /// its pre-allocated buffer.
+  void AddRequestedOutput(const std::string& name, Tensor& output);
 
   /// Add a requested output to be sent within an InferRequest object.
   /// Calling this function is optional. If no output(s) are specifically
   /// requested then all outputs defined by the model will be calculated and
   /// returned.
   /// \param name The name of the output tensor.
-  /// \return Error object indicating success or failure.
-  Error AddRequestedOutput(const std::string& name);
+  void AddRequestedOutput(const std::string& name);
 
   /// Clear inputs and outputs of the request except for the callback functions.
   /// This allows users to reuse the InferRequest object if needed.
-  /// \return Error object indicating success or failure.
-  Error Reset();
+  void Reset();
 
   friend class TritonServer;
   friend class InternalServer;
@@ -456,8 +450,7 @@ class InferRequest {
   std::vector<std::unique_ptr<InferRequestedOutput>> outputs_ = {};
 
   // The map for each output tensor and a tuple of it's pre-allocated buffer,
-  // byte size, memory type and memory type id. [key:value -> output name :
-  // tuple<pre-allocated buffer, byte_size, memory_type, memory_type_id>]
+  // byte size, memory type and memory type id.
   TensorAllocMap tensor_alloc_map_;
 };
 
@@ -471,49 +464,35 @@ class InferResult {
 
   /// Get the name of the model which generated this response.
   /// \return Returns the name of the model.
-  std::string ModelName();
+  std::string ModelName() noexcept;
 
   /// Get the version of the model which generated this response.
   /// \return Returns the version of the model.
-  std::string ModelVersion();
+  std::string ModelVersion() noexcept;
 
   /// Get the id of the request which generated this response.
   /// \return Returns the id of the request.
-  std::string Id();
+  std::string Id() noexcept;
 
-  /// Get the result output as a 'Tensor' object. The 'buffer' field of the
-  /// output is owned by InferResult instance. Users can copy out the data if
-  /// required to extend the lifetime. Note that for string data, need to use
-  /// 'StringData' function for string data result.
+  /// Get the result output as a shared pointer of 'Tensor' object. The 'buffer'
+  /// field of the output is owned by the returned 'Tensor' object itself. Note
+  /// that for string data, need to use 'StringData' function for string data
+  /// result.
   /// \param name The name of the output tensor to be retrieved.
-  /// \param[out] output Contains the requested output tensor name. The output
-  /// data will be returned in the same 'Tensor' object.
-  /// \return Error object indicating success or failure of the request.
-  Error Output(const std::string& name, std::shared_ptr<Tensor>& output);
+  /// \return Returns the output result as a shared pointer of 'Tensor' object.
+  std::shared_ptr<Tensor> Output(const std::string& name);
 
   /// Get the result data as a vector of strings. The vector will
-  /// receive a copy of result data. An error will be generated if
-  /// the datatype of output is not 'BYTES'.
+  /// receive a copy of result data. An exception will be thrown if
+  /// the data type of output is not 'BYTES'.
   /// \param output_name The name of the output to get result data.
-  /// \param[out] string_result Returns the result data represented as
-  /// a vector of strings. The strings are stored in the
-  /// row-major order.
-  /// \return Error object indicating success or failure of the
-  /// request.
-  Error StringData(
-      const std::string& output_name, std::vector<std::string>* string_result);
+  /// \return Returns the result data represented as a vector of strings. The
+  /// strings are stored in the row-major order.
+  std::vector<std::string> StringData(const std::string& output_name);
 
   /// Returns the complete response as a user friendly string.
   /// \return The string describing the complete response.
-  Error DebugString(std::string* string_result);
-
-  /// Returns if there is an error within this result.
-  /// \return True if this 'InferResult' object has an error, false if no error.
-  bool HasError();
-
-  /// Returns the error message of the error.
-  /// \return The messsage for the error. Empty if no error.
-  std::string ErrorMsg();
+  std::string DebugString();
 
  protected:
   const char* model_name_;
@@ -521,7 +500,6 @@ class InferResult {
   const char* request_id_;
   std::vector<std::unique_ptr<ResponseParameters>> params_;
   std::unordered_map<std::string, std::shared_ptr<Tensor>> infer_outputs_;
-  Error response_error_;
 
   TRITONSERVER_InferenceResponse* completed_response_ = nullptr;
 };
@@ -561,10 +539,7 @@ class Allocator {
     \param actual_memory_type_id Returns the ID of the memory where
     the allocation resides. May be different than the ID of the memory
     requested by 'memory_type_id'.
-    \return Error object indicating if a failure occurs while
-    attempting an allocation. If an error is returned all other return
-    values will be ignored.
-  * using ResponseAllocatorAllocFn_t = Error (*)(const char* tensor_name,
+  * using ResponseAllocatorAllocFn_t = void (*)(const char* tensor_name,
     size_t byte_size, MemoryType memory_type, int64_t memory_type_id, void**
     buffer, MemoryType* actual_memory_type, int64_t* actual_memory_type_id);
 
@@ -572,17 +547,13 @@ class Allocator {
     \param byte_size The size of the buffer.
     \param memory_type The type of memory holding the buffer.
     \param memory_type_id The ID of the memory holding the buffer.
-    \return Error object indicating if a failure occurs while
-    attempting the release. If an error is returned Triton will not
-    attempt to release the buffer again.
-  * using OutputBufferReleaseFn_t = Error (*)(
+  * using OutputBufferReleaseFn_t = void (*)(
     void* buffer, size_t byte_size, MemoryType memory_type, int64_t
     memory_type_id);
 
     \param userp The user data pointer that is passed to the
     'ResponseAllocatorStartFn_t' callback function.
-    \return Error object indicating  if a failure occurs
-   * using ResponseAllocatorStartFn_t = Error (*)(void* userp);
+   * using ResponseAllocatorStartFn_t = void (*)(void* userp);
   ***/
  public:
   explicit Allocator(
@@ -605,22 +576,22 @@ class Allocator {
 //==============================================================================
 /// Helper functions to convert Wrapper enum to string.
 ///
-std::string WrapperMemoryTypeString(const MemoryType& memory_type);
-std::string WrapperDataTypeString(const DataType& data_type);
-std::string WrapperModelReadyStateString(const ModelReadyState& state);
+std::string MemoryTypeString(const MemoryType& memory_type);
+std::string DataTypeString(const DataType& data_type);
+std::string ModelReadyStateString(const ModelReadyState& state);
 
 //==============================================================================
 /// Implementation of template functions
 ///
 template <
-    typename Iterator,
-    std::enable_if_t<
-        std::is_same<typename Iterator::value_type, std::string>::value, bool> =
-        true>
-Error
+    typename Iterator, typename std::enable_if<std::is_same<
+                           typename std::iterator_traits<Iterator>::value_type,
+                           std::string>::value>::type* = nullptr>
+void
 InferRequest::AddInput(
     const std::string& name, const Iterator begin, const Iterator end,
-    std::vector<int64_t> shape, MemoryType memory_type, int64_t memory_type_id)
+    DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
+    int64_t memory_type_id) noexcept
 {
   // Serialize the strings into a "raw" buffer. The first 4-bytes are
   // the length of the string length. Next are the actual string
@@ -635,25 +606,32 @@ InferRequest::AddInput(
     sbuf.append(*it);
   }
   Tensor input(
-      reinterpret_cast<char*>(&sbuf[0]), sbuf.size(), BYTES, shape, memory_type,
+      reinterpret_cast<char*>(&sbuf[0]), sbuf.size(),
+      triton::server::wrapper::DataType::BYTES, shape, memory_type,
       memory_type_id);
 
-  return AddInput(name, input);
+  AddInput(name, input);
 }
 
-template <typename Iterator>
-Error
+template <
+    typename Iterator, typename std::enable_if<!std::is_same<
+                           typename std::iterator_traits<Iterator>::value_type,
+                           std::string>::value>::type* = nullptr>
+void
 InferRequest::AddInput(
     const std::string& name, const Iterator begin, const Iterator end,
     DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
-    int64_t memory_type_id)
+    int64_t memory_type_id) noexcept
 {
+  // FIXME (DLIS-4134) This function should also work for non-contiguous
+  // container, and input data should be copied so that we don't need to worry
+  // about the lifetime of input data.
   size_t bytes = sizeof(*begin) * std::distance(begin, end);
-
   Tensor input(
       reinterpret_cast<char*>(&(*begin)), bytes, data_type, shape, memory_type,
       memory_type_id);
-  return AddInput(name, input);
+
+  AddInput(name, input);
 }
 
 }}}  // namespace triton::server::wrapper

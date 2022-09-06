@@ -25,6 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
+#include <climits>
 #include <iostream>
 #include <list>
 #include <memory>
@@ -37,36 +38,7 @@
 
 namespace triton { namespace server { namespace wrapper {
 
-#define FAIL_IF_TRITON_ERR(X, MSG)                                \
-  do {                                                            \
-    TRITONSERVER_Error* err__ = (X);                              \
-    if (err__ != nullptr) {                                       \
-      std::cerr << "error: " << (MSG) << ": "                     \
-                << TRITONSERVER_ErrorCodeString(err__) << " - "   \
-                << TRITONSERVER_ErrorMessage(err__) << std::endl; \
-      TRITONSERVER_ErrorDelete(err__);                            \
-      exit(1);                                                    \
-    }                                                             \
-  } while (false)
-#define FAIL_IF_ERR(X, MSG)                                        \
-  {                                                                \
-    Error err = (X);                                               \
-    if (!err.IsOk()) {                                             \
-      std::cerr << "error: " << (MSG) << ": " << err << std::endl; \
-      exit(1);                                                     \
-    }                                                              \
-  }
-#define RETURN_ERR_IF_TRITON_ERR(X)                                \
-  do {                                                             \
-    TRITONSERVER_Error* err__ = (X);                               \
-    if (err__ != nullptr) {                                        \
-      Error err = Error(                                           \
-          TRITONSERVER_ErrorCodeString(err__) + std::string("-") + \
-          TRITONSERVER_ErrorMessage(err__) + "\n");                \
-      TRITONSERVER_ErrorDelete(err__);                             \
-      return err;                                                  \
-    }                                                              \
-  } while (false)
+
 #define IGNORE_ERROR(X)                   \
   do {                                    \
     TRITONSERVER_Error* ie_err__ = (X);   \
@@ -99,53 +71,27 @@ namespace triton { namespace server { namespace wrapper {
         TRITONSERVER_LogMessage(LEVEL, __FILE__, __LINE__, MSG), \
         ("failed to log message: "));                            \
   } while (false)
-#define THROW_IF_ERR(X)                            \
-  do {                                             \
-    Error err = (X);                               \
-    if (!err.IsOk()) {                             \
-      throw ServerWrapperException(err.Message()); \
-    }                                              \
-  } while (false)
 #define THROW_IF_TRITON_ERR(X)                                     \
   do {                                                             \
     TRITONSERVER_Error* err__ = (X);                               \
     if (err__ != nullptr) {                                        \
-      ServerWrapperException ex(                                   \
+      TritonException ex(                                          \
           TRITONSERVER_ErrorCodeString(err__) + std::string("-") + \
           TRITONSERVER_ErrorMessage(err__) + "\n");                \
       TRITONSERVER_ErrorDelete(err__);                             \
       throw ex;                                                    \
     }                                                              \
   } while (false)
-#define THROW_ERR_IF_TRITON_ERR(X)                                 \
-  do {                                                             \
-    TRITONSERVER_Error* err__ = (X);                               \
-    if (err__ != nullptr) {                                        \
-      Error err = Error(                                           \
-          TRITONSERVER_ErrorCodeString(err__) + std::string("-") + \
-          TRITONSERVER_ErrorMessage(err__) + "\n");                \
-      TRITONSERVER_ErrorDelete(err__);                             \
-      throw ServerWrapperException(err.Message());                 \
-    }                                                              \
-  } while (false)
-#define RETURN_TRITON_ERR_IF_ERR(X)                              \
-  do {                                                           \
-    Error err = (X);                                             \
-    if (!err.IsOk()) {                                           \
-      return TRITONSERVER_ErrorNew(                              \
-          TRITONSERVER_ERROR_INTERNAL, (err.Message()).c_str()); \
-    }                                                            \
-  } while (false)
 
 //==============================================================================
-enum ModelControlMode {
+enum class ModelControlMode {
   MODEL_CONTROL_NONE,
   MODEL_CONTROL_POLL,
   MODEL_CONTROL_EXPLICIT
 };
-enum MemoryType { CPU, CPU_PINNED, GPU };
-enum LogFormat { LOG_DEFAULT, LOG_ISO8601 };
-enum DataType {
+enum class MemoryType { CPU, CPU_PINNED, GPU };
+enum class LogFormat { LOG_DEFAULT, LOG_ISO8601 };
+enum class DataType {
   INVALID,
   BOOL,
   UINT8,
@@ -162,13 +108,16 @@ enum DataType {
   BYTES,
   BF16
 };
-enum ModelReadyState { UNKNOWN, READY, UNAVAILABLE, LOADING, UNLOADING };
-
+enum class ModelReadyState { UNKNOWN, READY, UNAVAILABLE, LOADING, UNLOADING };
+enum class VerboseLevel : uint {
+  MIN = 0,
+  MAX = UINT_MAX
+};  // range: [0, UINT_MAX];
 //==============================================================================
-// ServerWrapperException
+// TritonException
 //
-struct ServerWrapperException : std::exception {
-  ServerWrapperException(const std::string& message) : message_(message) {}
+struct TritonException : std::exception {
+  TritonException(const std::string& message) : message_(message) {}
 
   const char* what() const throw() { return message_.c_str(); }
 
@@ -199,59 +148,28 @@ struct ResponseParameters {
 };
 
 //==============================================================================
-/// Error status reported by server C++ API.
-///
-class Error {
- public:
-  /// Create an error with the specified message.
-  /// \param msg The message for the error
-  explicit Error(const std::string& msg = "");
-
-  /// Accessor for the message of this error.
-  /// \return The messsage for the error. Empty if no error.
-  const std::string& Message() const { return msg_; }
-
-  /// Does this error indicate OK status?
-  /// \return True if this error indicates "ok"/"success", false if
-  /// error indicates a failure.
-  bool IsOk() const { return msg_.empty(); }
-
-  /// Convenience "success" value. Can be used as Error::Success to
-  /// indicate no error.
-  static const Error Success;
-
- private:
-  friend std::ostream& operator<<(std::ostream&, const Error&);
-  std::string msg_;
-};
-
-//==============================================================================
 /// Custom Response Allocator Callback function signatures.
 ///
-using ResponseAllocatorAllocFn_t = Error (*)(
+using ResponseAllocatorAllocFn_t = void (*)(
     const char* tensor_name, size_t byte_size, MemoryType preferred_memory_type,
     int64_t preferred_memory_type_id, void** buffer,
     MemoryType* actual_memory_type, int64_t* actual_memory_type_id);
-using OutputBufferReleaseFn_t = Error (*)(
+using OutputBufferReleaseFn_t = void (*)(
     void* buffer, size_t byte_size, MemoryType memory_type,
     int64_t memory_type_id);
-using ResponseAllocatorStartFn_t = Error (*)(void* userp);
+using ResponseAllocatorStartFn_t = void (*)(void* userp);
 
 //==============================================================================
 /// Helper functions.
 ///
-Error WrapperToTritonModelControlMode(
-    TRITONSERVER_ModelControlMode* model_control_mode,
+TRITONSERVER_ModelControlMode ToTritonModelControlMode(
     const ModelControlMode& mode);
-Error WrapperToTritonLogFormat(
-    TRITONSERVER_LogFormat* log_format, const LogFormat& format);
-TRITONSERVER_DataType WrapperToTritonDataType(const DataType& dtype);
-DataType TritonToWrapperDataType(const TRITONSERVER_DataType& dtype);
-Error WrapperToTritonMemoryType(
-    TRITONSERVER_MemoryType* memory_type, const MemoryType& mem_type);
-Error TritonToWrapperMemoryType(
-    MemoryType* memory_type, const TRITONSERVER_MemoryType& mem_type);
-ModelReadyState StringToWrapperModelReadyState(const std::string& state);
+TRITONSERVER_LogFormat ToTritonLogFormat(const LogFormat& format);
+TRITONSERVER_DataType ToTritonDataType(const DataType& dtype) noexcept;
+DataType TritonToDataType(const TRITONSERVER_DataType& dtype) noexcept;
+TRITONSERVER_MemoryType ToTritonMemoryType(const MemoryType& mem_type);
+MemoryType TritonToMemoryType(const TRITONSERVER_MemoryType& mem_type);
+ModelReadyState StringToModelReadyState(const std::string& state) noexcept;
 
 //==============================================================================
 /// An InferRequestedOutput object is used to describe the requested model
@@ -271,23 +189,20 @@ class InferRequestedOutput {
 
   /// Create a InferRequestedOutput instance that describes a model output being
   /// requested with pre-allocated output buffer.
-  /// \param[out] infer_output Returns a new InferRequestedOutput object.
   /// \param name The name of output being requested.
   /// \param buffer The pointer to the start of the pre-allocated buffer.
   /// \param byte_size The size of buffer in bytes.
   /// \param memory_type The memory type of the output.
   /// \param memory_type_id The memory type id of the output.
-  /// \return Error object indicating success or failure.
-  static Error Create(
-      std::unique_ptr<InferRequestedOutput>& infer_output,
+  /// \return Returns a new InferRequestedOutput object.
+  static std::unique_ptr<InferRequestedOutput> Create(
       const std::string& name, const char* buffer, size_t byte_size,
       MemoryType memory_type, int64_t memory_type_id)
   {
-    TRITONSERVER_MemoryType output_memory_type;
-    RETURN_IF_ERR(WrapperToTritonMemoryType(&output_memory_type, memory_type));
-    infer_output.reset(new InferRequestedOutput(
+    TRITONSERVER_MemoryType output_memory_type =
+        ToTritonMemoryType(memory_type);
+    return std::unique_ptr<InferRequestedOutput>(new InferRequestedOutput(
         name, buffer, byte_size, output_memory_type, memory_type_id));
-    return Error::Success;
   }
 
   /// Gets name of the associated output tensor.

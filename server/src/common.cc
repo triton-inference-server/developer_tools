@@ -28,79 +28,69 @@
 
 namespace triton { namespace server { namespace wrapper {
 
-Error
-WrapperToTritonModelControlMode(
-    TRITONSERVER_ModelControlMode* model_control_mode,
-    const ModelControlMode& mode)
+namespace tsw = triton::server::wrapper;
+
+TRITONSERVER_ModelControlMode
+ToTritonModelControlMode(const ModelControlMode& mode)
 {
   switch (mode) {
-    case MODEL_CONTROL_NONE:
-      *model_control_mode = TRITONSERVER_MODEL_CONTROL_NONE;
-      break;
-    case MODEL_CONTROL_POLL:
-      *model_control_mode = TRITONSERVER_MODEL_CONTROL_POLL;
-      break;
-    case MODEL_CONTROL_EXPLICIT:
-      *model_control_mode = TRITONSERVER_MODEL_CONTROL_EXPLICIT;
-      break;
+    case tsw::ModelControlMode::MODEL_CONTROL_NONE:
+      return TRITONSERVER_MODEL_CONTROL_NONE;
+    case tsw::ModelControlMode::MODEL_CONTROL_POLL:
+      return TRITONSERVER_MODEL_CONTROL_POLL;
+    case tsw::ModelControlMode::MODEL_CONTROL_EXPLICIT:
+      return TRITONSERVER_MODEL_CONTROL_EXPLICIT;
 
     default:
-      return Error("unsupported model control mode.");
+      throw TritonException("unsupported model control mode.");
   }
-
-  return Error::Success;
 }
 
-Error
-WrapperToTritonLogFormat(
-    TRITONSERVER_LogFormat* log_format, const LogFormat& format)
+TRITONSERVER_LogFormat
+ToTritonLogFormat(const LogFormat& format)
 {
   switch (format) {
-    case LOG_DEFAULT:
-      *log_format = TRITONSERVER_LOG_DEFAULT;
-      break;
-    case LOG_ISO8601:
-      *log_format = TRITONSERVER_LOG_ISO8601;
-      break;
+    case tsw::LogFormat::LOG_DEFAULT:
+      return TRITONSERVER_LOG_DEFAULT;
+    case tsw::LogFormat::LOG_ISO8601:
+      return TRITONSERVER_LOG_ISO8601;
 
     default:
-      return Error("unsupported log format.");
+      throw TritonException("unsupported log format.");
   }
-
-  return Error::Success;
 }
 
 TRITONSERVER_DataType
-WrapperToTritonDataType(const DataType& dtype)
+ToTritonDataType(const DataType& dtype) noexcept
 {
   switch (dtype) {
-    case BOOL:
+    case tsw::DataType::BOOL:
       return TRITONSERVER_TYPE_BOOL;
-    case UINT8:
+    case tsw::DataType::UINT8:
       return TRITONSERVER_TYPE_UINT8;
-    case UINT16:
+    case tsw::DataType::UINT16:
       return TRITONSERVER_TYPE_UINT16;
-    case UINT32:
+    case tsw::DataType::UINT32:
       return TRITONSERVER_TYPE_UINT32;
-    case UINT64:
+    case tsw::DataType::UINT64:
       return TRITONSERVER_TYPE_UINT64;
-    case INT8:
+    case tsw::DataType::INT8:
       return TRITONSERVER_TYPE_INT8;
-    case INT16:
+    case tsw::DataType::INT16:
       return TRITONSERVER_TYPE_INT16;
-    case INT32:
+    case tsw::DataType::INT32:
       return TRITONSERVER_TYPE_INT32;
-    case INT64:
+    case tsw::DataType::INT64:
       return TRITONSERVER_TYPE_INT64;
-    case FP16:
+    case tsw::DataType::FP16:
       return TRITONSERVER_TYPE_FP16;
-    case FP32:
+    case tsw::DataType::FP32:
       return TRITONSERVER_TYPE_FP32;
-    case FP64:
+    case tsw::DataType::FP64:
       return TRITONSERVER_TYPE_FP64;
-    case BYTES:
+    case tsw::DataType::BYTES:
       return TRITONSERVER_TYPE_BYTES;
-    case BF16:
+    case tsw::DataType::BF16:
       return TRITONSERVER_TYPE_BF16;
 
     default:
@@ -109,116 +99,91 @@ WrapperToTritonDataType(const DataType& dtype)
 }
 
 DataType
-TritonToWrapperDataType(const TRITONSERVER_DataType& dtype)
+TritonToDataType(const TRITONSERVER_DataType& dtype) noexcept
 {
   switch (dtype) {
     case TRITONSERVER_TYPE_BOOL:
-      return BOOL;
+      return tsw::DataType::BOOL;
     case TRITONSERVER_TYPE_UINT8:
-      return UINT8;
+      return tsw::DataType::UINT8;
     case TRITONSERVER_TYPE_UINT16:
-      return UINT16;
+      return tsw::DataType::UINT16;
     case TRITONSERVER_TYPE_UINT32:
-      return UINT32;
+      return tsw::DataType::UINT32;
     case TRITONSERVER_TYPE_UINT64:
-      return UINT64;
+      return tsw::DataType::UINT64;
     case TRITONSERVER_TYPE_INT8:
-      return INT8;
+      return tsw::DataType::INT8;
     case TRITONSERVER_TYPE_INT16:
-      return INT16;
+      return tsw::DataType::INT16;
     case TRITONSERVER_TYPE_INT32:
-      return INT32;
+      return tsw::DataType::INT32;
     case TRITONSERVER_TYPE_INT64:
-      return INT64;
+      return tsw::DataType::INT64;
     case TRITONSERVER_TYPE_FP16:
-      return FP16;
+      return tsw::DataType::FP16;
     case TRITONSERVER_TYPE_FP32:
-      return FP32;
+      return tsw::DataType::FP32;
     case TRITONSERVER_TYPE_FP64:
-      return FP64;
+      return tsw::DataType::FP64;
     case TRITONSERVER_TYPE_BYTES:
-      return BYTES;
+      return tsw::DataType::BYTES;
     case TRITONSERVER_TYPE_BF16:
-      return BF16;
+      return tsw::DataType::BF16;
 
     default:
-      return INVALID;
+      return tsw::DataType::INVALID;
   }
 }
 
-Error
-WrapperToTritonMemoryType(
-    TRITONSERVER_MemoryType* memory_type, const MemoryType& mem_type)
+TRITONSERVER_MemoryType
+ToTritonMemoryType(const MemoryType& mem_type)
 {
   switch (mem_type) {
-    case CPU:
-      *memory_type = TRITONSERVER_MEMORY_CPU;
-      break;
-    case CPU_PINNED:
-      *memory_type = TRITONSERVER_MEMORY_CPU_PINNED;
-      break;
-    case GPU:
-      *memory_type = TRITONSERVER_MEMORY_GPU;
-      break;
+    case tsw::MemoryType::CPU:
+      return TRITONSERVER_MEMORY_CPU;
+    case tsw::MemoryType::CPU_PINNED:
+      return TRITONSERVER_MEMORY_CPU_PINNED;
+    case tsw::MemoryType::GPU:
+      return TRITONSERVER_MEMORY_GPU;
 
     default:
-      return Error("unsupported memory type.");
+      throw TritonException("unsupported memory type.");
   }
-
-  return Error::Success;
 }
 
-Error
-TritonToWrapperMemoryType(
-    MemoryType* memory_type, const TRITONSERVER_MemoryType& mem_type)
+MemoryType
+TritonToMemoryType(const TRITONSERVER_MemoryType& mem_type)
 {
   switch (mem_type) {
     case TRITONSERVER_MEMORY_CPU:
-      *memory_type = CPU;
-      break;
+      return tsw::MemoryType::CPU;
     case TRITONSERVER_MEMORY_CPU_PINNED:
-      *memory_type = CPU_PINNED;
-      break;
+      return tsw::MemoryType::CPU_PINNED;
     case TRITONSERVER_MEMORY_GPU:
-      *memory_type = GPU;
-      break;
+      return tsw::MemoryType::GPU;
 
     default:
-      return Error("unsupported memory type.");
+      throw TritonException("unsupported memory type.");
   }
-
-  return Error::Success;
 }
 
 ModelReadyState
-StringToWrapperModelReadyState(const std::string& state)
+StringToModelReadyState(const std::string& state) noexcept
 {
   if (state == "UNKNOWN") {
-    return UNKNOWN;
+    return tsw::ModelReadyState::UNKNOWN;
   } else if (state == "READY") {
-    return READY;
+    return tsw::ModelReadyState::READY;
   } else if (state == "UNAVAILABLE") {
-    return UNAVAILABLE;
+    return tsw::ModelReadyState::UNAVAILABLE;
   } else if (state == "LOADING") {
-    return LOADING;
+    return tsw::ModelReadyState::LOADING;
   } else if (state == "UNLOADING") {
-    return UNLOADING;
+    return tsw::ModelReadyState::UNLOADING;
   } else {
-    return UNKNOWN;
+    return tsw::ModelReadyState::UNKNOWN;
   }
-}
-
-const Error Error::Success("");
-
-Error::Error(const std::string& msg) : msg_(msg) {}
-
-std::ostream&
-operator<<(std::ostream& out, const Error& err)
-{
-  if (!err.msg_.empty()) {
-    out << err.msg_;
-  }
-  return out;
 }
 
 }}}  // namespace triton::server::wrapper

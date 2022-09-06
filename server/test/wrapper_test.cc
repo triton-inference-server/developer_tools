@@ -26,8 +26,8 @@
 #include "gtest/gtest.h"
 
 #include <exception>
-#include "triton/developer_tools/server_wrapper.h"
 #include "triton/core/tritonserver.h"
+#include "triton/developer_tools/server_wrapper.h"
 
 namespace tsw = triton::server::wrapper;
 
@@ -65,7 +65,8 @@ class TritonServerTest : public ::testing::Test {
   TritonServerTest() : options_({"./models"})
   {
     options_.logging_ = tsw::LoggingOptions(
-        false, false, false, false, tsw::LogFormat::LOG_DEFAULT, "");
+        tsw::VerboseLevel(0), false, false, false, tsw::LogFormat::LOG_DEFAULT,
+        "");
   }
 
   tsw::ServerOptions options_;
@@ -76,8 +77,7 @@ TEST_F(TritonServerTest, StartNone)
   // Start server with default mode (NONE)
   try {
     auto server = tsw::TritonServer::Create(options_);
-    std::set<std::string> loaded_models;
-    ASSERT_TRUE(server->LoadedModels(&loaded_models).IsOk());
+    std::set<std::string> loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 2);
     ASSERT_NE(loaded_models.find("add_sub"), loaded_models.end());
     ASSERT_NE(loaded_models.find("add_sub_str"), loaded_models.end());
@@ -92,8 +92,14 @@ TEST_F(TritonServerTest, NoneLoadUnload)
   // Start server with NONE mode which explicit model control is not allowed
   try {
     auto server = tsw::TritonServer::Create(options_);
-    ASSERT_FALSE(server->LoadModel("add_sub").IsOk());
-    ASSERT_FALSE(server->UnloadModel("add_sub").IsOk());
+    server->LoadModel("add_sub");
+    server->UnloadModel("add_sub");
+  }
+  catch (std::exception& ex) {
+    ASSERT_STREQ(
+        ex.what(),
+        "Error - LoadModel: Unavailable-explicit model load / unload is not "
+        "allowed if polling is enabled\n");
   }
   catch (...) {
     ASSERT_NO_THROW(throw);
@@ -103,17 +109,17 @@ TEST_F(TritonServerTest, NoneLoadUnload)
 TEST_F(TritonServerTest, Explicit)
 {
   try {
-    options_.model_control_mode_ = tsw::MODEL_CONTROL_EXPLICIT;
+    options_.model_control_mode_ =
+        tsw::ModelControlMode::MODEL_CONTROL_EXPLICIT;
     auto server = tsw::TritonServer::Create(options_);
-    std::set<std::string> loaded_models;
-    ASSERT_TRUE(server->LoadedModels(&loaded_models).IsOk());
+    std::set<std::string> loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 0);
-    ASSERT_TRUE(server->LoadModel("add_sub").IsOk());
-    ASSERT_TRUE(server->LoadedModels(&loaded_models).IsOk());
+    server->LoadModel("add_sub");
+    loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 1);
     ASSERT_EQ(*loaded_models.begin(), "add_sub");
-    ASSERT_TRUE(server->UnloadModel("add_sub").IsOk());
-    ASSERT_TRUE(server->LoadedModels(&loaded_models).IsOk());
+    server->UnloadModel("add_sub");
+    loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 0);
   }
   catch (...) {
@@ -124,7 +130,6 @@ TEST_F(TritonServerTest, Explicit)
 TEST_F(TritonServerTest, InferMinimal)
 {
   try {
-    tsw::Error err;
     auto server = tsw::TritonServer::Create(options_);
 
     std::vector<int32_t> input_data;
@@ -133,20 +138,15 @@ TEST_F(TritonServerTest, InferMinimal)
     }
     auto request = tsw::InferRequest::Create(tsw::InferOptions("add_sub"));
     for (const auto& name : std::vector<std::string>{"INPUT0", "INPUT1"}) {
-      ASSERT_TRUE(
-          (err = request->AddInput(
-               name, tsw::Tensor(
-                         reinterpret_cast<char*>(input_data.data()),
-                         input_data.size() * sizeof(int32_t),
-                         tsw::DataType::INT32, {16}, tsw::MemoryType::CPU, 0)))
-              .IsOk())
-          << err.Message();
+      request->AddInput(
+          name, tsw::Tensor(
+                    reinterpret_cast<char*>(input_data.data()),
+                    input_data.size() * sizeof(int32_t), tsw::DataType::INT32,
+                    {16}, tsw::MemoryType::CPU, 0));
     }
-    std::future<std::unique_ptr<tsw::InferResult>> result_future;
-    ASSERT_TRUE((err = server->AsyncInfer(&result_future, *request)).IsOk())
-        << err.Message();
+    std::future<std::unique_ptr<tsw::InferResult>> result_future =
+        server->AsyncInfer(*request);
     auto result = result_future.get();
-    ASSERT_FALSE(result->HasError()) << result->ErrorMsg();
 
     // Check result metadata
     ASSERT_EQ(result->ModelName(), "add_sub");
@@ -156,9 +156,7 @@ TEST_F(TritonServerTest, InferMinimal)
     // OUTPUT0 -> sum
     {
       std::string out_name("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> out;
-      ASSERT_TRUE((err = result->Output(out_name, out)).IsOk())
-          << err.Message();
+      std::shared_ptr<tsw::Tensor> out = result->Output(out_name);
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
       ASSERT_EQ(out->data_type_, tsw::DataType::INT32);
       ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
@@ -172,9 +170,7 @@ TEST_F(TritonServerTest, InferMinimal)
     // OUTPUT1 -> diff
     {
       std::string out_name("OUTPUT1");
-      std::shared_ptr<tsw::Tensor> out;
-      ASSERT_TRUE((err = result->Output(out_name, out)).IsOk())
-          << err.Message();
+      std::shared_ptr<tsw::Tensor> out = result->Output(out_name);
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
       ASSERT_EQ(out->data_type_, tsw::DataType::INT32);
       ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
@@ -191,7 +187,6 @@ TEST_F(TritonServerTest, InferMinimal)
 TEST_F(TritonServerTest, InferString)
 {
   try {
-    tsw::Error err;
     auto server = tsw::TritonServer::Create(options_);
 
     std::vector<int32_t> input_data;
@@ -203,18 +198,14 @@ TEST_F(TritonServerTest, InferString)
 
     auto request = tsw::InferRequest::Create(tsw::InferOptions("add_sub_str"));
     for (const auto& name : std::vector<std::string>{"INPUT0", "INPUT1"}) {
-      ASSERT_TRUE((err = request->AddInput(
-                       name, input_data_str.begin(), input_data_str.end(), {16},
-                       tsw::MemoryType::CPU, 0))
-                      .IsOk())
-          << err.Message();
+      request->AddInput(
+          name, input_data_str.begin(), input_data_str.end(),
+          tsw::DataType::BYTES, {16}, tsw::MemoryType::CPU, 0);
     }
 
-    std::future<std::unique_ptr<tsw::InferResult>> result_future;
-    ASSERT_TRUE((err = server->AsyncInfer(&result_future, *request)).IsOk())
-        << err.Message();
+    std::future<std::unique_ptr<tsw::InferResult>> result_future =
+        server->AsyncInfer(*request);
     auto result = result_future.get();
-    ASSERT_FALSE(result->HasError()) << result->ErrorMsg();
 
     // Check result metadata
     ASSERT_EQ(result->ModelName(), "add_sub_str");
@@ -227,13 +218,10 @@ TEST_F(TritonServerTest, InferString)
     // OUTPUT0 -> sum
     {
       std::string out_name("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> out;
-      ASSERT_TRUE((err = result->Output(out_name, out)).IsOk())
-          << err.Message();
+      std::shared_ptr<tsw::Tensor> out = result->Output(out_name);
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
       ASSERT_EQ(out->data_type_, tsw::DataType::BYTES);
-      ASSERT_TRUE((err = result->StringData(out_name, &out_str)).IsOk())
-          << err.Message();
+      out_str = result->StringData(out_name);
       for (size_t i = 0; i < input_data.size(); ++i) {
         EXPECT_EQ(out_str[i], std::to_string(2 * input_data[i]));
       }
@@ -242,13 +230,10 @@ TEST_F(TritonServerTest, InferString)
     // OUTPUT1 -> diff
     {
       std::string out_name("OUTPUT1");
-      std::shared_ptr<tsw::Tensor> out;
-      ASSERT_TRUE((err = result->Output(out_name, out)).IsOk())
-          << err.Message();
+      std::shared_ptr<tsw::Tensor> out = result->Output(out_name);
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
       ASSERT_EQ(out->data_type_, tsw::DataType::BYTES);
-      ASSERT_TRUE((err = result->StringData(out_name, &out_str)).IsOk())
-          << err.Message();
+      out_str = result->StringData(out_name);
       for (size_t i = 0; i < input_data.size(); ++i) {
         EXPECT_EQ(out_str[i], "0");
       }
