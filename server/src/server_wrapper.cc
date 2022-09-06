@@ -527,7 +527,8 @@ InternalServer::ResponseRelease(
 {
   auto p = reinterpret_cast<std::pair<std::string, bool>*>(buffer_userp);
   std::string name = p->first;
-  // No need to free the pre-allocated output buffer as users should release the the buffer they povided.
+  // No need to free the pre-allocated output buffer as users should release the
+  // the buffer they povided.
   if (p->second) {
     std::stringstream ss;
     ss << buffer;
@@ -979,7 +980,7 @@ TritonServer::ModelStatistics(
   THROW_IF_TRITON_ERR(TRITONSERVER_MessageSerializeToJson(
       model_stats, &base, &byte_size));
   metrics_str = std::string(base, byte_size);
-  TRITONSERVER_MessageDelete(model_stats);
+  THROW_IF_TRITON_ERR(TRITONSERVER_MessageDelete(model_stats));
   }  catch (const TritonException& ex) {
     throw TritonException(std::string("Error - ModelStatistics: ") + ex.what());
   }
@@ -1455,6 +1456,17 @@ std::string
 InferResult::Id() noexcept
 {
   return request_id_;
+}
+
+std::vector<std::string>
+InferResult::OutputNames()
+{
+  std::vector<std::string> output_names;
+  for (const auto& outputs : infer_outputs_) {
+    output_names.push_back(outputs.first);
+  }
+
+  return output_names;
 }
 
 std::shared_ptr<Tensor>
