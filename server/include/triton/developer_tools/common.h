@@ -27,18 +27,6 @@
 
 namespace triton { namespace server { namespace wrapper {
 
-#define THROW_IF_TRITON_ERR(X)                                     \
-  do {                                                             \
-    TRITONSERVER_Error* err__ = (X);                               \
-    if (err__ != nullptr) {                                        \
-      TritonException ex(                                          \
-          TRITONSERVER_ErrorCodeString(err__) + std::string("-") + \
-          TRITONSERVER_ErrorMessage(err__) + "\n");                \
-      TRITONSERVER_ErrorDelete(err__);                             \
-      throw ex;                                                    \
-    }                                                              \
-  } while (false)
-
 //==============================================================================
 /// enum classes
 ///
@@ -86,6 +74,5 @@ using OutputBufferReleaseFn_t = void (*)(
     void* buffer, size_t byte_size, MemoryType memory_type,
     int64_t memory_type_id);
 using ResponseAllocatorStartFn_t = void (*)(void* userp);
-
 
 }}}  // namespace triton::server::wrapper

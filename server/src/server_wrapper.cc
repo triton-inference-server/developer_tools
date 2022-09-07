@@ -38,6 +38,17 @@
 
 namespace triton { namespace server { namespace wrapper {
 
+#define THROW_IF_TRITON_ERR(X)                                     \
+  do {                                                             \
+    TRITONSERVER_Error* err__ = (X);                               \
+    if (err__ != nullptr) {                                        \
+      TritonException ex(                                          \
+          TRITONSERVER_ErrorCodeString(err__) + std::string("-") + \
+          TRITONSERVER_ErrorMessage(err__) + "\n");                \
+      TRITONSERVER_ErrorDelete(err__);                             \
+      throw ex;                                                    \
+    }                                                              \
+  } while (false)
 #define IGNORE_ERROR(X)                   \
   do {                                    \
     TRITONSERVER_Error* ie_err__ = (X);   \
