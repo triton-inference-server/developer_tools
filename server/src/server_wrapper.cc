@@ -615,78 +615,59 @@ OutputBufferQuery(
 }
 
 LoggingOptions::LoggingOptions()
+    : verbose_(VerboseLevel::OFF), info_(true), warn_(true), error_(true),
+      format_(LogFormat::DEFAULT), log_file_("")
 {
-  verbose_ = VerboseLevel::OFF;
-  info_ = true;
-  warn_ = true;
-  error_ = true;
-  format_ = LogFormat::DEFAULT;
-  log_file_ = "";
 }
 
 LoggingOptions::LoggingOptions(
     const VerboseLevel verbose, const bool info, const bool warn,
     const bool error, const LogFormat& format, const std::string& log_file)
+    : info_(info), warn_(warn), error_(error), format_(format),
+      log_file_(log_file)
 {
   if ((verbose < VerboseLevel::MIN) || (verbose > VerboseLevel::MAX)) {
     verbose_ = VerboseLevel::OFF;
   } else {
     verbose_ = verbose;
   }
-  info_ = info;
-  warn_ = warn;
-  error_ = error;
-  format_ = format;
-  log_file_ = log_file;
 }
 
 MetricsOptions::MetricsOptions()
+    : allow_metrics_(true), allow_gpu_metrics_(true), allow_cpu_metrics_(true),
+      metrics_interval_ms_(2000)
 {
-  allow_metrics_ = true;
-  allow_gpu_metrics_ = true;
-  allow_cpu_metrics_ = true;
-  metrics_interval_ms_ = 2000;
 }
 
 MetricsOptions::MetricsOptions(
     const bool allow_metrics, const bool allow_gpu_metrics,
     const bool allow_cpu_metrics, const uint64_t metrics_interval_ms)
+    : allow_metrics_(allow_metrics), allow_gpu_metrics_(allow_gpu_metrics),
+      allow_cpu_metrics_(allow_cpu_metrics),
+      metrics_interval_ms_(metrics_interval_ms)
 {
-  allow_metrics_ = allow_metrics;
-  allow_gpu_metrics_ = allow_gpu_metrics;
-  allow_cpu_metrics_ = allow_cpu_metrics;
-  metrics_interval_ms_ = metrics_interval_ms;
 }
 
-BackendConfig::BackendConfig()
-{
-  backend_name_ = "";
-  setting_ = "";
-  value_ = "";
-}
+BackendConfig::BackendConfig() : backend_name_(""), setting_(""), value_("") {}
 
 BackendConfig::BackendConfig(
     const std::string& backend_name, const std::string& setting,
     const std::string& value)
+    : backend_name_(backend_name), setting_(setting), value_(value)
 {
-  backend_name_ = backend_name;
-  setting_ = setting;
-  value_ = value;
 }
 
 ServerOptions::ServerOptions(
     const std::vector<std::string>& model_repository_paths)
+    : model_repository_paths_(model_repository_paths),
+      logging_(LoggingOptions()), metrics_(MetricsOptions()),
+      server_id_("triton"), backend_dir_("/opt/tritonserver/backends"),
+      repo_agent_dir_("/opt/tritonserver/repoagents"),
+      disable_auto_complete_config_(false),
+      model_control_mode_(ModelControlMode::NONE)
 {
   // FIXME: Use iterator instead of vector for 'model_repository_paths_'.
-  model_repository_paths_ = model_repository_paths;
-  logging_ = LoggingOptions();
-  metrics_ = MetricsOptions();
   be_config_.clear();
-  server_id_ = "triton";
-  backend_dir_ = "/opt/tritonserver/backends";
-  repo_agent_dir_ = "/opt/tritonserver/repoagents";
-  disable_auto_complete_config_ = false;
-  model_control_mode_ = ModelControlMode::NONE;
 }
 
 ServerOptions::ServerOptions(
@@ -696,56 +677,39 @@ ServerOptions::ServerOptions(
     const std::string& backend_dir, const std::string& repo_agent_dir,
     const bool disable_auto_complete_config,
     const ModelControlMode& model_control_mode)
+    : model_repository_paths_(model_repository_paths), logging_(logging),
+      metrics_(metrics), be_config_(be_config), server_id_(server_id),
+      backend_dir_(backend_dir), repo_agent_dir_(repo_agent_dir),
+      disable_auto_complete_config_(disable_auto_complete_config),
+      model_control_mode_(model_control_mode)
 {
-  // FIXME: Use iterator instead of vector for 'model_repository_paths_'.
-  model_repository_paths_ = model_repository_paths;
-  logging_ = logging;
-  metrics_ = metrics;
-  be_config_ = be_config;
-  server_id_ = server_id;
-  backend_dir_ = backend_dir;
-  repo_agent_dir_ = repo_agent_dir;
-  disable_auto_complete_config_ = disable_auto_complete_config;
-  model_control_mode_ = model_control_mode;
 }
 
 RepositoryIndex::RepositoryIndex(
     const std::string& name, const std::string& version,
     const ModelReadyState& state)
+    : name_(name), version_(version), state_(state)
 {
-  name_ = name;
-  version_ = version;
-  state_ = state;
 }
 
 Tensor::Tensor(
     char* buffer, const size_t& byte_size, DataType data_type,
     std::vector<int64_t> shape, MemoryType memory_type, int64_t memory_type_id)
+    : buffer_(buffer), byte_size_(byte_size), data_type_(data_type),
+      shape_(shape), memory_type_(memory_type), memory_type_id_(memory_type_id),
+      is_pre_alloc_(false), is_output_(false)
 {
-  buffer_ = buffer;
-  byte_size_ = byte_size;
-  data_type_ = data_type;
-  shape_ = shape;
-  memory_type_ = memory_type;
-  memory_type_id_ = memory_type_id;
   custom_allocator_.reset();
-  is_pre_alloc_ = false;
-  is_output_ = false;
 }
 
 Tensor::Tensor(
     char* buffer, size_t byte_size, MemoryType memory_type,
     int64_t memory_type_id)
+    : buffer_(buffer), byte_size_(byte_size), data_type_(DataType::INVALID),
+      shape_({}), memory_type_(memory_type), memory_type_id_(memory_type_id),
+      is_pre_alloc_(false), is_output_(false)
 {
-  buffer_ = buffer;
-  byte_size_ = byte_size;
-  data_type_ = DataType::INVALID;
-  shape_ = {};
-  memory_type_ = memory_type;
-  memory_type_id_ = memory_type_id;
   custom_allocator_.reset();
-  is_pre_alloc_ = false;
-  is_output_ = false;
 }
 
 Tensor::~Tensor()
@@ -820,17 +784,11 @@ Tensor::~Tensor()
 }
 
 InferOptions::InferOptions(const std::string& model_name)
+    : model_name_(model_name), model_version_(-1), request_id_(""),
+      correlation_id_(0), correlation_id_str_(""), sequence_start_(false),
+      sequence_end_(false), priority_(0), request_timeout_(0),
+      custom_allocator_(nullptr)
 {
-  model_name_ = model_name;
-  model_version_ = -1;
-  request_id_ = "";
-  correlation_id_ = 0;
-  correlation_id_str_ = "";
-  sequence_start_ = false;
-  sequence_end_ = false;
-  priority_ = 0;
-  request_timeout_ = 0;
-  custom_allocator_ = nullptr;
 }
 
 InferOptions::InferOptions(
@@ -840,17 +798,12 @@ InferOptions::InferOptions(
     const bool sequence_end, const uint64_t& priority,
     const uint64_t& request_timeout,
     std::shared_ptr<Allocator> custom_allocator)
+    : model_name_(model_name), model_version_(model_version),
+      request_id_(request_id), correlation_id_(correlation_id),
+      correlation_id_str_(correlation_id_str), sequence_start_(sequence_start),
+      sequence_end_(sequence_end), priority_(priority),
+      request_timeout_(request_timeout), custom_allocator_(custom_allocator)
 {
-  model_name_ = model_name;
-  model_version_ = model_version;
-  request_id_ = request_id;
-  correlation_id_ = correlation_id;
-  correlation_id_str_ = correlation_id_str;
-  sequence_start_ = sequence_start;
-  sequence_end_ = sequence_end;
-  priority_ = priority;
-  request_timeout_ = request_timeout;
-  custom_allocator_ = custom_allocator;
 }
 
 std::unique_ptr<TritonServer>
