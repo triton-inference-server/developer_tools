@@ -25,21 +25,29 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
+#include <climits>
 #include <future>
 #include <iostream>
+#include <list>
 #include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "../src/common.h"
+#include "../src/infer_requested_output.h"
+#include "common.h"
 #include "triton/core/tritonserver.h"
+#ifdef TRITON_ENABLE_GPU
+#include <cuda_runtime_api.h>
+#endif  // TRITON_ENABLE_GPU
 
 namespace triton { namespace server { namespace wrapper {
 
+class Allocator;
 class InferResult;
 class InferRequest;
-class Allocator;
+struct ResponseParameters;
+
 using TensorAllocMap = std::unordered_map<
     std::string,
     std::tuple<const void*, size_t, TRITONSERVER_MemoryType, int64_t>>;
@@ -48,15 +56,20 @@ using TensorAllocMap = std::unordered_map<
 /// Structure to hold logging options for server parameters.
 ///
 struct LoggingOptions {
+  // The range of VerboseLevel is [0, UINT_MAX]. 
+  enum class VerboseLevel : uint {
+    MIN = 0,
+    MAX = UINT_MAX
+  };
+
   LoggingOptions();
 
   LoggingOptions(
-      const triton::server::wrapper::VerboseLevel verbose, const bool info,
-      const bool warn, const bool error, const LogFormat& format,
-      const std::string& log_file);
+      const VerboseLevel verbose, const bool info, const bool warn,
+      const bool error, const LogFormat& format, const std::string& log_file);
 
-  // Verbose logging level. The range is [0, UINT_MAX]. Default is 0.
-  triton::server::wrapper::VerboseLevel verbose_;
+  // Verbose logging level. Default is 0.
+  VerboseLevel verbose_;
   // Enable or disable info logging level. Default is true.
   bool info_;
   // Enable or disable warn logging level. Default is true.
@@ -369,7 +382,9 @@ class InferRequest {
 
   virtual ~InferRequest();
 
-  /// Add an input tensor to be sent within an InferRequest object.
+  /// Add an input tensor to be sent within an InferRequest object. The input
+  /// data buffer within the 'Tensor' object must not be modified until
+  /// inference is completed and result is returned.
   /// \param name The name of the input tensor.
   /// \param input A Tensor object that describes an input tensor.
   void AddInput(const std::string& name, const Tensor& input) noexcept;
@@ -377,7 +392,7 @@ class InferRequest {
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding 'non-string' data elements. Data in the
   /// container should be contiguous, and the the container must not be modified
-  /// before the result is returned.
+  /// until inference is completed and result is returned.
   /// \param name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
@@ -398,8 +413,8 @@ class InferRequest {
 
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding 'string' elements. Data in the
-  /// container should be contiguous, and the the container must
-  // not be modified before the result is returned.
+  /// container should be contiguous, and the the container must not be modified
+  /// until inference is completed and the result is returned.
   /// \param name The name of the input tensor.
   /// \param begin The begin iterator of the container.
   /// \param end  The end iterator of the container.
@@ -553,7 +568,7 @@ class Allocator {
 
     \param userp The user data pointer that is passed to the
     'ResponseAllocatorStartFn_t' callback function.
-   * using ResponseAllocatorStartFn_t = void (*)(void* userp);
+  * using ResponseAllocatorStartFn_t = void (*)(void* userp);
   ***/
  public:
   explicit Allocator(

@@ -38,8 +38,40 @@
 
 namespace triton { namespace server { namespace wrapper {
 
+#define IGNORE_ERROR(X)                   \
+  do {                                    \
+    TRITONSERVER_Error* ie_err__ = (X);   \
+    if (ie_err__ != nullptr) {            \
+      TRITONSERVER_ErrorDelete(ie_err__); \
+    }                                     \
+  } while (false)
+#define RETURN_IF_ERR(X)           \
+  {                                \
+    Error err = (X);               \
+    if (!err.IsOk()) {             \
+      return Error(err.Message()); \
+    }                              \
+  }
+#define LOG_IF_ERROR(X, MSG)                                                   \
+  do {                                                                         \
+    TRITONSERVER_Error* lie_err__ = (X);                                       \
+    if (lie_err__ != nullptr) {                                                \
+      IGNORE_ERROR(TRITONSERVER_LogMessage(                                    \
+          TRITONSERVER_LOG_ERROR, __FILE__, __LINE__,                          \
+          (std::string(MSG) + ": " + TRITONSERVER_ErrorCodeString(lie_err__) + \
+           " - " + TRITONSERVER_ErrorMessage(lie_err__))                       \
+              .c_str()));                                                      \
+      TRITONSERVER_ErrorDelete(lie_err__);                                     \
+    }                                                                          \
+  } while (false)
+#define LOG_MESSAGE(LEVEL, MSG)                                  \
+  do {                                                           \
+    LOG_IF_ERROR(                                                \
+        TRITONSERVER_LogMessage(LEVEL, __FILE__, __LINE__, MSG), \
+        ("failed to log message: "));                            \
+  } while (false)
+
 using AllocInfo = std::pair<std::shared_ptr<Allocator>, TensorAllocMap>;
-namespace tsw = triton::server::wrapper;
 
 //==============================================================================
 /// Helper functions
@@ -48,33 +80,33 @@ std::string
 DataTypeString(const DataType& data_type)
 {
   switch (data_type) {
-    case tsw::DataType::BOOL:
+    case DataType::BOOL:
       return "BOOL";
-    case tsw::DataType::UINT8:
+    case DataType::UINT8:
       return "UINT8";
-    case tsw::DataType::UINT16:
+    case DataType::UINT16:
       return "UINT16";
-    case tsw::DataType::UINT32:
+    case DataType::UINT32:
       return "UINT32";
-    case tsw::DataType::UINT64:
+    case DataType::UINT64:
       return "UINT64";
-    case tsw::DataType::INT8:
+    case DataType::INT8:
       return "INT8";
-    case tsw::DataType::INT16:
+    case DataType::INT16:
       return "INT16";
-    case tsw::DataType::INT32:
+    case DataType::INT32:
       return "INT32";
-    case tsw::DataType::INT64:
+    case DataType::INT64:
       return "INT64";
-    case tsw::DataType::FP16:
+    case DataType::FP16:
       return "FP16";
-    case tsw::DataType::FP32:
+    case DataType::FP32:
       return "FP32";
-    case tsw::DataType::FP64:
+    case DataType::FP64:
       return "FP64";
-    case tsw::DataType::BYTES:
+    case DataType::BYTES:
       return "BYTES";
-    case tsw::DataType::BF16:
+    case DataType::BF16:
       return "BF16";
     default:
       break;
@@ -87,11 +119,11 @@ std::string
 MemoryTypeString(const MemoryType& memory_type)
 {
   switch (memory_type) {
-    case tsw::MemoryType::CPU:
+    case MemoryType::CPU:
       return "CPU";
-    case tsw::MemoryType::CPU_PINNED:
+    case MemoryType::CPU_PINNED:
       return "CPU_PINNED";
-    case tsw::MemoryType::GPU:
+    case MemoryType::GPU:
       return "GPU";
     default:
       break;
@@ -104,20 +136,199 @@ std::string
 ModelReadyStateString(const ModelReadyState& state)
 {
   switch (state) {
-    case tsw::ModelReadyState::UNKNOWN:
+    case ModelReadyState::UNKNOWN:
       return "UNKNOWN";
-    case tsw::ModelReadyState::READY:
+    case ModelReadyState::READY:
       return "READY";
-    case tsw::ModelReadyState::UNAVAILABLE:
+    case ModelReadyState::UNAVAILABLE:
       return "UNAVAILABLE";
-    case tsw::ModelReadyState::LOADING:
+    case ModelReadyState::LOADING:
       return "LOADING";
-    case tsw::ModelReadyState::UNLOADING:
+    case ModelReadyState::UNLOADING:
       return "UNLOADING";
     default:
       return "UNKNOWN";
   }
 }
+
+TRITONSERVER_ModelControlMode
+ToTritonModelControlMode(const ModelControlMode& mode)
+{
+  switch (mode) {
+    case ModelControlMode::MODEL_CONTROL_NONE:
+      return TRITONSERVER_MODEL_CONTROL_NONE;
+    case ModelControlMode::MODEL_CONTROL_POLL:
+      return TRITONSERVER_MODEL_CONTROL_POLL;
+    case ModelControlMode::MODEL_CONTROL_EXPLICIT:
+      return TRITONSERVER_MODEL_CONTROL_EXPLICIT;
+
+    default:
+      throw TritonException("unsupported model control mode.");
+  }
+}
+
+TRITONSERVER_LogFormat
+ToTritonLogFormat(const LogFormat& format)
+{
+  switch (format) {
+    case LogFormat::LOG_DEFAULT:
+      return TRITONSERVER_LOG_DEFAULT;
+    case LogFormat::LOG_ISO8601:
+      return TRITONSERVER_LOG_ISO8601;
+
+    default:
+      throw TritonException("unsupported log format.");
+  }
+}
+
+TRITONSERVER_DataType
+ToTritonDataType(const DataType& dtype) noexcept
+{
+  switch (dtype) {
+    case DataType::BOOL:
+      return TRITONSERVER_TYPE_BOOL;
+    case DataType::UINT8:
+      return TRITONSERVER_TYPE_UINT8;
+    case DataType::UINT16:
+      return TRITONSERVER_TYPE_UINT16;
+    case DataType::UINT32:
+      return TRITONSERVER_TYPE_UINT32;
+    case DataType::UINT64:
+      return TRITONSERVER_TYPE_UINT64;
+    case DataType::INT8:
+      return TRITONSERVER_TYPE_INT8;
+    case DataType::INT16:
+      return TRITONSERVER_TYPE_INT16;
+    case DataType::INT32:
+      return TRITONSERVER_TYPE_INT32;
+    case DataType::INT64:
+      return TRITONSERVER_TYPE_INT64;
+    case DataType::FP16:
+      return TRITONSERVER_TYPE_FP16;
+    case DataType::FP32:
+      return TRITONSERVER_TYPE_FP32;
+    case DataType::FP64:
+      return TRITONSERVER_TYPE_FP64;
+    case DataType::BYTES:
+      return TRITONSERVER_TYPE_BYTES;
+    case DataType::BF16:
+      return TRITONSERVER_TYPE_BF16;
+
+    default:
+      return TRITONSERVER_TYPE_INVALID;
+  }
+}
+
+DataType
+TritonToDataType(const TRITONSERVER_DataType& dtype) noexcept
+{
+  switch (dtype) {
+    case TRITONSERVER_TYPE_BOOL:
+      return DataType::BOOL;
+    case TRITONSERVER_TYPE_UINT8:
+      return DataType::UINT8;
+    case TRITONSERVER_TYPE_UINT16:
+      return DataType::UINT16;
+    case TRITONSERVER_TYPE_UINT32:
+      return DataType::UINT32;
+    case TRITONSERVER_TYPE_UINT64:
+      return DataType::UINT64;
+    case TRITONSERVER_TYPE_INT8:
+      return DataType::INT8;
+    case TRITONSERVER_TYPE_INT16:
+      return DataType::INT16;
+    case TRITONSERVER_TYPE_INT32:
+      return DataType::INT32;
+    case TRITONSERVER_TYPE_INT64:
+      return DataType::INT64;
+    case TRITONSERVER_TYPE_FP16:
+      return DataType::FP16;
+    case TRITONSERVER_TYPE_FP32:
+      return DataType::FP32;
+    case TRITONSERVER_TYPE_FP64:
+      return DataType::FP64;
+    case TRITONSERVER_TYPE_BYTES:
+      return DataType::BYTES;
+    case TRITONSERVER_TYPE_BF16:
+      return DataType::BF16;
+
+    default:
+      return DataType::INVALID;
+  }
+}
+
+TRITONSERVER_MemoryType
+ToTritonMemoryType(const MemoryType& mem_type)
+{
+  switch (mem_type) {
+    case MemoryType::CPU:
+      return TRITONSERVER_MEMORY_CPU;
+    case MemoryType::CPU_PINNED:
+      return TRITONSERVER_MEMORY_CPU_PINNED;
+    case MemoryType::GPU:
+      return TRITONSERVER_MEMORY_GPU;
+
+    default:
+      throw TritonException("unsupported memory type.");
+  }
+}
+
+MemoryType
+TritonToMemoryType(const TRITONSERVER_MemoryType& mem_type)
+{
+  switch (mem_type) {
+    case TRITONSERVER_MEMORY_CPU:
+      return MemoryType::CPU;
+    case TRITONSERVER_MEMORY_CPU_PINNED:
+      return MemoryType::CPU_PINNED;
+    case TRITONSERVER_MEMORY_GPU:
+      return MemoryType::GPU;
+
+    default:
+      throw TritonException("unsupported memory type.");
+  }
+}
+
+ModelReadyState
+StringToModelReadyState(const std::string& state) noexcept
+{
+  if (state == "UNKNOWN") {
+    return ModelReadyState::UNKNOWN;
+  } else if (state == "READY") {
+    return ModelReadyState::READY;
+  } else if (state == "UNAVAILABLE") {
+    return ModelReadyState::UNAVAILABLE;
+  } else if (state == "LOADING") {
+    return ModelReadyState::LOADING;
+  } else if (state == "UNLOADING") {
+    return ModelReadyState::UNLOADING;
+  } else {
+    return ModelReadyState::UNKNOWN;
+  }
+}
+
+//==============================================================================
+/// Structure to hold response parameters for InfeResult object. The kinds
+/// of parameters in a response can be created by the backend side using
+/// 'TRITONBACKEND_ResponseSet*Parameter' APIs.
+/// See here for more information:
+/// https://github.com/triton-inference-server/backend/tree/main/examples#add-key-value-parameters-to-a-response
+struct ResponseParameters {
+  explicit ResponseParameters(
+      const char* name, TRITONSERVER_ParameterType type, const void* vvalue)
+      : name_(name), type_(type), vvalue_(vvalue)
+  {
+  }
+
+  // The name of the parameter.
+  const char* name_;
+  // The type of the parameter. Valid types are TRITONSERVER_PARAMETER_STRING,
+  // TRITONSERVER_PARAMETER_INT, TRITONSERVER_PARAMETER_BOOL, and
+  // TRITONSERVER_PARAMETER_BYTES.
+  TRITONSERVER_ParameterType type_;
+  // The pointer to the parameter value.
+  const void* vvalue_;
+};
 
 //==============================================================================
 /// InternalServer class
@@ -390,21 +601,20 @@ OutputBufferQuery(
 
 LoggingOptions::LoggingOptions()
 {
-  verbose_ = tsw::VerboseLevel(0);
+  verbose_ = VerboseLevel(0);
   info_ = true;
   warn_ = true;
   error_ = true;
-  format_ = tsw::LogFormat::LOG_DEFAULT;
+  format_ = LogFormat::LOG_DEFAULT;
   log_file_ = "";
 }
 
 LoggingOptions::LoggingOptions(
-    const tsw::VerboseLevel verbose, const bool info, const bool warn,
+    const VerboseLevel verbose, const bool info, const bool warn,
     const bool error, const LogFormat& format, const std::string& log_file)
 {
-  if ((verbose < tsw::VerboseLevel::MIN) ||
-      (verbose > tsw::VerboseLevel::MAX)) {
-    verbose_ = tsw::VerboseLevel(0);
+  if ((verbose < VerboseLevel::MIN) || (verbose > VerboseLevel::MAX)) {
+    verbose_ = VerboseLevel(0);
   } else {
     verbose_ = verbose;
   }
@@ -461,7 +671,7 @@ ServerOptions::ServerOptions(
   backend_dir_ = "/opt/tritonserver/backends";
   repo_agent_dir_ = "/opt/tritonserver/repoagents";
   disable_auto_complete_config_ = false;
-  model_control_mode_ = tsw::ModelControlMode::MODEL_CONTROL_NONE;
+  model_control_mode_ = ModelControlMode::MODEL_CONTROL_NONE;
 }
 
 ServerOptions::ServerOptions(
@@ -514,7 +724,7 @@ Tensor::Tensor(
 {
   buffer_ = buffer;
   byte_size_ = byte_size;
-  data_type_ = tsw::DataType::INVALID;
+  data_type_ = DataType::INVALID;
   shape_ = {};
   memory_type_ = memory_type;
   memory_type_id_ = memory_type_id;
@@ -540,11 +750,11 @@ Tensor::~Tensor()
               .c_str());
 
       switch (memory_type_) {
-        case tsw::MemoryType::CPU:
+        case MemoryType::CPU:
           free(buffer_);
           break;
 #ifdef TRITON_ENABLE_GPU
-        case tsw::MemoryType::CPU_PINNED: {
+        case MemoryType::CPU_PINNED: {
           auto err = cudaSetDevice(memory_type_id_);
           if (err == cudaSuccess) {
             err = cudaFreeHost(buffer_);
@@ -555,7 +765,7 @@ Tensor::~Tensor()
           }
           break;
         }
-        case tsw::MemoryType::GPU: {
+        case MemoryType::GPU: {
           auto err = cudaSetDevice(memory_type_id_);
           if (err == cudaSuccess) {
             err = cudaFree(buffer_);
@@ -815,7 +1025,8 @@ TritonServer::PrepareInferenceOutput(
       if (infer_output->Buffer() != nullptr) {
         request.tensor_alloc_map_[name] = std::make_tuple(
             infer_output->Buffer(), infer_output->ByteSize(),
-            infer_output->MemoryType(), infer_output->MemoryTypeId());
+            ToTritonMemoryType(infer_output->GetMemoryType()),
+            infer_output->MemoryTypeId());
       }
     }
   }
@@ -1218,7 +1429,7 @@ InferResult::StringData(const std::string& name)
 {
   std::vector<std::string> string_result;
   if (infer_outputs_.find(name) != infer_outputs_.end()) {
-    if (infer_outputs_[name]->data_type_ == tsw::DataType::BYTES) {
+    if (infer_outputs_[name]->data_type_ == DataType::BYTES) {
       const char* buf =
           reinterpret_cast<const char*>(infer_outputs_[name]->buffer_);
       size_t byte_size = infer_outputs_[name]->byte_size_;

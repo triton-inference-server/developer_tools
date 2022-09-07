@@ -65,8 +65,8 @@ class TritonServerTest : public ::testing::Test {
   TritonServerTest() : options_({"./models"})
   {
     options_.logging_ = tsw::LoggingOptions(
-        tsw::VerboseLevel(0), false, false, false, tsw::LogFormat::LOG_DEFAULT,
-        "");
+        tsw::LoggingOptions::VerboseLevel(0), false, false, false,
+        tsw::LogFormat::LOG_DEFAULT, "");
   }
 
   tsw::ServerOptions options_;
