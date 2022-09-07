@@ -42,13 +42,9 @@ namespace triton { namespace server { namespace wrapper {
 //==============================================================================
 /// enum classes
 ///
-enum class ModelControlMode {
-  MODEL_CONTROL_NONE,
-  MODEL_CONTROL_POLL,
-  MODEL_CONTROL_EXPLICIT
-};
+enum class ModelControlMode { NONE, POLL, EXPLICIT };
 enum class MemoryType { CPU, CPU_PINNED, GPU };
-enum class LogFormat { LOG_DEFAULT, LOG_ISO8601 };
+enum class LogFormat { DEFAULT, ISO8601 };
 enum class DataType {
   INVALID,
   BOOL,

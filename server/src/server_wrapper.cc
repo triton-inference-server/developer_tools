@@ -155,11 +155,11 @@ TRITONSERVER_ModelControlMode
 ToTritonModelControlMode(const ModelControlMode& mode)
 {
   switch (mode) {
-    case ModelControlMode::MODEL_CONTROL_NONE:
+    case ModelControlMode::NONE:
       return TRITONSERVER_MODEL_CONTROL_NONE;
-    case ModelControlMode::MODEL_CONTROL_POLL:
+    case ModelControlMode::POLL:
       return TRITONSERVER_MODEL_CONTROL_POLL;
-    case ModelControlMode::MODEL_CONTROL_EXPLICIT:
+    case ModelControlMode::EXPLICIT:
       return TRITONSERVER_MODEL_CONTROL_EXPLICIT;
 
     default:
@@ -171,9 +171,9 @@ TRITONSERVER_LogFormat
 ToTritonLogFormat(const LogFormat& format)
 {
   switch (format) {
-    case LogFormat::LOG_DEFAULT:
+    case LogFormat::DEFAULT:
       return TRITONSERVER_LOG_DEFAULT;
-    case LogFormat::LOG_ISO8601:
+    case LogFormat::ISO8601:
       return TRITONSERVER_LOG_ISO8601;
 
     default:
@@ -375,6 +375,10 @@ TRITONSERVER_ResponseAllocator* InternalRequest::custom_triton_allocator_;
 ///
 class InternalResult : public InferResult {
  public:
+  InternalResult();
+
+  ~InternalResult();
+
   void FinalizeResponse(
       TRITONSERVER_InferenceResponse* response, const AllocInfo& alloc_info);
 };
@@ -601,11 +605,11 @@ OutputBufferQuery(
 
 LoggingOptions::LoggingOptions()
 {
-  verbose_ = VerboseLevel(0);
+  verbose_ = VerboseLevel::OFF;
   info_ = true;
   warn_ = true;
   error_ = true;
-  format_ = LogFormat::LOG_DEFAULT;
+  format_ = LogFormat::DEFAULT;
   log_file_ = "";
 }
 
@@ -614,7 +618,7 @@ LoggingOptions::LoggingOptions(
     const bool error, const LogFormat& format, const std::string& log_file)
 {
   if ((verbose < VerboseLevel::MIN) || (verbose > VerboseLevel::MAX)) {
-    verbose_ = VerboseLevel(0);
+    verbose_ = VerboseLevel::OFF;
   } else {
     verbose_ = verbose;
   }
@@ -671,7 +675,7 @@ ServerOptions::ServerOptions(
   backend_dir_ = "/opt/tritonserver/backends";
   repo_agent_dir_ = "/opt/tritonserver/repoagents";
   disable_auto_complete_config_ = false;
-  model_control_mode_ = ModelControlMode::MODEL_CONTROL_NONE;
+  model_control_mode_ = ModelControlMode::NONE;
 }
 
 ServerOptions::ServerOptions(
@@ -1295,7 +1299,15 @@ InferRequest::Reset()
   tensor_alloc_map_.clear();
 }
 
-InferResult::~InferResult()
+InferResult::~InferResult() {}
+
+InternalResult::InternalResult()
+{
+  has_error_ = false;
+  error_msg_ = "";
+}
+
+InternalResult::~InternalResult()
 {
   if (completed_response_ != nullptr) {
     LOG_IF_ERROR(
@@ -1384,8 +1396,8 @@ InternalResult::FinalizeResponse(
           "Failed to delete inference response.");
       response = nullptr;
     }
-    throw TritonException(
-        std::string("Error when finalizing the infer response: ") + ex.what());
+    has_error_ = true;
+    error_msg_ = ex.what();
   }
   // Store the completed response to InferResult.
   completed_response_ = response;
@@ -1530,6 +1542,18 @@ InferResult::DebugString()
   catch (const TritonException& ex) {
     throw TritonException(std::string("Error - DebugString: ") + ex.what());
   }
+}
+
+bool
+InferResult::HasError()
+{
+  return has_error_;
+}
+
+std::string
+InferResult::ErrorMsg()
+{
+  return error_msg_;
 }
 
 }}}  // namespace triton::server::wrapper

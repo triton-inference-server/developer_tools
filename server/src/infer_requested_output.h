@@ -63,23 +63,23 @@ class InferRequestedOutput {
         name, buffer, byte_size, memory_type, memory_type_id));
   }
 
-  /// Gets name of the associated output tensor.
+  /// Get name of the associated output tensor.
   /// \return The name of the tensor.
   const std::string& Name() const { return name_; }
 
-  /// Gets buffer of the associated output tensor.
+  /// Get buffer of the associated output tensor.
   /// \return The name of the tensor.
   const char* Buffer() { return buffer_; }
 
-  /// Gets byte size of the associated output tensor.
+  /// Get byte size of the associated output tensor.
   /// \return The name of the tensor.
   size_t ByteSize() { return byte_size_; }
 
-  /// Gets the memory type of the output tensor.
+  /// Get the memory type of the output tensor.
   /// \return The memory type of the tensor.
   const MemoryType& GetMemoryType() const { return memory_type_; }
 
-  /// Gets the memory type id of the output tensor.
+  /// Get the memory type id of the output tensor.
   /// \return The memory type id of the tensor.
   const int64_t& MemoryTypeId() const { return memory_type_id_; }
 

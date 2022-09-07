@@ -56,11 +56,8 @@ using TensorAllocMap = std::unordered_map<
 /// Structure to hold logging options for server parameters.
 ///
 struct LoggingOptions {
-  // The range of VerboseLevel is [0, UINT_MAX]. 
-  enum class VerboseLevel : uint {
-    MIN = 0,
-    MAX = UINT_MAX
-  };
+  // The range of VerboseLevel is [0, INT_MAX].
+  enum class VerboseLevel : uint { OFF = 0, MIN = 1, MAX = INT_MAX };
 
   LoggingOptions();
 
@@ -68,7 +65,7 @@ struct LoggingOptions {
       const VerboseLevel verbose, const bool info, const bool warn,
       const bool error, const LogFormat& format, const std::string& log_file);
 
-  // Verbose logging level. Default is 0.
+  // Verbose logging level. Default is OFF.
   VerboseLevel verbose_;
   // Enable or disable info logging level. Default is true.
   bool info_;
@@ -76,9 +73,9 @@ struct LoggingOptions {
   bool warn_;
   // Enable or disable error logging level. Default is true.
   bool error_;
-  // The format of logging. For "LOG_DEFAULT", the log severity (L) and
-  // timestamp will be logged as "LMMDD hh:mm:ss.ssssss". For "LOG_ISO8601", the
-  // log format will be "YYYY-MM-DDThh:mm:ssZ L". Default is 'LOG_DEFAULT'.
+  // The format of logging. For "DEFAULT", the log severity (L) and
+  // timestamp will be logged as "LMMDD hh:mm:ss.ssssss". For "ISO8601", the
+  // log format will be "YYYY-MM-DDThh:mm:ssZ L". Default is 'DEFAULT'.
   LogFormat format_;
   // Logging output file. If specified, log outputs will be saved to this file.
   // If not specified, log outputs will stream to the console. Default is an
@@ -170,9 +167,8 @@ struct ServerOptions {
   // See here for more information:
   // https://github.com/triton-inference-server/server/blob/main/docs/model_configuration.md#auto-generated-model-configuration.
   bool disable_auto_complete_config_;
-  // Specify the mode for model management. Options are "MODEL_CONTROL_NONE",
-  // "MODEL_CONTROL_POLL" and "MODEL_CONTROL_EXPLICIT". Default is
-  // "MODEL_CONTROL_NONE". See here for more information:
+  // Specify the mode for model management. Options are "NONE", "POLL" and
+  // "EXPLICIT". Default is "NONE". See here for more information:
   // https://github.com/triton-inference-server/server/blob/main/docs/model_management.md.
   ModelControlMode model_control_mode_;
 };
@@ -475,7 +471,7 @@ class InferRequest {
 ///
 class InferResult {
  public:
-  ~InferResult();
+  virtual ~InferResult();
 
   /// Get the name of the model which generated this response.
   /// \return Returns the name of the model.
@@ -505,9 +501,17 @@ class InferResult {
   /// strings are stored in the row-major order.
   std::vector<std::string> StringData(const std::string& output_name);
 
-  /// Returns the complete response as a user friendly string.
+  /// Return the complete response as a user friendly string.
   /// \return The string describing the complete response.
   std::string DebugString();
+
+  /// Return if there is an error within this result.
+  /// \return True if this 'InferResult' object has an error, false if no error.
+  bool HasError();
+
+  /// Return the error message of the error.
+  /// \return The messsage for the error. Empty if no error.
+  std::string ErrorMsg();
 
  protected:
   const char* model_name_;
@@ -515,6 +519,8 @@ class InferResult {
   const char* request_id_;
   std::vector<std::unique_ptr<ResponseParameters>> params_;
   std::unordered_map<std::string, std::shared_ptr<Tensor>> infer_outputs_;
+  bool has_error_;
+  std::string error_msg_;
 
   TRITONSERVER_InferenceResponse* completed_response_ = nullptr;
 };
@@ -621,9 +627,8 @@ InferRequest::AddInput(
     sbuf.append(*it);
   }
   Tensor input(
-      reinterpret_cast<char*>(&sbuf[0]), sbuf.size(),
-      triton::server::wrapper::DataType::BYTES, shape, memory_type,
-      memory_type_id);
+      reinterpret_cast<char*>(&sbuf[0]), sbuf.size(), DataType::BYTES, shape,
+      memory_type, memory_type_id);
 
   AddInput(name, input);
 }

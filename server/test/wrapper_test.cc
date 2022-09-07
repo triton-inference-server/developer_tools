@@ -66,7 +66,7 @@ class TritonServerTest : public ::testing::Test {
   {
     options_.logging_ = tsw::LoggingOptions(
         tsw::LoggingOptions::VerboseLevel(0), false, false, false,
-        tsw::LogFormat::LOG_DEFAULT, "");
+        tsw::LogFormat::DEFAULT, "");
   }
 
   tsw::ServerOptions options_;
@@ -109,8 +109,7 @@ TEST_F(TritonServerTest, NoneLoadUnload)
 TEST_F(TritonServerTest, Explicit)
 {
   try {
-    options_.model_control_mode_ =
-        tsw::ModelControlMode::MODEL_CONTROL_EXPLICIT;
+    options_.model_control_mode_ = tsw::ModelControlMode::EXPLICIT;
     auto server = tsw::TritonServer::Create(options_);
     std::set<std::string> loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 0);
@@ -147,6 +146,7 @@ TEST_F(TritonServerTest, InferMinimal)
     std::future<std::unique_ptr<tsw::InferResult>> result_future =
         server->AsyncInfer(*request);
     auto result = result_future.get();
+    ASSERT_FALSE(result->HasError()) << result->ErrorMsg();
 
     // Check result metadata
     ASSERT_EQ(result->ModelName(), "add_sub");
@@ -206,6 +206,7 @@ TEST_F(TritonServerTest, InferString)
     std::future<std::unique_ptr<tsw::InferResult>> result_future =
         server->AsyncInfer(*request);
     auto result = result_future.get();
+    ASSERT_FALSE(result->HasError()) << result->ErrorMsg();
 
     // Check result metadata
     ASSERT_EQ(result->ModelName(), "add_sub_str");
