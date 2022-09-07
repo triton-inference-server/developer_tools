@@ -78,9 +78,10 @@ TEST_F(TritonServerTest, StartNone)
   try {
     auto server = tsw::TritonServer::Create(options_);
     std::set<std::string> loaded_models = server->LoadedModels();
-    ASSERT_EQ(loaded_models.size(), 2);
+    ASSERT_EQ(loaded_models.size(), 3);
     ASSERT_NE(loaded_models.find("add_sub"), loaded_models.end());
     ASSERT_NE(loaded_models.find("add_sub_str"), loaded_models.end());
+    ASSERT_NE(loaded_models.find("failing_infer"), loaded_models.end());
   }
   catch (...) {
     ASSERT_NO_THROW(throw);
@@ -239,6 +240,33 @@ TEST_F(TritonServerTest, InferString)
         EXPECT_EQ(out_str[i], "0");
       }
     }
+  }
+  catch (...) {
+    ASSERT_NO_THROW(throw);
+  }
+}
+
+TEST_F(TritonServerTest, InferFailed)
+{
+  try {
+    auto server = tsw::TritonServer::Create(options_);
+
+    std::vector<int32_t> input_data;
+    while (input_data.size() < 16) {
+      input_data.emplace_back(input_data.size());
+    }
+    auto request =
+        tsw::InferRequest::Create(tsw::InferOptions("failing_infer"));
+    request->AddInput(
+        "INPUT", tsw::Tensor(
+                     reinterpret_cast<char*>(input_data.data()),
+                     input_data.size() * sizeof(int32_t), tsw::DataType::INT32,
+                     {16}, tsw::MemoryType::CPU, 0));
+    std::future<std::unique_ptr<tsw::InferResult>> result_future =
+        server->AsyncInfer(*request);
+    auto result = result_future.get();
+    ASSERT_TRUE(result->HasError());
+    ASSERT_STREQ(result->ErrorMsg().c_str(), "Internal-An Error Occurred\n");
   }
   catch (...) {
     ASSERT_NO_THROW(throw);
