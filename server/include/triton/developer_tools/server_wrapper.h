@@ -41,7 +41,7 @@
 #include <cuda_runtime_api.h>
 #endif  // TRITON_ENABLE_GPU
 
-namespace triton { namespace server { namespace wrapper {
+namespace triton { namespace developer_tools { namespace server {
 
 class Allocator;
 class InferResult;
@@ -57,7 +57,7 @@ using TensorAllocMap = std::unordered_map<
 ///
 struct LoggingOptions {
   // The range of VerboseLevel is [0, INT_MAX].
-  enum class VerboseLevel : uint { OFF = 0, MIN = 1, MAX = INT_MAX };
+  enum class VerboseLevel : int { OFF = 0, MIN = 1, MAX = INT_MAX };
 
   LoggingOptions();
 
@@ -654,4 +654,4 @@ InferRequest::AddInput(
   AddInput(name, input);
 }
 
-}}}  // namespace triton::server::wrapper
+}}}  // namespace triton::developer_tools::server

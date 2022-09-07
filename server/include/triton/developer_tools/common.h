@@ -25,7 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
-namespace triton { namespace server { namespace wrapper {
+namespace triton { namespace developer_tools { namespace server {
 
 //==============================================================================
 /// enum classes
@@ -75,4 +75,4 @@ using OutputBufferReleaseFn_t = void (*)(
     int64_t memory_type_id);
 using ResponseAllocatorStartFn_t = void (*)(void* userp);
 
-}}}  // namespace triton::server::wrapper
+}}}  // namespace triton::developer_tools::server

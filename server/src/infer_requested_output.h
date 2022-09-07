@@ -29,7 +29,7 @@
 #include "../include/triton/developer_tools/common.h"
 #include "triton/core/tritonserver.h"
 
-namespace triton { namespace server { namespace wrapper {
+namespace triton { namespace developer_tools { namespace server {
 
 //==============================================================================
 /// An InferRequestedOutput object is used to describe the requested model
@@ -105,4 +105,4 @@ class InferRequestedOutput {
   int64_t memory_type_id_;
 };
 
-}}}  // namespace triton::server::wrapper
+}}}  // namespace triton::developer_tools::server

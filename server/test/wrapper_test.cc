@@ -29,7 +29,7 @@
 #include "triton/core/tritonserver.h"
 #include "triton/developer_tools/server_wrapper.h"
 
-namespace tsw = triton::server::wrapper;
+namespace tds = triton::developer_tools::server;
 
 namespace {
 
@@ -48,8 +48,8 @@ TEST(TritonServer, StartInvalidRepository)
 {
   // Run server with invalid model repository
   try {
-    tsw::TritonServer::Create(
-        tsw::ServerOptions({"/invalid_model_repository"}));
+    tds::TritonServer::Create(
+        tds::ServerOptions({"/invalid_model_repository"}));
   }
   catch (std::exception& ex) {
     ASSERT_STREQ(
@@ -64,19 +64,19 @@ class TritonServerTest : public ::testing::Test {
  protected:
   TritonServerTest() : options_({"./models"})
   {
-    options_.logging_ = tsw::LoggingOptions(
-        tsw::LoggingOptions::VerboseLevel(0), false, false, false,
-        tsw::LogFormat::DEFAULT, "");
+    options_.logging_ = tds::LoggingOptions(
+        tds::LoggingOptions::VerboseLevel(0), false, false, false,
+        tds::LogFormat::DEFAULT, "");
   }
 
-  tsw::ServerOptions options_;
+  tds::ServerOptions options_;
 };
 
 TEST_F(TritonServerTest, StartNone)
 {
   // Start server with default mode (NONE)
   try {
-    auto server = tsw::TritonServer::Create(options_);
+    auto server = tds::TritonServer::Create(options_);
     std::set<std::string> loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 3);
     ASSERT_NE(loaded_models.find("add_sub"), loaded_models.end());
@@ -92,7 +92,7 @@ TEST_F(TritonServerTest, NoneLoadUnload)
 {
   // Start server with NONE mode which explicit model control is not allowed
   try {
-    auto server = tsw::TritonServer::Create(options_);
+    auto server = tds::TritonServer::Create(options_);
     server->LoadModel("add_sub");
     server->UnloadModel("add_sub");
   }
@@ -110,8 +110,8 @@ TEST_F(TritonServerTest, NoneLoadUnload)
 TEST_F(TritonServerTest, Explicit)
 {
   try {
-    options_.model_control_mode_ = tsw::ModelControlMode::EXPLICIT;
-    auto server = tsw::TritonServer::Create(options_);
+    options_.model_control_mode_ = tds::ModelControlMode::EXPLICIT;
+    auto server = tds::TritonServer::Create(options_);
     std::set<std::string> loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 0);
     server->LoadModel("add_sub");
@@ -130,21 +130,21 @@ TEST_F(TritonServerTest, Explicit)
 TEST_F(TritonServerTest, InferMinimal)
 {
   try {
-    auto server = tsw::TritonServer::Create(options_);
+    auto server = tds::TritonServer::Create(options_);
 
     std::vector<int32_t> input_data;
     while (input_data.size() < 16) {
       input_data.emplace_back(input_data.size());
     }
-    auto request = tsw::InferRequest::Create(tsw::InferOptions("add_sub"));
+    auto request = tds::InferRequest::Create(tds::InferOptions("add_sub"));
     for (const auto& name : std::vector<std::string>{"INPUT0", "INPUT1"}) {
       request->AddInput(
-          name, tsw::Tensor(
+          name, tds::Tensor(
                     reinterpret_cast<char*>(input_data.data()),
-                    input_data.size() * sizeof(int32_t), tsw::DataType::INT32,
-                    {16}, tsw::MemoryType::CPU, 0));
+                    input_data.size() * sizeof(int32_t), tds::DataType::INT32,
+                    {16}, tds::MemoryType::CPU, 0));
     }
-    std::future<std::unique_ptr<tsw::InferResult>> result_future =
+    std::future<std::unique_ptr<tds::InferResult>> result_future =
         server->AsyncInfer(*request);
     auto result = result_future.get();
     ASSERT_FALSE(result->HasError()) << result->ErrorMsg();
@@ -157,9 +157,9 @@ TEST_F(TritonServerTest, InferMinimal)
     // OUTPUT0 -> sum
     {
       std::string out_name("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> out = result->Output(out_name);
+      std::shared_ptr<tds::Tensor> out = result->Output(out_name);
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
-      ASSERT_EQ(out->data_type_, tsw::DataType::INT32);
+      ASSERT_EQ(out->data_type_, tds::DataType::INT32);
       ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
       for (size_t i = 0; i < input_data.size(); ++i) {
         EXPECT_EQ(
@@ -171,9 +171,9 @@ TEST_F(TritonServerTest, InferMinimal)
     // OUTPUT1 -> diff
     {
       std::string out_name("OUTPUT1");
-      std::shared_ptr<tsw::Tensor> out = result->Output(out_name);
+      std::shared_ptr<tds::Tensor> out = result->Output(out_name);
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
-      ASSERT_EQ(out->data_type_, tsw::DataType::INT32);
+      ASSERT_EQ(out->data_type_, tds::DataType::INT32);
       ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
       for (size_t i = 0; i < input_data.size(); ++i) {
         EXPECT_EQ(reinterpret_cast<const int32_t*>(out->buffer_)[i], 0);
@@ -188,7 +188,7 @@ TEST_F(TritonServerTest, InferMinimal)
 TEST_F(TritonServerTest, InferString)
 {
   try {
-    auto server = tsw::TritonServer::Create(options_);
+    auto server = tds::TritonServer::Create(options_);
 
     std::vector<int32_t> input_data;
     std::vector<std::string> input_data_str;
@@ -197,14 +197,14 @@ TEST_F(TritonServerTest, InferString)
       input_data_str.emplace_back(std::to_string(input_data.back()));
     }
 
-    auto request = tsw::InferRequest::Create(tsw::InferOptions("add_sub_str"));
+    auto request = tds::InferRequest::Create(tds::InferOptions("add_sub_str"));
     for (const auto& name : std::vector<std::string>{"INPUT0", "INPUT1"}) {
       request->AddInput(
           name, input_data_str.begin(), input_data_str.end(),
-          tsw::DataType::BYTES, {16}, tsw::MemoryType::CPU, 0);
+          tds::DataType::BYTES, {16}, tds::MemoryType::CPU, 0);
     }
 
-    std::future<std::unique_ptr<tsw::InferResult>> result_future =
+    std::future<std::unique_ptr<tds::InferResult>> result_future =
         server->AsyncInfer(*request);
     auto result = result_future.get();
     ASSERT_FALSE(result->HasError()) << result->ErrorMsg();
@@ -216,13 +216,13 @@ TEST_F(TritonServerTest, InferString)
 
     std::vector<std::string> out_str;
     std::vector<int64_t> shape;
-    tsw::DataType datatype;
+    tds::DataType datatype;
     // OUTPUT0 -> sum
     {
       std::string out_name("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> out = result->Output(out_name);
+      std::shared_ptr<tds::Tensor> out = result->Output(out_name);
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
-      ASSERT_EQ(out->data_type_, tsw::DataType::BYTES);
+      ASSERT_EQ(out->data_type_, tds::DataType::BYTES);
       out_str = result->StringData(out_name);
       for (size_t i = 0; i < input_data.size(); ++i) {
         EXPECT_EQ(out_str[i], std::to_string(2 * input_data[i]));
@@ -232,9 +232,9 @@ TEST_F(TritonServerTest, InferString)
     // OUTPUT1 -> diff
     {
       std::string out_name("OUTPUT1");
-      std::shared_ptr<tsw::Tensor> out = result->Output(out_name);
+      std::shared_ptr<tds::Tensor> out = result->Output(out_name);
       ASSERT_EQ(out->shape_, std::vector<int64_t>{16});
-      ASSERT_EQ(out->data_type_, tsw::DataType::BYTES);
+      ASSERT_EQ(out->data_type_, tds::DataType::BYTES);
       out_str = result->StringData(out_name);
       for (size_t i = 0; i < input_data.size(); ++i) {
         EXPECT_EQ(out_str[i], "0");
@@ -249,20 +249,20 @@ TEST_F(TritonServerTest, InferString)
 TEST_F(TritonServerTest, InferFailed)
 {
   try {
-    auto server = tsw::TritonServer::Create(options_);
+    auto server = tds::TritonServer::Create(options_);
 
     std::vector<int32_t> input_data;
     while (input_data.size() < 16) {
       input_data.emplace_back(input_data.size());
     }
     auto request =
-        tsw::InferRequest::Create(tsw::InferOptions("failing_infer"));
+        tds::InferRequest::Create(tds::InferOptions("failing_infer"));
     request->AddInput(
-        "INPUT", tsw::Tensor(
+        "INPUT", tds::Tensor(
                      reinterpret_cast<char*>(input_data.data()),
-                     input_data.size() * sizeof(int32_t), tsw::DataType::INT32,
-                     {16}, tsw::MemoryType::CPU, 0));
-    std::future<std::unique_ptr<tsw::InferResult>> result_future =
+                     input_data.size() * sizeof(int32_t), tds::DataType::INT32,
+                     {16}, tds::MemoryType::CPU, 0));
+    std::future<std::unique_ptr<tds::InferResult>> result_future =
         server->AsyncInfer(*request);
     auto result = result_future.get();
     ASSERT_TRUE(result->HasError());

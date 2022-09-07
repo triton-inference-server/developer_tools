@@ -36,7 +36,7 @@
 #define TRITONJSON_STATUSSUCCESS nullptr
 #include "triton/common/triton_json.h"
 
-namespace triton { namespace server { namespace wrapper {
+namespace triton { namespace developer_tools { namespace server {
 
 #define THROW_IF_TRITON_ERR(X)                                     \
   do {                                                             \
@@ -1520,4 +1520,4 @@ InferResult::ErrorMsg()
   return error_msg_;
 }
 
-}}}  // namespace triton::server::wrapper
+}}}  // namespace triton::developer_tools::server
