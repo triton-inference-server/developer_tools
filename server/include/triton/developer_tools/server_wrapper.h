@@ -514,6 +514,7 @@ class InferResult {
   std::string ErrorMsg();
 
  protected:
+  InferResult();
   const char* model_name_;
   int64_t model_version_;
   const char* request_id_;

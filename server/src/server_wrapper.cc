@@ -1263,13 +1263,11 @@ InferRequest::Reset()
   tensor_alloc_map_.clear();
 }
 
+InferResult::InferResult() : has_error_(false), error_msg_("") {}
+
 InferResult::~InferResult() {}
 
-InternalResult::InternalResult()
-{
-  has_error_ = false;
-  error_msg_ = "";
-}
+InternalResult::InternalResult() : InferResult() {}
 
 InternalResult::~InternalResult()
 {
