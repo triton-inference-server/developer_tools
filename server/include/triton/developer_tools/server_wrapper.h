@@ -129,6 +129,8 @@ struct BackendConfig {
 /// Server options that are used to initialize Triton Server.
 ///
 struct ServerOptions {
+  ServerOptions(const std::string& model_repository_path);
+
   ServerOptions(const std::vector<std::string>& model_repository_paths);
 
   ServerOptions(
