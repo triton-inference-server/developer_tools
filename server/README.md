@@ -43,7 +43,8 @@ questions or report problems in the main Triton
 
 ## Build the Server C-API Wrapper library and custom application 
 
-To build and install the Server Wrapper library use the following commands.
+To build and install the Server Wrapper library from
+`triton_developer_tools/server`, use the following commands.
 
 ```
 $ mkdir build
@@ -61,7 +62,7 @@ but the listed CMake argument can be used to override.
 
 See the [CMakeLists.txt](CMakeLists.txt) file for other build options.
 
-When the build completes, the library `libtritonserverwrapper.a` and examples
+When the build completes, the library `libtritondevelopertoolsserver.a` and examples
 can be found in the install directory.
 
 For custom application, you can refer to
@@ -297,16 +298,26 @@ When running the examples, make sure the model repository is placed under the
 same path, and `LD_LIBRARY_PATH` is set properly for `libtritonserver.so`.
 
 ```
-$ cd /path/to/triton_developer_tools/server/examples
+$ cd /path/to/triton_developer_tools/server
 
-# Prepare the models required by the examples. Here we copy over the models placed in the qa folder.
-$ cp -r /path/to/triton_developer_tools/qa/server_unit_test/models/add_sub* ./models/.
+$ mkdir -p ./examples/models
+
+# Prepare the models required by the examples.
+
+# Copy over the models placed in the qa folder.
+$ cp -r ../qa/server_unit_test/models/add_sub* ./examples/models/.
+
+# Copy over the models placed in the server repository.
+$ git clone https://github.com/triton-inference-server/server.git
+$ cp -r server/docs/examples/model_repository/simple ./examples/models/.
 
 # Copy over the executables from the install directory.
-$ cp /path/to/install/bin/simple_addsub_async_infer . && cp ../build/install/bin/addsub_string_async_infer .
+$ cp /path/to/install/bin/simple_addsub_async_infer ./examples && cp /path/to/install/bin/addsub_string_async_infer ./examples
 
 # Assume libtritonserver.so is placed under "/opt/tritonserver/lib"
 $ LD_LIBRARY_PATH=/opt/tritonserver/lib:${LD_LIBRARY_PATH}
+
+$ cd ./examples
 
 # Run examples
 $ ./simple_addsub_async_infer

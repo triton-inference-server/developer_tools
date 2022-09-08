@@ -56,7 +56,7 @@ target_include_directories(
 target_link_libraries(
   simple_addsub_async_infer
   PRIVATE
-    triton-server-wrapper
+    triton-developer_tools-server
     triton-core-serverstub
 )
 
@@ -91,7 +91,7 @@ target_include_directories(
 target_link_libraries(
   addsub_string_async_infer
   PRIVATE
-    triton-server-wrapper
+    triton-developer_tools-server
     triton-core-serverstub
 )
 
