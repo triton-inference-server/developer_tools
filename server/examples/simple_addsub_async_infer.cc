@@ -37,7 +37,7 @@
 #include <cuda_runtime_api.h>
 #endif  // TRITON_ENABLE_GPU
 
-namespace tsw = triton::server::wrapper;
+namespace tds = triton::developer_tools::server;
 
 namespace {
 
@@ -59,7 +59,7 @@ namespace {
 #endif  // TRITON_ENABLE_GPU
 
 bool enforce_memory_type = false;
-tsw::MemoryType requested_memory_type;
+tds::MemoryType requested_memory_type;
 
 #ifdef TRITON_ENABLE_GPU
 static auto cuda_data_deleter = [](void* data) {
@@ -138,8 +138,8 @@ CompareResult(
 void
 ResponseAllocator(
     const char* tensor_name, size_t byte_size,
-    tsw::MemoryType preferred_memory_type, int64_t preferred_memory_type_id,
-    void** buffer, tsw::MemoryType* actual_memory_type,
+    tds::MemoryType preferred_memory_type, int64_t preferred_memory_type_id,
+    void** buffer, tds::MemoryType* actual_memory_type,
     int64_t* actual_memory_type_id)
 {
   std::cout << "Using custom allocation function" << std::endl;
@@ -163,35 +163,35 @@ ResponseAllocator(
 
     switch (*actual_memory_type) {
 #ifdef TRITON_ENABLE_GPU
-      case tsw::MemoryType::CPU_PINNED: {
+      case tds::MemoryType::CPU_PINNED: {
         auto err = cudaSetDevice(*actual_memory_type_id);
         if ((err != cudaSuccess) && (err != cudaErrorNoDevice) &&
             (err != cudaErrorInsufficientDriver)) {
-          throw tsw::TritonException(std::string(
+          throw tds::TritonException(std::string(
               "unable to recover current CUDA device: " +
               std::string(cudaGetErrorString(err))));
         }
 
         err = cudaHostAlloc(&allocated_ptr, byte_size, cudaHostAllocPortable);
         if (err != cudaSuccess) {
-          throw tsw::TritonException(std::string(
+          throw tds::TritonException(std::string(
               "cudaHostAlloc failed: " + std::string(cudaGetErrorString(err))));
         }
         break;
       }
 
-      case tsw::MemoryType::GPU: {
+      case tds::MemoryType::GPU: {
         auto err = cudaSetDevice(*actual_memory_type_id);
         if ((err != cudaSuccess) && (err != cudaErrorNoDevice) &&
             (err != cudaErrorInsufficientDriver)) {
-          throw tsw::TritonException(std::string(
+          throw tds::TritonException(std::string(
               "unable to recover current CUDA device: " +
               std::string(cudaGetErrorString(err))));
         }
 
         err = cudaMalloc(&allocated_ptr, byte_size);
         if (err != cudaSuccess) {
-          throw tsw::TritonException(std::string(
+          throw tds::TritonException(std::string(
               "cudaMalloc failed: " + std::string(cudaGetErrorString(err))));
         }
         break;
@@ -200,9 +200,9 @@ ResponseAllocator(
 
       // Use CPU memory if the requested memory type is unknown
       // (default case).
-      case tsw::MemoryType::CPU:
+      case tds::MemoryType::CPU:
       default: {
-        *actual_memory_type = tsw::MemoryType::CPU;
+        *actual_memory_type = tds::MemoryType::CPU;
         allocated_ptr = malloc(byte_size);
         break;
       }
@@ -219,7 +219,7 @@ ResponseAllocator(
 
 void
 ResponseRelease(
-    void* buffer, size_t byte_size, tsw::MemoryType memory_type,
+    void* buffer, size_t byte_size, tds::MemoryType memory_type,
     int64_t memory_type_id)
 {
   std::cout << "Using custom response release function" << std::endl;
@@ -230,14 +230,14 @@ ResponseRelease(
 
   std::cout << "Releasing buffer " << buffer_str << " of size "
             << std::to_string(byte_size) << " in "
-            << tsw::MemoryTypeString(memory_type);
+            << tds::MemoryTypeString(memory_type);
 
   switch (memory_type) {
-    case tsw::MemoryType::CPU:
+    case tds::MemoryType::CPU:
       free(buffer);
       break;
 #ifdef TRITON_ENABLE_GPU
-    case tsw::MemoryType::CPU_PINNED: {
+    case tds::MemoryType::CPU_PINNED: {
       auto err = cudaSetDevice(memory_type_id);
       if (err == cudaSuccess) {
         err = cudaFreeHost(buffer);
@@ -248,7 +248,7 @@ ResponseRelease(
       }
       break;
     }
-    case tsw::MemoryType::GPU: {
+    case tds::MemoryType::GPU: {
       auto err = cudaSetDevice(memory_type_id);
       if (err == cudaSuccess) {
         err = cudaFree(buffer);
@@ -269,11 +269,11 @@ ResponseRelease(
 
 void
 Check(
-    std::shared_ptr<tsw::Tensor>& output0,
-    std::shared_ptr<tsw::Tensor>& output1, const std::vector<char>& input0_data,
+    std::shared_ptr<tds::Tensor>& output0,
+    std::shared_ptr<tds::Tensor>& output1, const std::vector<char>& input0_data,
     const std::vector<char>& input1_data, const std::string& output0_name,
     const std::string& output1_name, const size_t expected_byte_size,
-    const tsw::DataType expected_datatype, const std::string& model_name,
+    const tds::DataType expected_datatype, const std::string& model_name,
     const bool is_custom_alloc)
 {
   std::unordered_map<std::string, std::vector<char>> output_data;
@@ -321,7 +321,7 @@ Check(
             output.first);
       }
     } else {
-      if (output.second->memory_type_ != tsw::MemoryType::CPU) {
+      if (output.second->memory_type_ != tds::MemoryType::CPU) {
         FAIL(
             "unexpected memory type, expected to be allocated in CPU, got " +
             std::string(MemoryTypeString(output.second->memory_type_)) +
@@ -334,7 +334,7 @@ Check(
     // performance reasons but ok for this simple example.
     std::vector<char>& odata = output_data[output.first];
     switch (output.second->memory_type_) {
-      case tsw::MemoryType::CPU: {
+      case tds::MemoryType::CPU: {
         std::cout << output.first << " is stored in system memory" << std::endl;
         odata.assign(
             output.second->buffer_,
@@ -342,7 +342,7 @@ Check(
         break;
       }
 
-      case tsw::MemoryType::CPU_PINNED: {
+      case tds::MemoryType::CPU_PINNED: {
         std::cout << output.first << " is stored in pinned memory" << std::endl;
         odata.assign(
             output.second->buffer_,
@@ -351,7 +351,7 @@ Check(
       }
 
 #ifdef TRITON_ENABLE_GPU
-      case tsw::MemoryType::GPU: {
+      case tds::MemoryType::GPU: {
         std::cout << output.first << " is stored in GPU memory" << std::endl;
         odata.reserve(output.second->byte_size_);
         FAIL_IF_CUDA_ERR(
@@ -387,11 +387,11 @@ main(int argc, char** argv)
       case 'm': {
         enforce_memory_type = true;
         if (!strcmp(optarg, "system")) {
-          requested_memory_type = tsw::MemoryType::CPU;
+          requested_memory_type = tds::MemoryType::CPU;
         } else if (!strcmp(optarg, "pinned")) {
-          requested_memory_type = tsw::MemoryType::CPU_PINNED;
+          requested_memory_type = tds::MemoryType::CPU_PINNED;
         } else if (!strcmp(optarg, "gpu")) {
-          requested_memory_type = tsw::MemoryType::GPU;
+          requested_memory_type = tds::MemoryType::GPU;
         } else {
           Usage(
               argv,
@@ -419,18 +419,18 @@ main(int argc, char** argv)
     // Use 'ServerOptions' object to initialize TritonServer. Here we set model
     // control mode to 'EXPLICIT' so that we are able to load and unload models
     // after startup.
-    tsw::ServerOptions options({"./models"});
+    tds::ServerOptions options({"./models"});
     options.logging_.verbose_ =
-        tsw::LoggingOptions::VerboseLevel(verbose_level);
-    options.model_control_mode_ = tsw::ModelControlMode::EXPLICIT;
-    auto server = tsw::TritonServer::Create(options);
+        tds::LoggingOptions::VerboseLevel(verbose_level);
+    options.model_control_mode_ = tds::ModelControlMode::EXPLICIT;
+    auto server = tds::TritonServer::Create(options);
 
     // Load 'simple' and 'add_sub' models.
     server->LoadModel("simple");
     server->LoadModel("add_sub");
     // Use 'ModelIndex' function to see model repository contents. Here we
     // should see both 'simple' and 'add_sub' models are ready.
-    std::vector<tsw::RepositoryIndex> repo_index = server->ModelIndex();
+    std::vector<tds::RepositoryIndex> repo_index = server->ModelIndex();
     std::cout << "ModelIndex:\n";
     for (size_t i = 0; i < repo_index.size(); i++) {
       std::cout << repo_index[i].name_ << ", " << repo_index[i].version_ << ", "
@@ -439,7 +439,7 @@ main(int argc, char** argv)
 
     // Initialize 'InferRequest' with the name of the model that we want to run
     // an inference on.
-    auto request1 = tsw::InferRequest::Create(tsw::InferOptions("add_sub"));
+    auto request1 = tds::InferRequest::Create(tds::InferOptions("add_sub"));
 
     // Add two input tensors to the inference request.
     std::vector<char> input0_data;
@@ -450,11 +450,11 @@ main(int argc, char** argv)
 
     // Use the iterator of input vector to add input data to a request.
     request1->AddInput(
-        "INPUT0", input0_data.begin(), input0_data.end(), tsw::DataType::INT32,
-        {16}, tsw::MemoryType::CPU, 0);
+        "INPUT0", input0_data.begin(), input0_data.end(), tds::DataType::INT32,
+        {16}, tds::MemoryType::CPU, 0);
     request1->AddInput(
-        "INPUT1", input1_data.begin(), input1_data.end(), tsw::DataType::INT32,
-        {16}, tsw::MemoryType::CPU, 0);
+        "INPUT1", input1_data.begin(), input1_data.end(), tds::DataType::INT32,
+        {16}, tds::MemoryType::CPU, 0);
 
     // Indicate that we want both output tensors calculated and returned
     // for the inference request. These calls are optional, if no
@@ -464,7 +464,7 @@ main(int argc, char** argv)
     request1->AddRequestedOutput("OUTPUT1");
 
     // Call 'AsyncInfer' function to run inference.
-    std::future<std::unique_ptr<tsw::InferResult>> result_future1 =
+    std::future<std::unique_ptr<tds::InferResult>> result_future1 =
         server->AsyncInfer(*request1);
 
     // Get the infer result and check the result.
@@ -479,12 +479,12 @@ main(int argc, char** argv)
                 << version << "', with request ID '" << id << "'\n";
 
       // Retrieve two outputs from the 'InferResult' object.
-      std::shared_ptr<tsw::Tensor> result1_out0 = result1->Output("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> result1_out1 = result1->Output("OUTPUT1");
+      std::shared_ptr<tds::Tensor> result1_out0 = result1->Output("OUTPUT0");
+      std::shared_ptr<tds::Tensor> result1_out1 = result1->Output("OUTPUT1");
 
       Check(
           result1_out0, result1_out1, input0_data, input1_data, "OUTPUT0",
-          "OUTPUT1", input0_size, tsw::DataType::INT32, result1->ModelName(),
+          "OUTPUT1", input0_size, tds::DataType::INT32, result1->ModelName(),
           false);
 
       // Get full response.
@@ -496,15 +496,15 @@ main(int argc, char** argv)
     // Unload 'add_sub' model as we don't need it anymore.
     server->UnloadModel("add_sub");
     // Run a new infer requset on 'simple' model.
-    auto request2 = tsw::InferRequest::Create(tsw::InferOptions("simple"));
+    auto request2 = tds::InferRequest::Create(tds::InferOptions("simple"));
 
     // We can also use 'Tensor' object for adding input to a request.
-    tsw::Tensor input0(
-        &input0_data[0], input0_data.size(), tsw::DataType::INT32, {1, 16},
-        tsw::MemoryType::CPU, 0);
-    tsw::Tensor input1(
-        &input1_data[0], input1_data.size(), tsw::DataType::INT32, {1, 16},
-        tsw::MemoryType::CPU, 0);
+    tds::Tensor input0(
+        &input0_data[0], input0_data.size(), tds::DataType::INT32, {1, 16},
+        tds::MemoryType::CPU, 0);
+    tds::Tensor input1(
+        &input1_data[0], input1_data.size(), tds::DataType::INT32, {1, 16},
+        tds::MemoryType::CPU, 0);
     request2->AddInput("INPUT0", input0);
     request2->AddInput("INPUT1", input1);
 
@@ -512,17 +512,17 @@ main(int argc, char** argv)
     // result will be stored in-place to the buffer.
     void* allocated_output0 = malloc(64);
     void* allocated_output1 = malloc(64);
-    tsw::Tensor alloc_output0(
-        reinterpret_cast<char*>(allocated_output0), 64, tsw::MemoryType::CPU,
+    tds::Tensor alloc_output0(
+        reinterpret_cast<char*>(allocated_output0), 64, tds::MemoryType::CPU,
         0);
-    tsw::Tensor alloc_output1(
-        reinterpret_cast<char*>(allocated_output1), 64, tsw::MemoryType::CPU,
+    tds::Tensor alloc_output1(
+        reinterpret_cast<char*>(allocated_output1), 64, tds::MemoryType::CPU,
         0);
     request2->AddRequestedOutput("OUTPUT0", alloc_output0);
     request2->AddRequestedOutput("OUTPUT1", alloc_output1);
 
     // Call 'AsyncInfer' function to run inference.
-    std::future<std::unique_ptr<tsw::InferResult>> result_future2 =
+    std::future<std::unique_ptr<tds::InferResult>> result_future2 =
         server->AsyncInfer(*request2);
 
     // Get the infer result and check the result.
@@ -537,12 +537,12 @@ main(int argc, char** argv)
                 << version << "', with request ID '" << id << "'\n";
 
       // Retrieve two outputs from the 'InferResult' object.
-      std::shared_ptr<tsw::Tensor> result2_out0 = result2->Output("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> result2_out1 = result2->Output("OUTPUT1");
+      std::shared_ptr<tds::Tensor> result2_out0 = result2->Output("OUTPUT0");
+      std::shared_ptr<tds::Tensor> result2_out1 = result2->Output("OUTPUT1");
 
       Check(
           result2_out0, result2_out1, input0_data, input1_data, "OUTPUT0",
-          "OUTPUT1", input0_size, tsw::DataType::INT32, result2->ModelName(),
+          "OUTPUT1", input0_size, tds::DataType::INT32, result2->ModelName(),
           false);
 
       // Get full response.
@@ -563,11 +563,11 @@ main(int argc, char** argv)
     // For the third inference, we use custom allocator for output allocation.
     // Initialize the allocator with our custom functions 'ResponseAllocator'
     // and 'ResponseRelease' which are implemented above.
-    std::shared_ptr<tsw::Allocator> allocator(
-        new tsw::Allocator(ResponseAllocator, ResponseRelease));
-    auto infer_options = tsw::InferOptions("simple");
+    std::shared_ptr<tds::Allocator> allocator(
+        new tds::Allocator(ResponseAllocator, ResponseRelease));
+    auto infer_options = tds::InferOptions("simple");
     infer_options.custom_allocator_ = allocator;
-    auto request3 = tsw::InferRequest::Create(infer_options);
+    auto request3 = tds::InferRequest::Create(infer_options);
 
     const void* input0_base = &input0_data[0];
     const void* input1_base = &input1_data[0];
@@ -578,10 +578,10 @@ main(int argc, char** argv)
         nullptr, cuda_data_deleter);
     bool use_cuda_memory =
         (enforce_memory_type &&
-         (requested_memory_type != tsw::MemoryType::CPU));
+         (requested_memory_type != tds::MemoryType::CPU));
     if (use_cuda_memory) {
       FAIL_IF_CUDA_ERR(cudaSetDevice(0), "setting CUDA device to device 0");
-      if (requested_memory_type != tsw::MemoryType::CPU_PINNED) {
+      if (requested_memory_type != tds::MemoryType::CPU_PINNED) {
         void* dst;
         FAIL_IF_CUDA_ERR(
             cudaMalloc(&dst, input0_size),
@@ -633,7 +633,7 @@ main(int argc, char** argv)
     request3->AddInput("INPUT1", input1);
 
     // Call 'AsyncInfer' function to run inference.
-    std::future<std::unique_ptr<tsw::InferResult>> result_future3 =
+    std::future<std::unique_ptr<tds::InferResult>> result_future3 =
         server->AsyncInfer(*request3);
 
     // Get the infer result and check the result.
@@ -648,12 +648,12 @@ main(int argc, char** argv)
                 << version << "', with request ID '" << id << "'\n";
 
       // Retrieve two outputs from the 'InferResult' object.
-      std::shared_ptr<tsw::Tensor> result3_out0 = result3->Output("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> result3_out1 = result3->Output("OUTPUT1");
+      std::shared_ptr<tds::Tensor> result3_out0 = result3->Output("OUTPUT0");
+      std::shared_ptr<tds::Tensor> result3_out1 = result3->Output("OUTPUT1");
 
       Check(
           result3_out0, result3_out1, input0_data, input1_data, "OUTPUT0",
-          "OUTPUT1", input0_size, tsw::DataType::INT32, result3->ModelName(),
+          "OUTPUT1", input0_size, tds::DataType::INT32, result3->ModelName(),
           true);
 
       // Get full response.
@@ -665,7 +665,7 @@ main(int argc, char** argv)
     std::string metrics_str = server->Metrics();
     std::cout << "\n\n\n=========Metrics===========\n" << metrics_str << "\n";
   }
-  catch (const tsw::TritonException& ex) {
+  catch (const tds::TritonException& ex) {
     std::cerr << "Error: " << ex.what();
     exit(1);
   }

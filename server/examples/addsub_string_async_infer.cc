@@ -29,7 +29,7 @@
 #include <string>
 #include "triton/developer_tools/server_wrapper.h"
 
-namespace tsw = triton::server::wrapper;
+namespace tds = triton::developer_tools::server;
 
 namespace {
 
@@ -80,8 +80,8 @@ CompareResult(
 
 void
 Check(
-    std::shared_ptr<tsw::Tensor>& output0,
-    std::shared_ptr<tsw::Tensor>& output1,
+    std::shared_ptr<tds::Tensor>& output0,
+    std::shared_ptr<tds::Tensor>& output1,
     const std::vector<std::string>& input0_data,
     const std::vector<std::string>& input1_data,
     const std::string& output0_name, const std::string& output1_name,
@@ -99,14 +99,14 @@ Check(
       exit(1);
     }
 
-    if (output.second->data_type_ != tsw::DataType::BYTES) {
+    if (output.second->data_type_ != tds::DataType::BYTES) {
       FAIL(
           "unexpected datatype '" +
           std::string(DataTypeString(output.second->data_type_)) + "' for '" +
           output.first + "'");
     }
 
-    if (output.second->memory_type_ != tsw::MemoryType::CPU) {
+    if (output.second->memory_type_ != tds::MemoryType::CPU) {
       FAIL(
           "unexpected memory type, expected to be allocated in CPU, got " +
           std::string(MemoryTypeString(output.second->memory_type_)) + ", id " +
@@ -150,10 +150,10 @@ main(int argc, char** argv)
   }
   try {
     // Use 'ServerOptions' object to initialize TritonServer.
-    tsw::ServerOptions options({"./models"});
+    tds::ServerOptions options({"./models"});
     options.logging_.verbose_ =
-        tsw::LoggingOptions::VerboseLevel(verbose_level);
-    auto server = tsw::TritonServer::Create(options);
+        tds::LoggingOptions::VerboseLevel(verbose_level);
+    auto server = tds::TritonServer::Create(options);
 
     // We use a simple model that takes 2 input tensors of 16 strings
     // each and returns 2 output tensors of 16 strings each. The input
@@ -170,7 +170,7 @@ main(int argc, char** argv)
 
     // Initialize 'InferRequest' with the name of the model that we want to run
     // an inference on.
-    auto request = tsw::InferRequest::Create(tsw::InferOptions(model_name));
+    auto request = tds::InferRequest::Create(tds::InferOptions(model_name));
 
     // Create the data for the two input tensors. Initialize the first
     // to unique integers and the second to all ones. The input tensors
@@ -190,11 +190,11 @@ main(int argc, char** argv)
 
     // Add two input tensors to the inference request.
     request->AddInput(
-        "INPUT0", input0_data.begin(), input0_data.end(), tsw::DataType::BYTES,
-        shape, tsw::MemoryType::CPU, 0);
+        "INPUT0", input0_data.begin(), input0_data.end(), tds::DataType::BYTES,
+        shape, tds::MemoryType::CPU, 0);
     request->AddInput(
-        "INPUT1", input1_data.begin(), input1_data.end(), tsw::DataType::BYTES,
-        shape, tsw::MemoryType::CPU, 0);
+        "INPUT1", input1_data.begin(), input1_data.end(), tds::DataType::BYTES,
+        shape, tds::MemoryType::CPU, 0);
 
     // Indicate that we want both output tensors calculated and returned
     // for the inference request. These calls are optional, if no
@@ -204,7 +204,7 @@ main(int argc, char** argv)
     request->AddRequestedOutput("OUTPUT1");
 
     // Call 'AsyncInfer' function to run inference.
-    std::future<std::unique_ptr<tsw::InferResult>> result_future =
+    std::future<std::unique_ptr<tds::InferResult>> result_future =
         server->AsyncInfer(*request);
 
     // Get the infer result and check the result.
@@ -219,8 +219,8 @@ main(int argc, char** argv)
                 << version << "', with request ID '" << id << "'\n";
 
       // Retrieve two outputs from the 'InferResult' object.
-      std::shared_ptr<tsw::Tensor> out0 = result->Output("OUTPUT0");
-      std::shared_ptr<tsw::Tensor> out1 = result->Output("OUTPUT1");
+      std::shared_ptr<tds::Tensor> out0 = result->Output("OUTPUT0");
+      std::shared_ptr<tds::Tensor> out1 = result->Output("OUTPUT1");
 
       // Get the result data as a vector of string.
       std::vector<std::string> result0_data = result->StringData("OUTPUT0");
@@ -243,7 +243,7 @@ main(int argc, char** argv)
       std::cout << debug_str << std::endl;
     }
   }
-  catch (const tsw::TritonException& ex) {
+  catch (const tds::TritonException& ex) {
     std::cerr << "Error: " << ex.what();
     exit(1);
   }
