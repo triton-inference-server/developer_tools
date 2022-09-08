@@ -31,7 +31,7 @@ cmake_minimum_required(VERSION 3.18)
 #
 
 #
-# Unit test for Server Wrapper
+# Unit test for Triton Developer Tools Server
 #
 add_executable(
   wrapper_test
@@ -57,7 +57,7 @@ target_include_directories(
 target_link_libraries(
   wrapper_test
   PRIVATE
-    triton-server-wrapper
+    triton-developer_tools-server
     triton-core-serverstub
     GTest::gtest_main
 )

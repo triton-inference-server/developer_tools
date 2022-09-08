@@ -26,15 +26,14 @@
 
 cmake_minimum_required(VERSION 3.18)
 
-project(tritoncapiwrapper LANGUAGES C CXX)
+project(tritondevelopertoolsserver LANGUAGES C CXX)
 
 #
 # Options
 #
 option(TRITON_ENABLE_GPU "Enable GPU support in backend utilities" ON)
 option(TRITON_ENABLE_STATS "Include statistics collections in backend utilities" ON)
-# [FIXME] add option needed for wrapper
-option(TRITON_BUILD_TEST "Include unit test for the wrapper" ON)
+option(TRITON_BUILD_TEST "Include unit test for the Server Wrapper" ON)
 # [FIXME] doesn't have example yet
 # option(TRITON_ENABLE_EXAMPLES "Include examples in build" ON)
 option(TRITON_ENABLE_EXAMPLES "Include examples in build" OFF)
@@ -82,21 +81,21 @@ if(${TRITON_ENABLE_GPU})
 endif() # TRITON_ENABLE_GPU
 
 #
-# Triton Server C-API Wrapper
+# Triton Developer Tools Server
 #
 file(GLOB SRC_FILES src/*.cc)
 
 add_library(
-  triton-server-wrapper
+  triton-developer_tools-server
   ${SRC_FILES}
 )
 
 add_library(
-  TritonServerWrapper::triton-server-wrapper ALIAS triton-server-wrapper
+  TritonDeveloperToolsServer::triton-developer_tools-server ALIAS triton-developer_tools-server
 )
 
 target_include_directories(
-  triton-server-wrapper
+  triton-developer_tools-server
   PUBLIC
     $<INSTALL_INTERFACE:include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -109,9 +108,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
       "If the target system is not Windows 10, please update _WIN32_WINNT "
       "to corresponding value.")
 endif()
-target_compile_features(triton-server-wrapper PRIVATE cxx_std_11)
+target_compile_features(triton-developer_tools-server PRIVATE cxx_std_11)
 target_compile_options(
-  triton-server-wrapper
+  triton-developer_tools-server
   PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
     -Wall -Wextra -Wno-unused-parameter -Werror>
@@ -121,7 +120,7 @@ target_compile_options(
 # TRITON_ENABLE_GPU exposed in header so set PUBLIC
 if(${TRITON_ENABLE_GPU})
 target_compile_definitions(
-  triton-server-wrapper
+  triton-developer_tools-server
   PUBLIC TRITON_ENABLE_GPU=1
 )
 endif() # TRITON_ENABLE_GPU
@@ -129,20 +128,20 @@ endif() # TRITON_ENABLE_GPU
 # TRITON_ENABLE_STATS exposed in header so set PUBLIC
 if(${TRITON_ENABLE_STATS})
 target_compile_definitions(
-  triton-server-wrapper
+  triton-developer_tools-server
   PUBLIC TRITON_ENABLE_STATS=1
 )
 endif() # TRITON_ENABLE_STATS
 
 set_target_properties(
-  triton-server-wrapper PROPERTIES
+  triton-developer_tools-server PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS TRUE
   POSITION_INDEPENDENT_CODE ON
-  OUTPUT_NAME tritonserverwrapper
+  OUTPUT_NAME tritondevelopertoolsserver
 )
 
 target_link_libraries(
-  triton-server-wrapper
+  triton-developer_tools-server
   PUBLIC
     triton-core-serverapi         # from repo-core
     triton-core-serverstub        # from repo-core
@@ -151,7 +150,7 @@ target_link_libraries(
 
 if(${TRITON_ENABLE_GPU})
   target_link_libraries(
-    triton-server-wrapper
+    triton-developer_tools-server
     PUBLIC
       CUDA::cudart
   )
@@ -161,13 +160,13 @@ endif() # TRITON_ENABLE_GPU
 # Install
 #
 include(GNUInstallDirs)
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonServerWrapper)
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/TritonDeveloperToolsServer)
 
 install(
   TARGETS
-    triton-server-wrapper
+    triton-developer_tools-server
   EXPORT
-    triton-server-wrapper-targets
+    triton-developer_tools-server-targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
@@ -179,25 +178,25 @@ install(
 
 install(
   EXPORT
-    triton-server-wrapper-targets
+    triton-developer_tools-server-targets
   FILE
-    TritonServerWrapperTargets.cmake
+    TritonDeveloperToolsServerTargets.cmake
   NAMESPACE
-    TritonServerWrapper::
+    TritonDeveloperToolsServer::
   DESTINATION
     ${INSTALL_CONFIGDIR}
 )
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonServerWrapperConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonServerWrapperConfig.cmake
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/TritonDeveloperToolsServerConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonDeveloperToolsServerConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
 install(
   FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/TritonServerWrapperConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TritonDeveloperToolsServerConfig.cmake
   DESTINATION ${INSTALL_CONFIGDIR}
 )
 
@@ -205,12 +204,12 @@ install(
 # Export from build tree
 #
 export(
-  EXPORT triton-server-wrapper-targets
-  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonServerWrapperTargets.cmake
-  NAMESPACE TritonServerWrapper::
+  EXPORT triton-developer_tools-server-targets
+  FILE ${CMAKE_CURRENT_BINARY_DIR}/TritonDeveloperToolsServerTargets.cmake
+  NAMESPACE TritonDeveloperToolsServer::
 )
 
-export(PACKAGE TritonServerWrapper)
+export(PACKAGE TritonDeveloperToolsServer)
 
 if(${TRITON_BUILD_TEST})
   FetchContent_Declare(

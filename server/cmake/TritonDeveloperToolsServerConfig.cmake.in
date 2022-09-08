@@ -27,11 +27,11 @@
 include(CMakeFindDependencyMacro)
 
 get_filename_component(
-  TRITONCAPIWRAPPER_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH
+  TRITONDEVELOPERTOOLSSERVER_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH
 )
 
-list(APPEND CMAKE_MODULE_PATH ${TRITONCAPIWRAPPER_CMAKE_DIR})
+list(APPEND CMAKE_MODULE_PATH ${TRITONDEVELOPERTOOLSSERVER_CMAKE_DIR})
 
-if(NOT TARGET TritonDeveloperTools::triton-capi-wrapper)
-  include("${TRITONCAPIWRAPPER_CMAKE_DIR}/TritonCAPIWrapperTargets.cmake")
+if(NOT TARGET TritonDeveloperToolsServer::triton-developer_tools-server)
+  include("${TRITONDEVELOPERTOOLSSERVER_CMAKE_DIR}/TritonDeveloperToolsServerTargets.cmake")
 endif()
