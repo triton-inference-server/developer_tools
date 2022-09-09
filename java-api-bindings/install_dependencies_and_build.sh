@@ -105,7 +105,7 @@ MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
 
 # Build static libraries
 ## install cmake and rapidjson
- wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
+wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
       gpg --dearmor - |  \
       tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
       apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' && \
@@ -121,19 +121,20 @@ cd triton_developer_tools
 rm -r build && mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
 make install
-
+# Copy wrapper includes to triton home
+cp -r server/include/triton/developer_tools ${TRITON_HOME}/include
 
 # Copy necessary tritonserver.h files so the bindings can be generated
-mkdir -p ${TRITON_HOME}/lib/
-cd ${BUILD_HOME}
-CORE_BRANCH=${CORE_BRANCH:="https://github.com/triton-inference-server/core.git"}
-git clone --single-branch --depth=1 -b ${CORE_BRANCH_TAG} ${CORE_BRANCH}
-cp -r core/include ${TRITON_HOME}/include
+# mkdir -p ${TRITON_HOME}/lib/
+# cd ${BUILD_HOME}
+# CORE_BRANCH=${CORE_BRANCH:="https://github.com/triton-inference-server/core.git"}
+# git clone --single-branch --depth=1 -b ${CORE_BRANCH_TAG} ${CORE_BRANCH}
+# cp -r core/include ${TRITON_HOME}/include
 
 # Clone JavaCPP-presets, build java bindings and copy jar to /opt/tritonserver 
 git clone --single-branch --depth=1 -b ${JAVACPP_BRANCH_TAG} ${JAVACPP_BRANCH}
 cd javacpp-presets
-${MAVEN_PATH} clean install --projects .,tritonserver
+${MAVEN_PATH} clean install --projects .,tritonserver-wrapper
 ${MAVEN_PATH} clean install -f platform --projects ../tritonserver/platform -Djavacpp.platform=linux-x86_64
 
 # Copy over the jar to a specific location

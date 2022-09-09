@@ -707,20 +707,6 @@ BackendConfig::BackendConfig(
 }
 
 ServerOptions::ServerOptions(
-    const std::string& model_repository_path)
-    : logging_(LoggingOptions()), metrics_(MetricsOptions()),
-      server_id_("triton"), backend_dir_("/opt/tritonserver/backends"),
-      repo_agent_dir_("/opt/tritonserver/repoagents"),
-      disable_auto_complete_config_(false),
-      model_control_mode_(ModelControlMode::NONE)
-{
-  // FIXME: Use iterator instead of vector for 'model_repository_paths_'.
-  model_repository_paths_.push_back(model_repository_path);
-  be_config_.clear();
-}
-
-
-ServerOptions::ServerOptions(
     const std::vector<std::string>& model_repository_paths)
     : model_repository_paths_(model_repository_paths),
       logging_(LoggingOptions()), metrics_(MetricsOptions()),
