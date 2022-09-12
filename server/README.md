@@ -31,7 +31,7 @@
 # Triton Server C-API Wrapper
 
 Triton Server C-API Wrapper wraps up the functionality of
-[Triton in-process C-API](https://github.com/triton-inference-server/server/blob/main/docs/inference_protocols.md#in-process-triton-server-api)
+[Triton in-process C-API](https://github.com/triton-inference-server/server/blob/main/docs/customization_guide/inference_protocols.md#in-process-triton-server-api)
 , providing a simpler interface for users to use Triton in-process C API for
 developing their application without having in-depth knowledge of Triton
 implementation details or writing complicated code. This wrapper is also called
@@ -117,7 +117,7 @@ auto server = TritonServer::Create(ServerOptions options({"path/to/your/model_re
 
 This step is optional as all the models in the model repository paths provided
 in the previous step will be loaded to the server by default. However, if
-[model control mode](https://github.com/triton-inference-server/server/blob/main/docs/model_management.md)
+[model control mode](https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_management.md)
 is set to "EXPLICIT" when setting the server options in the previous step, you
 can load a specific model by calling
 
