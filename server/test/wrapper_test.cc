@@ -66,7 +66,7 @@ class TritonServerTest : public ::testing::Test {
   {
     options_.logging_ = tds::LoggingOptions(
         tds::LoggingOptions::VerboseLevel(0), false, false, false,
-        tds::LogFormat::DEFAULT, "");
+        tds::LoggingOptions::LogFormat::DEFAULT, "");
   }
 
   tds::ServerOptions options_;
@@ -91,7 +91,7 @@ CPUAllocator(
     std::cout << "allocated " << byte_size << " bytes for result tensor "
               << tensor_name << std::endl;
   } else {
-    void* allocated_ptr =  malloc(byte_size);
+    void* allocated_ptr = malloc(byte_size);
     if (allocated_ptr != nullptr) {
       *buffer = allocated_ptr;
       std::cout << "allocated " << byte_size << " bytes in "
@@ -167,16 +167,23 @@ TEST_F(TritonServerTest, Explicit)
 {
   try {
     options_.model_control_mode_ = tds::ModelControlMode::EXPLICIT;
+
+    std::set<std::string> startup_models;
+    startup_models.insert("add_sub");
+    options_.startup_models_ = startup_models;
+
     auto server = tds::TritonServer::Create(options_);
     std::set<std::string> loaded_models = server->LoadedModels();
-    ASSERT_EQ(loaded_models.size(), 0);
-    server->LoadModel("add_sub");
-    loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 1);
     ASSERT_EQ(*loaded_models.begin(), "add_sub");
     server->UnloadModel("add_sub");
     loaded_models = server->LoadedModels();
     ASSERT_EQ(loaded_models.size(), 0);
+
+    server->LoadModel("add_sub_str");
+    loaded_models = server->LoadedModels();
+    ASSERT_EQ(loaded_models.size(), 1);
+    ASSERT_EQ(*loaded_models.begin(), "add_sub_str");
   }
   catch (...) {
     ASSERT_NO_THROW(throw);
@@ -410,11 +417,11 @@ TEST_F(TritonServerTest, InferPreAllocatedBuffer)
                     {16}, tds::MemoryType::CPU, 0));
     }
 
-    // Provide pre-allocated buffer for 'OUTPUT0' and use default allocator for 'OUTPUT1'
+    // Provide pre-allocated buffer for 'OUTPUT0' and use default allocator for
+    // 'OUTPUT1'
     void* buffer_output0 = malloc(64);
     tds::Tensor output0(
-        reinterpret_cast<char*>(buffer_output0), 64, tds::MemoryType::CPU,
-        0);
+        reinterpret_cast<char*>(buffer_output0), 64, tds::MemoryType::CPU, 0);
     request->AddRequestedOutput("OUTPUT0", output0);
     request->AddRequestedOutput("OUTPUT1");
 

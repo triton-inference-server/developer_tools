@@ -32,7 +32,6 @@ namespace triton { namespace developer_tools { namespace server {
 ///
 enum class ModelControlMode { NONE, POLL, EXPLICIT };
 enum class MemoryType { CPU, CPU_PINNED, GPU };
-enum class LogFormat { DEFAULT, ISO8601 };
 enum class DataType {
   INVALID,
   BOOL,

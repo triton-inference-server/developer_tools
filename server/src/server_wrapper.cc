@@ -179,12 +179,12 @@ ToTritonModelControlMode(const ModelControlMode& mode)
 }
 
 TRITONSERVER_LogFormat
-ToTritonLogFormat(const LogFormat& format)
+ToTritonLogFormat(const LoggingOptions::LogFormat& format)
 {
   switch (format) {
-    case LogFormat::DEFAULT:
+    case LoggingOptions::LogFormat::DEFAULT:
       return TRITONSERVER_LOG_DEFAULT;
-    case LogFormat::ISO8601:
+    case LoggingOptions::LogFormat::ISO8601:
       return TRITONSERVER_LOG_ISO8601;
 
     default:
@@ -315,6 +315,20 @@ StringToModelReadyState(const std::string& state) noexcept
     return ModelReadyState::UNLOADING;
   } else {
     return ModelReadyState::UNKNOWN;
+  }
+}
+
+std::string
+HostPolicySettingString(const HostPolicy::Setting& setting)
+{
+  switch (setting) {
+    case HostPolicy::Setting::NUMA_NODE:
+      return "numa-node";
+    case HostPolicy::Setting::CPU_CORES:
+      return "cpu-cores";
+
+    default:
+      throw TritonException("unsupported host policy setting.");
   }
 }
 
@@ -641,19 +655,46 @@ MetricsOptions::MetricsOptions()
 
 MetricsOptions::MetricsOptions(
     const bool allow_metrics, const bool allow_gpu_metrics,
-    const bool allow_cpu_metrics, const uint64_t metrics_interval_ms)
+    const bool allow_cpu_metrics, const uint64_t& metrics_interval_ms)
     : allow_metrics_(allow_metrics), allow_gpu_metrics_(allow_gpu_metrics),
       allow_cpu_metrics_(allow_cpu_metrics),
       metrics_interval_ms_(metrics_interval_ms)
 {
 }
 
-BackendConfig::BackendConfig() : backend_name_(""), setting_(""), value_("") {}
-
 BackendConfig::BackendConfig(
-    const std::string& backend_name, const std::string& setting,
+    const std::string& name, const std::string& setting,
     const std::string& value)
-    : backend_name_(backend_name), setting_(setting), value_(value)
+    : name_(name), setting_(setting), value_(value)
+{
+}
+
+RateLimitResource::RateLimitResource(const std::string& name, const int count)
+    : name_(name), count_(count), device_(-1)
+{
+}
+
+RateLimitResource::RateLimitResource(
+    const std::string& name, const int count, const int device)
+    : name_(name), count_(count), device_(device)
+{
+}
+
+CUDAMemoryPoolByteSize::CUDAMemoryPoolByteSize(
+    const int gpu_device, const uint64_t& size)
+    : gpu_device_(gpu_device), size_(size)
+{
+}
+
+ModelLoadGPULimit::ModelLoadGPULimit(
+    const int device_id, const double& fraction)
+    : device_id_(device_id), fraction_(fraction)
+{
+}
+
+HostPolicy::HostPolicy(
+    const std::string& name, const Setting& setting, const std::string& value)
+    : name_(name), setting_(setting), value_(value)
 {
 }
 
@@ -664,10 +705,20 @@ ServerOptions::ServerOptions(
       server_id_("triton"), backend_dir_("/opt/tritonserver/backends"),
       repo_agent_dir_("/opt/tritonserver/repoagents"),
       disable_auto_complete_config_(false),
-      model_control_mode_(ModelControlMode::NONE)
+      model_control_mode_(ModelControlMode::NONE),
+      pinned_memory_pool_byte_size_(1 << 28), response_cache_byte_size_(0),
+      min_cuda_compute_capability_(0), exit_on_error_(true),
+      exit_timeout_secs_(30), buffer_manager_thread_count_(0),
+      model_load_thread_count_(
+          std::max(2u, 2 * std::thread::hardware_concurrency()))
 {
   // FIXME: Use iterator instead of vector for 'model_repository_paths_'.
   be_config_.clear();
+  startup_models_.clear();
+  rate_limit_resource_.clear();
+  cuda_memory_pool_byte_size_.clear();
+  model_load_gpu_limit_.clear();
+  host_policy_.clear();
 }
 
 ServerOptions::ServerOptions(
@@ -676,12 +727,31 @@ ServerOptions::ServerOptions(
     const std::vector<BackendConfig>& be_config, const std::string& server_id,
     const std::string& backend_dir, const std::string& repo_agent_dir,
     const bool disable_auto_complete_config,
-    const ModelControlMode& model_control_mode)
+    const ModelControlMode& model_control_mode,
+    const std::set<std::string>& startup_models,
+    const std::vector<RateLimitResource>& rate_limit_resource,
+    const int64_t& pinned_memory_pool_byte_size,
+    const std::vector<CUDAMemoryPoolByteSize>& cuda_memory_pool_byte_size,
+    const uint64_t& response_cache_byte_size,
+    const double& min_cuda_compute_capability, const bool exit_on_error,
+    const int32_t exit_timeout_secs, const int32_t buffer_manager_thread_count,
+    const uint32_t model_load_thread_count,
+    const std::vector<ModelLoadGPULimit>& model_load_gpu_limit,
+    const std::vector<HostPolicy>& host_policy)
     : model_repository_paths_(model_repository_paths), logging_(logging),
       metrics_(metrics), be_config_(be_config), server_id_(server_id),
       backend_dir_(backend_dir), repo_agent_dir_(repo_agent_dir),
       disable_auto_complete_config_(disable_auto_complete_config),
-      model_control_mode_(model_control_mode)
+      model_control_mode_(model_control_mode), startup_models_(startup_models),
+      rate_limit_resource_(rate_limit_resource),
+      pinned_memory_pool_byte_size_(pinned_memory_pool_byte_size),
+      cuda_memory_pool_byte_size_(cuda_memory_pool_byte_size),
+      response_cache_byte_size_(response_cache_byte_size),
+      min_cuda_compute_capability_(min_cuda_compute_capability),
+      exit_on_error_(exit_on_error), exit_timeout_secs_(exit_timeout_secs),
+      buffer_manager_thread_count_(buffer_manager_thread_count),
+      model_load_thread_count_(model_load_thread_count),
+      model_load_gpu_limit_(model_load_gpu_limit), host_policy_(host_policy)
 {
 }
 
@@ -1100,7 +1170,7 @@ InternalServer::InternalServer(const ServerOptions& options)
   // Set backend configuration
   for (const auto& bc : options.be_config_) {
     THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBackendConfig(
-        server_options, bc.backend_name_.c_str(), bc.setting_.c_str(),
+        server_options, bc.name_.c_str(), bc.setting_.c_str(),
         bc.value_.c_str()));
   }
 
@@ -1125,6 +1195,75 @@ InternalServer::InternalServer(const ServerOptions& options)
       ToTritonModelControlMode(options.model_control_mode_);
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelControlMode(
       server_options, model_control_mode));
+
+  // Set startup models
+  for (const auto& model : options.startup_models_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetStartupModel(
+        server_options, model.c_str()));
+  }
+
+  // Set rate limit mode and resource
+  if (!options.rate_limit_resource_.empty()) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetRateLimiterMode(
+        server_options, TRITONSERVER_RATE_LIMIT_EXEC_COUNT));
+    for (const auto& resource : options.rate_limit_resource_) {
+      THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsAddRateLimiterResource(
+          server_options, resource.name_.c_str(), resource.count_,
+          resource.device_));
+    }
+  } else {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetRateLimiterMode(
+        server_options, TRITONSERVER_RATE_LIMIT_OFF));
+  }
+
+  // Set pinned memory pool byte size
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetPinnedMemoryPoolByteSize(
+      server_options, options.pinned_memory_pool_byte_size_));
+
+  // Set CUDA memory pool byte size
+  for (const auto& cuda_pool : options.cuda_memory_pool_byte_size_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetCudaMemoryPoolByteSize(
+        server_options, cuda_pool.gpu_device_, cuda_pool.size_));
+  }
+
+  // Set response cache byte size
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetResponseCacheByteSize(
+      server_options, options.response_cache_byte_size_));
+
+  // Set minimum supported CUDA compute capability
+  THROW_IF_TRITON_ERR(
+      TRITONSERVER_ServerOptionsSetMinSupportedComputeCapability(
+          server_options, options.min_cuda_compute_capability_));
+
+  // Set exit on error
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetExitOnError(
+      server_options, options.exit_on_error_));
+
+  // Set exit timeout
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetExitTimeout(
+      server_options, std::max(0, options.exit_timeout_secs_)));
+
+  // Set buffer manager thread count
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBufferManagerThreadCount(
+      server_options, std::max(0, options.buffer_manager_thread_count_)));
+
+  // Set model load thread count
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelLoadThreadCount(
+      server_options, std::max(1u, options.model_load_thread_count_)));
+
+  // Set model load device limit
+  for (const auto& limit : options.model_load_gpu_limit_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelLoadDeviceLimit(
+        server_options, TRITONSERVER_INSTANCEGROUPKIND_GPU, limit.device_id_,
+        limit.fraction_));
+  }
+
+  // Set host policy
+  for (const auto& hp : options.host_policy_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetHostPolicy(
+        server_options, hp.name_.c_str(),
+        HostPolicySettingString(hp.setting_).c_str(), hp.value_.c_str()));
+  }
 
   TRITONSERVER_Server* server_ptr;
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerNew(&server_ptr, server_options));

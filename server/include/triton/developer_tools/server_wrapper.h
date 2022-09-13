@@ -53,11 +53,12 @@ using TensorAllocMap = std::unordered_map<
     std::tuple<const void*, size_t, TRITONSERVER_MemoryType, int64_t>>;
 
 //==============================================================================
-/// Structure to hold logging options for server parameters.
+/// Structure to hold logging options for setting 'ServerOptions'.
 ///
 struct LoggingOptions {
   // The range of VerboseLevel is [0, INT_MAX].
   enum class VerboseLevel : int { OFF = 0, MIN = 1, MAX = INT_MAX };
+  enum class LogFormat { DEFAULT, ISO8601 };
 
   LoggingOptions();
 
@@ -84,15 +85,15 @@ struct LoggingOptions {
 };
 
 //==============================================================================
-/// Structure to hold metrics options for server parameters.
+/// Structure to hold metrics options for setting 'ServerOptions'.
 /// See here for more information:
-/// https://github.com/triton-inference-server/server/blob/main/docs/metrics.md.
+/// https://github.com/triton-inference-server/server/blob/main/docs/user_guide/metrics.md.
 struct MetricsOptions {
   MetricsOptions();
 
   MetricsOptions(
       const bool allow_metrics, const bool allow_gpu_metrics,
-      const bool allow_cpu_metrics, const uint64_t metrics_interval_ms);
+      const bool allow_cpu_metrics, const uint64_t& metrics_interval_ms);
 
   // Enable or disable metrics. Default is true.
   bool allow_metrics_;
@@ -105,23 +106,95 @@ struct MetricsOptions {
 };
 
 //==============================================================================
-/// Structure to hold backend configuration for server parameters.
+/// Structure to hold backend configuration for setting 'ServerOptions'.
 /// Different Triton-supported backends have different backend configuration
 /// options. Please refer to the 'Command line options' section in the
 /// documentation of each backend to see the options (e.g. Tensorflow Backend:
 /// https://github.com/triton-inference-server/tensorflow_backend#command-line-options)
 struct BackendConfig {
-  BackendConfig();
-
   BackendConfig(
-      const std::string& backend_name, const std::string& setting,
+      const std::string& name, const std::string& setting,
       const std::string& value);
 
-  // The name of the backend. Default is an empty string.
-  std::string backend_name_;
-  // The name of the setting. Default is an empty string.
+  // The name of the backend.
+  std::string name_;
+  // The name of the setting.
   std::string setting_;
-  // The setting value. Default is an empty string.
+  // The setting value.
+  std::string value_;
+};
+
+//==============================================================================
+/// Structure to hold rate limit resource for setting 'ServerOptions'. See here
+/// for more information:
+/// https://github.com/triton-inference-server/server/blob/main/docs/user_guide/rate_limiter.md.
+struct RateLimitResource {
+  RateLimitResource(const std::string& name, const int count);
+
+  RateLimitResource(const std::string& name, const int count, const int device);
+
+  // The name of the resource.
+  std::string name_;
+  // The count of the resource.
+  int count_;
+  // The device identifier for the resource. This field is optional and if not
+  // specified will be applied to every device. The device value is ignored for
+  // a global resource. The server will use the rate limiter configuration
+  // specified for instance groups in model config to determine whether resource
+  // is global. In case of conflicting resource type in different model
+  // configurations, server will raise an appropriate error while loading model.
+  int device_;
+};
+
+//==============================================================================
+/// Structure to hold CUDA memory pool byte size for setting 'ServerOptions'.
+/// If GPU support is enabled, the server will allocate CUDA memory to minimize
+/// data transfer between host and devices until it exceeds the specified byte
+/// size. This will not affect the allocation conducted by the backend
+/// frameworks.
+struct CUDAMemoryPoolByteSize {
+  CUDAMemoryPoolByteSize(const int gpu_device, const uint64_t& size);
+
+  // The GPU device ID to allocate the memory pool.
+  int gpu_device_;
+  // The CUDA memory pool byte size that the server can allocate on given GPU
+  // device. Default is 64 MB.
+  uint64_t size_;
+};
+
+//==============================================================================
+/// Structure to hold GPU limit of model loading for setting 'ServerOptions'.
+/// The limit on GPU memory usage is specified as a fraction. If model loading
+/// on the device is requested and the current memory usage exceeds the limit,
+/// the load will be rejected. If not specified, the limit will not be set.
+struct ModelLoadGPULimit {
+  ModelLoadGPULimit(const int device_id, const double& fraction);
+
+  // The GPU device ID.
+  int device_id_;
+  // The limit on memory usage as a fraction.
+  double fraction_;
+};
+
+//==============================================================================
+/// Structure to hold host policy for setting 'ServerOptions'.
+/// See here for more information:
+/// https://github.com/triton-inference-server/server/blob/main/docs/user_guide/optimization.md#host-policy.
+struct HostPolicy {
+  enum class Setting { NUMA_NODE, CPU_CORES };
+
+  HostPolicy(
+      const std::string& name, const Setting& setting,
+      const std::string& value);
+
+  // The name of the policy.
+  std::string name_;
+  // The kind of the host policy setting. Currently supported settings are
+  // 'NUMA_NODE', 'CPU_CORES'. Note that 'NUMA_NODE' setting will affect pinned
+  // memory pool behavior, see the comments of 'pinned_memory_pool_byte_size_'
+  // in 'ServerOptions' for more detail.
+  Setting setting_;
+  // The setting value.
   std::string value_;
 };
 
@@ -137,12 +210,23 @@ struct ServerOptions {
       const std::vector<BackendConfig>& be_config, const std::string& server_id,
       const std::string& backend_dir, const std::string& repo_agent_dir,
       const bool disable_auto_complete_config,
-      const ModelControlMode& model_control_mode);
+      const ModelControlMode& model_control_mode,
+      const std::set<std::string>& startup_models,
+      const std::vector<RateLimitResource>& rate_limit_resource,
+      const int64_t& pinned_memory_pool_byte_size,
+      const std::vector<CUDAMemoryPoolByteSize>& cuda_memory_pool_byte_size,
+      const uint64_t& response_cache_byte_size,
+      const double& min_cuda_compute_capability, const bool exit_on_error,
+      const int32_t exit_timeout_secs,
+      const int32_t buffer_manager_thread_count,
+      const uint32_t model_load_thread_count,
+      const std::vector<ModelLoadGPULimit>& model_load_gpu_limit,
+      const std::vector<HostPolicy>& host_policy);
 
   // Paths to model repository directory. Note that if a model is not unique
   // across all model repositories at any time, the model will not be available.
   // See here for more information:
-  // https://github.com/triton-inference-server/server/blob/main/docs/model_repository.md.
+  // https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_repository.md.
   std::vector<std::string> model_repository_paths_;
   // Logging options. See the 'LoggingOptions' structure for more information.
   LoggingOptions logging_;
@@ -159,18 +243,67 @@ struct ServerOptions {
   std::string backend_dir_;
   // The global directory searched for repository agent shared libraries.
   // Default is "/opt/tritonserver/repoagents". See here for more information:
-  // https://github.com/triton-inference-server/server/blob/main/docs/repository_agents.md.
+  // https://github.com/triton-inference-server/server/blob/main/docs/customization_guide/repository_agents.md.
   std::string repo_agent_dir_;
   // If set, disables the triton and backends from auto completing model
   // configuration files. Model configuration files must be provided and
   // all required configuration settings must be specified. Default is false.
   // See here for more information:
-  // https://github.com/triton-inference-server/server/blob/main/docs/model_configuration.md#auto-generated-model-configuration.
+  // https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_configuration.md#auto-generated-model-configuration.
   bool disable_auto_complete_config_;
   // Specify the mode for model management. Options are "NONE", "POLL" and
   // "EXPLICIT". Default is "NONE". See here for more information:
-  // https://github.com/triton-inference-server/server/blob/main/docs/model_management.md.
+  // https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_management.md.
   ModelControlMode model_control_mode_;
+  // Specify the the models to be loaded on server startup. This will only take
+  // effect if 'model_control_mode_' is set to 'EXPLICIT'.
+  std::set<std::string> startup_models_;
+  // The number of resources available to the server. Rate limiting is disabled
+  // by default, and can be enabled once 'rate_limit_resource_' is set. See the
+  // 'RateLimitResource' structure for more information.
+  std::vector<RateLimitResource> rate_limit_resource_;
+  // The total byte size that can be allocated as pinned system memory. If GPU
+  // support is enabled, the server will allocate pinned system memory to
+  // accelerate data transfer between host and devices until it exceeds the
+  // specified byte size.  If 'NUMA_NODE' is configured via 'host_policy_', the
+  // pinned system memory of the pool size will be allocated on each numa node.
+  // This option will not affect the allocation conducted by the backend
+  // frameworks. Default is 256 MB.
+  int64_t pinned_memory_pool_byte_size_;
+  // The total byte size that can be allocated as CUDA memory for the GPU
+  // device. See the 'CUDAMemoryPoolByteSize' structure for more information.
+  std::vector<CUDAMemoryPoolByteSize> cuda_memory_pool_byte_size_;
+  // The size in bytes to allocate for a request/response cache. When non-zero,
+  // Triton allocates the requested size in CPU memory and shares the cache
+  // across all inference requests and across all models. For a given model to
+  // use request caching, the model must enable request caching in the model
+  // configuration. See here for more information:
+  // https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_configuration.md#response-cache.
+  // By default, no model uses request caching even if the
+  // 'response_cache_byte_size_' is set. Default is 0.
+  uint64_t response_cache_byte_size_;
+  // The minimum supported CUDA compute capability. GPUs that don't support this
+  // compute capability will not be used by the server. Default is 0.
+  double min_cuda_compute_capability_;
+  // If set, exit the inference server when an error occurs during
+  // initialization. Default is true.
+  bool exit_on_error_;
+  // Timeout (in seconds) when exiting to wait for in-flight inferences to
+  // finish. After the timeout expires the server exits even if inferences are
+  // still in flight. Default is 30 secs.
+  int32_t exit_timeout_secs_;
+  // The number of threads used to accelerate copies and other operations
+  // required to manage input and output tensor contents. Default is 0.
+  int32_t buffer_manager_thread_count_;
+  // The number of threads used to concurrently load models in model
+  // repositories. Default is 2*<num_cpu_cores>.
+  uint32_t model_load_thread_count_;
+  // The GPU limit of model loading. See the 'ModelLoadGPULimit' structure for
+  // more information.
+  std::vector<ModelLoadGPULimit> model_load_gpu_limit_;
+  // The host policy setting. See the 'HostPolicy' structure for more
+  // information.
+  std::vector<HostPolicy> host_policy_;
 };
 
 //==============================================================================
