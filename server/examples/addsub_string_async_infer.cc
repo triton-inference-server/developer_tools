@@ -204,44 +204,41 @@ main(int argc, char** argv)
     request->AddRequestedOutput("OUTPUT1");
 
     // Call 'AsyncInfer' function to run inference.
-    std::future<std::unique_ptr<tds::InferResult>> result_future =
-        server->AsyncInfer(*request);
+    auto result_future = server->AsyncInfer(*request);
 
     // Get the infer result and check the result.
     auto result = result_future.get();
     if (result->HasError()) {
       FAIL(result->ErrorMsg());
-    } else {
-      std::string name = result->ModelName();
-      std::string version = result->ModelVersion();
-      std::string id = result->Id();
-      std::cout << "Ran an inferencece on model '" << name << "', version '"
-                << version << "', with request ID '" << id << "'\n";
-
-      // Retrieve two outputs from the 'InferResult' object.
-      std::shared_ptr<tds::Tensor> out0 = result->Output("OUTPUT0");
-      std::shared_ptr<tds::Tensor> out1 = result->Output("OUTPUT1");
-
-      // Get the result data as a vector of string.
-      std::vector<std::string> result0_data = result->StringData("OUTPUT0");
-      std::vector<std::string> result1_data = result->StringData("OUTPUT1");
-      if (result0_data.size() != 16) {
-        std::cerr << "error: received incorrect number of strings for OUTPUT0: "
-                  << result0_data.size() << std::endl;
-      }
-      if (result1_data.size() != 16) {
-        std::cerr << "error: received incorrect number of strings for OUTPUT1: "
-                  << result1_data.size() << std::endl;
-      }
-
-      Check(
-          out0, out1, input0_data, input1_data, "OUTPUT0", "OUTPUT1",
-          result0_data, result1_data, expected_sum, expected_diff);
-
-      // Get full response.
-      std::string debug_str = result->DebugString();
-      std::cout << debug_str << std::endl;
     }
+    std::string name = result->ModelName();
+    std::string version = result->ModelVersion();
+    std::string id = result->Id();
+    std::cout << "Ran inferencece on model '" << name << "', version '"
+              << version << "', with request ID '" << id << "'\n";
+
+    // Retrieve two outputs from the 'InferResult' object.
+    std::shared_ptr<tds::Tensor> out0 = result->Output("OUTPUT0");
+    std::shared_ptr<tds::Tensor> out1 = result->Output("OUTPUT1");
+
+    // Get the result data as a vector of string.
+    std::vector<std::string> result0_data = result->StringData("OUTPUT0");
+    std::vector<std::string> result1_data = result->StringData("OUTPUT1");
+    if (result0_data.size() != 16) {
+      std::cerr << "error: received incorrect number of strings for OUTPUT0: "
+                << result0_data.size() << std::endl;
+    }
+    if (result1_data.size() != 16) {
+      std::cerr << "error: received incorrect number of strings for OUTPUT1: "
+                << result1_data.size() << std::endl;
+    }
+
+    Check(
+        out0, out1, input0_data, input1_data, "OUTPUT0", "OUTPUT1",
+        result0_data, result1_data, expected_sum, expected_diff);
+
+    // Get full response.
+    std::cout << result->DebugString() << std::endl;
   }
   catch (const tds::TritonException& ex) {
     std::cerr << "Error: " << ex.what();

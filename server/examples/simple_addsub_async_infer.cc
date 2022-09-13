@@ -464,33 +464,28 @@ main(int argc, char** argv)
     request1->AddRequestedOutput("OUTPUT1");
 
     // Call 'AsyncInfer' function to run inference.
-    std::future<std::unique_ptr<tds::InferResult>> result_future1 =
-        server->AsyncInfer(*request1);
+    auto result_future1 = server->AsyncInfer(*request1);
 
     // Get the infer result and check the result.
     auto result1 = result_future1.get();
     if (result1->HasError()) {
       FAIL(result1->ErrorMsg());
-    } else {
-      std::string name = result1->ModelName();
-      std::string version = result1->ModelVersion();
-      std::string id = result1->Id();
-      std::cout << "Ran an inference on model '" << name << "', version '"
-                << version << "', with request ID '" << id << "'\n";
-
-      // Retrieve two outputs from the 'InferResult' object.
-      std::shared_ptr<tds::Tensor> result1_out0 = result1->Output("OUTPUT0");
-      std::shared_ptr<tds::Tensor> result1_out1 = result1->Output("OUTPUT1");
-
-      Check(
-          result1_out0, result1_out1, input0_data, input1_data, "OUTPUT0",
-          "OUTPUT1", input0_size, tds::DataType::INT32, result1->ModelName(),
-          false);
-
-      // Get full response.
-      std::string debug_str = result1->DebugString();
-      std::cout << debug_str << std::endl;
     }
+    std::cout << "Ran inference on model '" << result1->ModelName()
+              << "', version '" << result1->ModelVersion()
+              << "', with request ID '" << result1->Id() << "'\n";
+
+    // Retrieve two outputs from the 'InferResult' object.
+    std::shared_ptr<tds::Tensor> result1_out0 = result1->Output("OUTPUT0");
+    std::shared_ptr<tds::Tensor> result1_out1 = result1->Output("OUTPUT1");
+
+    Check(
+        result1_out0, result1_out1, input0_data, input1_data, "OUTPUT0",
+        "OUTPUT1", input0_size, tds::DataType::INT32, result1->ModelName(),
+        false);
+
+    // Get full response.
+    std::cout << result1->DebugString() << std::endl;
 
 
     // Unload 'add_sub' model as we don't need it anymore.
@@ -510,55 +505,47 @@ main(int argc, char** argv)
 
     // For this inference, we provide pre-allocated buffer for output. The infer
     // result will be stored in-place to the buffer.
-    void* allocated_output0 = malloc(64);
-    void* allocated_output1 = malloc(64);
+    std::shared_ptr<void> allocated_output0(malloc(64), free);
+    std::shared_ptr<void> allocated_output1(malloc(64), free);
+
     tds::Tensor alloc_output0(
-        reinterpret_cast<char*>(allocated_output0), 64, tds::MemoryType::CPU,
-        0);
+        reinterpret_cast<char*>(allocated_output0.get()), 64,
+        tds::MemoryType::CPU, 0);
     tds::Tensor alloc_output1(
-        reinterpret_cast<char*>(allocated_output1), 64, tds::MemoryType::CPU,
-        0);
+        reinterpret_cast<char*>(allocated_output1.get()), 64,
+        tds::MemoryType::CPU, 0);
     request2->AddRequestedOutput("OUTPUT0", alloc_output0);
     request2->AddRequestedOutput("OUTPUT1", alloc_output1);
 
     // Call 'AsyncInfer' function to run inference.
-    std::future<std::unique_ptr<tds::InferResult>> result_future2 =
-        server->AsyncInfer(*request2);
+    auto result_future2 = server->AsyncInfer(*request2);
 
     // Get the infer result and check the result.
     auto result2 = result_future2.get();
     if (result2->HasError()) {
       FAIL(result2->ErrorMsg());
-    } else {
-      std::string name = result2->ModelName();
-      std::string version = result2->ModelVersion();
-      std::string id = result2->Id();
-      std::cout << "Ran an inference on model '" << name << "', version '"
-                << version << "', with request ID '" << id << "'\n";
-
-      // Retrieve two outputs from the 'InferResult' object.
-      std::shared_ptr<tds::Tensor> result2_out0 = result2->Output("OUTPUT0");
-      std::shared_ptr<tds::Tensor> result2_out1 = result2->Output("OUTPUT1");
-
-      Check(
-          result2_out0, result2_out1, input0_data, input1_data, "OUTPUT0",
-          "OUTPUT1", input0_size, tds::DataType::INT32, result2->ModelName(),
-          false);
-
-      // Get full response.
-      std::string debug_str = result2->DebugString();
-      std::cout << debug_str << std::endl;
-
-      // Check the output data in the pre-allocated buffer.
-      CompareResult<int32_t>(
-          "OUTPUT0", "OUTPUT1", &input0_data[0], &input1_data[0],
-          reinterpret_cast<const char*>(allocated_output0),
-          reinterpret_cast<const char*>(allocated_output1));
-      // Need to free the provided buffer.
-      free(allocated_output0);
-      free(allocated_output1);
     }
+    std::cout << "Ran inference on model '" << result2->ModelName()
+              << "', version '" << result2->ModelVersion()
+              << "', with request ID '" << result2->Id() << "'\n";
 
+    // Retrieve two outputs from the 'InferResult' object.
+    std::shared_ptr<tds::Tensor> result2_out0 = result2->Output("OUTPUT0");
+    std::shared_ptr<tds::Tensor> result2_out1 = result2->Output("OUTPUT1");
+
+    Check(
+        result2_out0, result2_out1, input0_data, input1_data, "OUTPUT0",
+        "OUTPUT1", input0_size, tds::DataType::INT32, result2->ModelName(),
+        false);
+
+    // Get full response.
+    std::cout << result2->DebugString() << std::endl;
+
+    // Check the output data in the pre-allocated buffer.
+    CompareResult<int32_t>(
+        "OUTPUT0", "OUTPUT1", &input0_data[0], &input1_data[0],
+        reinterpret_cast<const char*>(allocated_output0.get()),
+        reinterpret_cast<const char*>(allocated_output1.get()));
 
     // For the third inference, we use custom allocator for output allocation.
     // Initialize the allocator with our custom functions 'ResponseAllocator'
@@ -633,33 +620,28 @@ main(int argc, char** argv)
     request3->AddInput("INPUT1", input1);
 
     // Call 'AsyncInfer' function to run inference.
-    std::future<std::unique_ptr<tds::InferResult>> result_future3 =
-        server->AsyncInfer(*request3);
+    auto result_future3 = server->AsyncInfer(*request3);
 
     // Get the infer result and check the result.
     auto result3 = result_future3.get();
     if (result3->HasError()) {
       FAIL(result3->ErrorMsg());
-    } else {
-      std::string name = result3->ModelName();
-      std::string version = result3->ModelVersion();
-      std::string id = result3->Id();
-      std::cout << "Ran an inference on model '" << name << "', version '"
-                << version << "', with request ID '" << id << "'\n";
-
-      // Retrieve two outputs from the 'InferResult' object.
-      std::shared_ptr<tds::Tensor> result3_out0 = result3->Output("OUTPUT0");
-      std::shared_ptr<tds::Tensor> result3_out1 = result3->Output("OUTPUT1");
-
-      Check(
-          result3_out0, result3_out1, input0_data, input1_data, "OUTPUT0",
-          "OUTPUT1", input0_size, tds::DataType::INT32, result3->ModelName(),
-          true);
-
-      // Get full response.
-      std::string debug_str = result3->DebugString();
-      std::cout << debug_str << std::endl;
     }
+    std::cout << "Ran inference on model '" << result3->ModelName()
+              << "', version '" << result3->ModelVersion()
+              << "', with request ID '" << result3->Id() << "'\n";
+
+    // Retrieve two outputs from the 'InferResult' object.
+    std::shared_ptr<tds::Tensor> result3_out0 = result3->Output("OUTPUT0");
+    std::shared_ptr<tds::Tensor> result3_out1 = result3->Output("OUTPUT1");
+
+    Check(
+        result3_out0, result3_out1, input0_data, input1_data, "OUTPUT0",
+        "OUTPUT1", input0_size, tds::DataType::INT32, result3->ModelName(),
+        true);
+
+    // Get full response.
+    std::cout << result3->DebugString() << std::endl;
 
     // Get the server metrics.
     std::string metrics_str = server->Metrics();
