@@ -27,8 +27,10 @@
 #include "triton/developer_tools/server_wrapper.h"
 #include <stdlib.h>
 #include <iostream>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 #define TRITONJSON_STATUSTYPE TRITONSERVER_Error*
 #define TRITONJSON_STATUSRETURN(M) \
@@ -377,6 +379,16 @@ class InternalServer : public TritonServer {
 
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
       const InferRequest& infer_request) override;
+
+ private:
+  void StartRepoPollThread();
+  void StopRepoPollThread();
+
+  bool is_exiting_;
+  std::mutex exit_mu_;
+  std::condition_variable exit_cv_;
+  int32_t repository_poll_secs_;
+  std::thread repo_poll_thread_;
 };
 
 //==============================================================================
@@ -705,7 +717,7 @@ ServerOptions::ServerOptions(
       server_id_("triton"), backend_dir_("/opt/tritonserver/backends"),
       repo_agent_dir_("/opt/tritonserver/repoagents"),
       disable_auto_complete_config_(false),
-      model_control_mode_(ModelControlMode::NONE),
+      model_control_mode_(ModelControlMode::NONE), repository_poll_secs_(15),
       pinned_memory_pool_byte_size_(1 << 28), response_cache_byte_size_(0),
       min_cuda_compute_capability_(0), exit_on_error_(true),
       exit_timeout_secs_(30), buffer_manager_thread_count_(0),
@@ -728,6 +740,7 @@ ServerOptions::ServerOptions(
     const std::string& backend_dir, const std::string& repo_agent_dir,
     const bool disable_auto_complete_config,
     const ModelControlMode& model_control_mode,
+    const int32_t repository_poll_secs,
     const std::set<std::string>& startup_models,
     const std::vector<RateLimitResource>& rate_limit_resource,
     const int64_t& pinned_memory_pool_byte_size,
@@ -742,7 +755,9 @@ ServerOptions::ServerOptions(
       metrics_(metrics), be_config_(be_config), server_id_(server_id),
       backend_dir_(backend_dir), repo_agent_dir_(repo_agent_dir),
       disable_auto_complete_config_(disable_auto_complete_config),
-      model_control_mode_(model_control_mode), startup_models_(startup_models),
+      model_control_mode_(model_control_mode),
+      repository_poll_secs_(repository_poll_secs),
+      startup_models_(startup_models),
       rate_limit_resource_(rate_limit_resource),
       pinned_memory_pool_byte_size_(pinned_memory_pool_byte_size),
       cuda_memory_pool_byte_size_(cuda_memory_pool_byte_size),
@@ -1123,6 +1138,7 @@ TritonServer::AsyncInferHelper(
 }
 
 InternalServer::InternalServer(const ServerOptions& options)
+    : is_exiting_(false)
 {
   uint32_t api_version_major, api_version_minor;
   THROW_IF_TRITON_ERR(
@@ -1195,6 +1211,12 @@ InternalServer::InternalServer(const ServerOptions& options)
       ToTritonModelControlMode(options.model_control_mode_);
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelControlMode(
       server_options, model_control_mode));
+
+  if (model_control_mode == TRITONSERVER_MODEL_CONTROL_POLL) {
+    repository_poll_secs_ = std::max(0, options.repository_poll_secs_);
+  } else {
+    repository_poll_secs_ = 0;
+  }
 
   // Set startup models
   for (const auto& model : options.startup_models_) {
@@ -1278,6 +1300,8 @@ InternalServer::InternalServer(const ServerOptions& options)
       InternalServer::ResponseRelease, nullptr /* StartFn*/));
   THROW_IF_TRITON_ERR(TRITONSERVER_ResponseAllocatorSetQueryFunction(
       allocator_, OutputBufferQuery));
+
+  StartRepoPollThread();
 }
 
 InternalServer::~InternalServer()
@@ -1287,6 +1311,34 @@ InternalServer::~InternalServer()
         TRITONSERVER_ResponseAllocatorDelete(allocator_),
         "Failed to delete allocator.");
   }
+
+  StopRepoPollThread();
+}
+
+void
+InternalServer::StartRepoPollThread()
+{
+  repo_poll_thread_ = std::thread([this]() {
+    while (!is_exiting_) {
+      if (repository_poll_secs_ > 0) {
+        THROW_IF_TRITON_ERR(
+            TRITONSERVER_ServerPollModelRepository(server_.get()));
+      }
+      std::unique_lock<std::mutex> lock(exit_mu_);
+      std::chrono::seconds wait_timeout(
+          (repository_poll_secs_ == 0) ? 3600 : repository_poll_secs_);
+      exit_cv_.wait_for(lock, wait_timeout);
+    }
+  });
+}
+
+void
+InternalServer::StopRepoPollThread()
+{
+  std::unique_lock<std::mutex> lock(exit_mu_);
+  is_exiting_ = true;
+  exit_cv_.notify_all();
+  repo_poll_thread_.detach();
 }
 
 std::future<std::unique_ptr<InferResult>>

@@ -211,6 +211,7 @@ struct ServerOptions {
       const std::string& backend_dir, const std::string& repo_agent_dir,
       const bool disable_auto_complete_config,
       const ModelControlMode& model_control_mode,
+      const int32_t repository_poll_secs,
       const std::set<std::string>& startup_models,
       const std::vector<RateLimitResource>& rate_limit_resource,
       const int64_t& pinned_memory_pool_byte_size,
@@ -255,6 +256,10 @@ struct ServerOptions {
   // "EXPLICIT". Default is "NONE". See here for more information:
   // https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_management.md.
   ModelControlMode model_control_mode_;
+  // Interval in seconds between each poll of the model repository to check for
+  // changes. Valid only when 'model_control_mode_' is set to "POLL". Default
+  // is 15.
+  int32_t repository_poll_secs_;
   // Specify the the models to be loaded on server startup. This will only take
   // effect if 'model_control_mode_' is set to 'EXPLICIT'.
   std::set<std::string> startup_models_;

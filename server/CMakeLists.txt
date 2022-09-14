@@ -78,6 +78,8 @@ if(${TRITON_ENABLE_GPU})
   endif()
 endif() # TRITON_ENABLE_GPU
 
+find_package(Threads REQUIRED)
+
 #
 # Triton Developer Tools Server
 #
@@ -141,6 +143,7 @@ set_target_properties(
 target_link_libraries(
   triton-developer_tools-server
   PUBLIC
+    Threads::Threads
     triton-core-serverapi         # from repo-core
     triton-core-serverstub        # from repo-core
     triton-common-logging         # from repo-common
