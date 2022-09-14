@@ -39,20 +39,49 @@ fi
 
 export CUDA_VISIBLE_DEVICES=0
 
-TEST_LOG=test.log
+CLIENT_LOG=`pwd`/client.log
+SIMPLE_ADDSUB_ASYNC_INFER_CLIENT=/opt/tritonserver/developer_tools/server/build/install/bin/simple_addsub_async_infer
+ADDSUB_STRING_ASYNC_INFER_CLIENT=/opt/tritonserver/developer_tools/server/build/install/bin/addsub_string_async_infer
 
 RET=0
 
-cp /opt/tritonserver/developer_tools/server/build/install/bin/wrapper_test ./
+# Prepare required models for the examples
+mkdir models
+cp -r ../L0_server_unit_test/models/add_sub* ./models/.
+git clone https://github.com/triton-inference-server/server.git
+cp -r server/docs/examples/model_repository/simple ./models/.
 
-set +e
 # Must explicitly set LD_LIBRARY_PATH so that the test can find
 # libtritonserver.so.
-LD_LIBRARY_PATH=/opt/tritonserver/lib:${LD_LIBRARY_PATH} ./wrapper_test >> ${TEST_LOG} 2>&1
-if [ $? -ne 0 ]; then
-    cat ${TEST_LOG}
-    RET=1
-fi
+LD_LIBRARY_PATH=/opt/tritonserver/lib:${LD_LIBRARY_PATH}
+
+set +e
+
+for i in \
+    $SIMPLE_ADDSUB_ASYNC_INFER_CLIENT \
+    $ADDSUB_STRING_ASYNC_INFER_CLIENT \
+    ; do
+    BASE=$(basename -- $i)
+    SUFFIX="${BASE%.*}"
+
+    if [ $i == $SIMPLE_ADDSUB_ASYNC_INFER_CLIENT ]; then
+        # Enforce I/O to be in specific memory type
+        for MEM_TYPE in system pinned gpu ; do
+            $i -v -m $MEM_TYPE >> $CLIENT_LOG.${SUFFIX}.$MEM_TYPE 2>&1
+            if [ $? -ne 0 ]; then
+                cat $CLIENT_LOG.${SUFFIX}.$MEM_TYPE.log
+                RET=1
+            fi
+        done
+    else
+        $i -v >> ${CLIENT_LOG}.${SUFFIX} 2>&1
+        if [ $? -ne 0 ]; then
+            cat ${CLIENT_LOG}.c++
+            RET=1
+        fi
+    fi
+done
+
 set -e
 
 if [ $RET -eq 0 ]; then
