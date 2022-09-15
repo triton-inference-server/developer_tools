@@ -66,7 +66,7 @@ When the build completes, the library `libtritondevelopertoolsserver.a` and exam
 can be found in the install directory.
 
 For custom application, you can refer to
-[CMakeLists.txt](examples/CMakelists.txt) to see how to build your executable
+[CMakeLists.txt](examples/CMakeLists.txt) to see how to build your executable
 with the Server Wrapper library.
 
 ### API Description
@@ -100,7 +100,7 @@ it more easily to retrieve output data.
 
 Performing an inference request requires the use of some Server C++ API
 functions and objects, as demonstrated in
-[simple_addsub_async_infer.cc](./server/examples/simple_addsub_async_infer.cc).
+[simple_addsub_async_infer.cc](examples/simple_addsub_async_infer.cc).
 The general usage requires the following steps.
 
 1. Start Server
@@ -275,9 +275,9 @@ object goes out of scope.
 Server Wrapper contains APIs for loading/unloading models, getting metrics, and
 model index, etc. The use of these functions is straightforward and these
 functions are demonstrated in
-[simple_addsub_async_infer.cc](./server/examples/simple_addsub_async_infer.cc)
+[simple_addsub_async_infer.cc](examples/simple_addsub_async_infer.cc)
 and
-[addsub_string_async_infer.cc](./server/examples/addsub_string_async_infer.cc),
+[addsub_string_async_infer.cc](examples/addsub_string_async_infer.cc),
 and documented in [server_wrapper.h](include/triton/developer_tools/server_wrapper.h).
 
 #### Error Handling
@@ -290,9 +290,9 @@ error handling.
 #### Examples
 
 A simple example using the Server Wrapper can be found in
-[simple_addsub_async_infer.cc](./server/examples/simple_addsub_async_infer.cc)
+[simple_addsub_async_infer.cc](examples/simple_addsub_async_infer.cc)
 which is heavily commented. For string type IO, an example can be found in
-[addsub_string_async_infer.cc](./server/examples/addsub_string_async_infer.cc).
+[addsub_string_async_infer.cc](examples/addsub_string_async_infer.cc).
 
 When running the examples, make sure the model repository is placed under the
 same path, and `LD_LIBRARY_PATH` is set properly for `libtritonserver.so`.
