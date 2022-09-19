@@ -667,7 +667,7 @@ MetricsOptions::MetricsOptions()
 
 MetricsOptions::MetricsOptions(
     const bool allow_metrics, const bool allow_gpu_metrics,
-    const bool allow_cpu_metrics, const uint64_t& metrics_interval_ms)
+    const bool allow_cpu_metrics, const uint64_t metrics_interval_ms)
     : allow_metrics_(allow_metrics), allow_gpu_metrics_(allow_gpu_metrics),
       allow_cpu_metrics_(allow_cpu_metrics),
       metrics_interval_ms_(metrics_interval_ms)
@@ -693,7 +693,7 @@ RateLimitResource::RateLimitResource(
 }
 
 CUDAMemoryPoolByteSize::CUDAMemoryPoolByteSize(
-    const int gpu_device, const uint64_t& size)
+    const int gpu_device, const uint64_t size)
     : gpu_device_(gpu_device), size_(size)
 {
 }
@@ -743,9 +743,9 @@ ServerOptions::ServerOptions(
     const int32_t repository_poll_secs,
     const std::set<std::string>& startup_models,
     const std::vector<RateLimitResource>& rate_limit_resource,
-    const int64_t& pinned_memory_pool_byte_size,
+    const int64_t pinned_memory_pool_byte_size,
     const std::vector<CUDAMemoryPoolByteSize>& cuda_memory_pool_byte_size,
-    const uint64_t& response_cache_byte_size,
+    const uint64_t response_cache_byte_size,
     const double& min_cuda_compute_capability, const bool exit_on_error,
     const int32_t exit_timeout_secs, const int32_t buffer_manager_thread_count,
     const uint32_t model_load_thread_count,
@@ -778,8 +778,9 @@ RepositoryIndex::RepositoryIndex(
 }
 
 Tensor::Tensor(
-    char* buffer, const size_t& byte_size, DataType data_type,
-    std::vector<int64_t> shape, MemoryType memory_type, int64_t memory_type_id)
+    char* buffer, const size_t& byte_size, const DataType& data_type,
+    const std::vector<int64_t>& shape, const MemoryType& memory_type,
+    const int64_t memory_type_id)
     : buffer_(buffer), byte_size_(byte_size), data_type_(data_type),
       shape_(shape), memory_type_(memory_type), memory_type_id_(memory_type_id),
       is_pre_alloc_(false), is_output_(false)
@@ -788,8 +789,8 @@ Tensor::Tensor(
 }
 
 Tensor::Tensor(
-    char* buffer, size_t byte_size, MemoryType memory_type,
-    int64_t memory_type_id)
+    char* buffer, const size_t& byte_size, const MemoryType& memory_type,
+    const int64_t memory_type_id)
     : buffer_(buffer), byte_size_(byte_size), data_type_(DataType::INVALID),
       shape_({}), memory_type_(memory_type), memory_type_id_(memory_type_id),
       is_pre_alloc_(false), is_output_(false)
@@ -877,12 +878,11 @@ InferOptions::InferOptions(const std::string& model_name)
 }
 
 InferOptions::InferOptions(
-    const std::string& model_name, const int64_t& model_version,
-    const std::string& request_id, const uint64_t& correlation_id,
+    const std::string& model_name, const int64_t model_version,
+    const std::string& request_id, const uint64_t correlation_id,
     const std::string& correlation_id_str, const bool sequence_start,
-    const bool sequence_end, const uint64_t& priority,
-    const uint64_t& request_timeout,
-    std::shared_ptr<Allocator> custom_allocator)
+    const bool sequence_end, const uint64_t priority,
+    const uint64_t request_timeout, std::shared_ptr<Allocator> custom_allocator)
     : model_name_(model_name), model_version_(model_version),
       request_id_(request_id), correlation_id_(correlation_id),
       correlation_id_str_(correlation_id_str), sequence_start_(sequence_start),
@@ -980,7 +980,7 @@ TritonServer::ModelIndex()
 std::string
 TritonServer::ServerMetrics()
 {
-  std::string metrics_str;
+  std::string metrics_str = "";
   TRITONSERVER_Metrics* metrics = nullptr;
   try {
     THROW_IF_TRITON_ERR(TRITONSERVER_ServerMetrics(server_.get(), &metrics));
@@ -1007,17 +1007,19 @@ TritonServer::ModelStatistics(
   try {
     THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelStatistics(
         server_.get(), model_name.c_str(), model_version, &model_stats));
-  } catch (const TritonException& ex) {
+  }
+  catch (const TritonException& ex) {
     throw TritonException(std::string("Error - ModelStatistics: ") + ex.what());
   }
   const char* base;
   size_t byte_size;
   try {
-  THROW_IF_TRITON_ERR(TRITONSERVER_MessageSerializeToJson(
-      model_stats, &base, &byte_size));
-  metrics_str = std::string(base, byte_size);
-  THROW_IF_TRITON_ERR(TRITONSERVER_MessageDelete(model_stats));
-  }  catch (const TritonException& ex) {
+    THROW_IF_TRITON_ERR(
+        TRITONSERVER_MessageSerializeToJson(model_stats, &base, &byte_size));
+    metrics_str = std::string(base, byte_size);
+    THROW_IF_TRITON_ERR(TRITONSERVER_MessageDelete(model_stats));
+  }
+  catch (const TritonException& ex) {
     throw TritonException(std::string("Error - ModelStatistics: ") + ex.what());
   }
 

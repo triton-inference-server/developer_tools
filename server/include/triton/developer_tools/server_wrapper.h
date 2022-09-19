@@ -93,7 +93,7 @@ struct MetricsOptions {
 
   MetricsOptions(
       const bool allow_metrics, const bool allow_gpu_metrics,
-      const bool allow_cpu_metrics, const uint64_t& metrics_interval_ms);
+      const bool allow_cpu_metrics, const uint64_t metrics_interval_ms);
 
   // Enable or disable metrics. Default is true.
   bool allow_metrics_;
@@ -153,7 +153,7 @@ struct RateLimitResource {
 /// size. This will not affect the allocation conducted by the backend
 /// frameworks.
 struct CUDAMemoryPoolByteSize {
-  CUDAMemoryPoolByteSize(const int gpu_device, const uint64_t& size);
+  CUDAMemoryPoolByteSize(const int gpu_device, const uint64_t size);
 
   // The GPU device ID to allocate the memory pool.
   int gpu_device_;
@@ -214,9 +214,9 @@ struct ServerOptions {
       const int32_t repository_poll_secs,
       const std::set<std::string>& startup_models,
       const std::vector<RateLimitResource>& rate_limit_resource,
-      const int64_t& pinned_memory_pool_byte_size,
+      const int64_t pinned_memory_pool_byte_size,
       const std::vector<CUDAMemoryPoolByteSize>& cuda_memory_pool_byte_size,
-      const uint64_t& response_cache_byte_size,
+      const uint64_t response_cache_byte_size,
       const double& min_cuda_compute_capability, const bool exit_on_error,
       const int32_t exit_timeout_secs,
       const int32_t buffer_manager_thread_count,
@@ -344,13 +344,13 @@ struct RepositoryIndex {
 ///
 struct Tensor {
   Tensor(
-      char* buffer, const size_t& byte_size, DataType data_type,
-      std::vector<int64_t> shape, MemoryType memory_type,
-      int64_t memory_type_id);
+      char* buffer, const size_t& byte_size, const DataType& data_type,
+      const std::vector<int64_t>& shape, const MemoryType& memory_type,
+      const int64_t memory_type_id);
 
   Tensor(
-      char* buffer, size_t byte_size, MemoryType memory_type,
-      int64_t memory_type_id);
+      char* buffer, const size_t& byte_size, const MemoryType& memory_type,
+      const int64_t memory_type_id);
 
   ~Tensor();
 
@@ -416,11 +416,11 @@ class TritonServer {
   std::string ServerMetrics();
 
   /// Get the inference statistics of the specified model.
-  /// \param model_name The name of the model
-  /// \param model_version the version of the model requested
-  /// \return Returns a json string representing the model metrics
+  /// \param model_name The name of the model.
+  /// \param model_version the version of the model requested.
+  /// \return Returns a json string representing the model metrics.
   std::string ModelStatistics(
-    const std::string& model_name, const int64_t model_version);
+      const std::string& model_name, const int64_t model_version);
 
   /// Run asynchronous inference on server.
   /// \param infer_request The InferRequest object contains
@@ -457,11 +457,11 @@ struct InferOptions {
   InferOptions(const std::string& model_name);
 
   InferOptions(
-      const std::string& model_name, const int64_t& model_version,
-      const std::string& request_id, const uint64_t& correlation_id,
+      const std::string& model_name, const int64_t model_version,
+      const std::string& request_id, const uint64_t correlation_id,
       const std::string& correlation_id_str, const bool sequence_start,
-      const bool sequence_end, const uint64_t& priority,
-      const uint64_t& request_timeout,
+      const bool sequence_end, const uint64_t priority,
+      const uint64_t request_timeout,
       std::shared_ptr<Allocator> custom_allocator);
 
   /// The name of the model to run inference.
@@ -549,8 +549,8 @@ class InferRequest {
           std::string>::value>::type* = nullptr>
   void AddInput(
       const std::string& name, const Iterator begin, const Iterator end,
-      DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
-      int64_t memory_type_id) noexcept;
+      const DataType& data_type, const std::vector<int64_t>& shape,
+      const MemoryType& memory_type, const int64_t memory_type_id) noexcept;
 
   /// Add an input tensor to be sent within an InferRequest object. This
   /// function is for containers holding 'string' elements. Data in the
@@ -572,8 +572,8 @@ class InferRequest {
           std::string>::value>::type* = nullptr>
   void AddInput(
       const std::string& name, const Iterator begin, const Iterator end,
-      DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
-      int64_t memory_type_id) noexcept;
+      const DataType& data_type, const std::vector<int64_t>& shape,
+      const MemoryType& memory_type, const int64_t memory_type_id) noexcept;
 
   /// Add a requested output to be sent within an InferRequest object.
   /// Calling this function is optional. If no output(s) are specifically
@@ -760,8 +760,8 @@ template <
 void
 InferRequest::AddInput(
     const std::string& name, const Iterator begin, const Iterator end,
-    DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
-    int64_t memory_type_id) noexcept
+    const DataType& data_type, const std::vector<int64_t>& shape,
+    const MemoryType& memory_type, const int64_t memory_type_id) noexcept
 {
   // Serialize the strings into a "raw" buffer. The first 4-bytes are
   // the length of the string length. Next are the actual string
@@ -789,8 +789,8 @@ template <
 void
 InferRequest::AddInput(
     const std::string& name, const Iterator begin, const Iterator end,
-    DataType data_type, std::vector<int64_t> shape, MemoryType memory_type,
-    int64_t memory_type_id) noexcept
+    const DataType& data_type, const std::vector<int64_t>& shape,
+    const MemoryType& memory_type, const int64_t memory_type_id) noexcept
 {
   // FIXME (DLIS-4134) This function should also work for non-contiguous
   // container, and input data should be copied so that we don't need to worry

@@ -645,7 +645,8 @@ main(int argc, char** argv)
 
     // Get the server metrics.
     std::string metrics_str = server->ServerMetrics();
-    std::cout << "\n\n\n=========Server Metrics===========\n" << metrics_str << "\n";
+    std::cout << "\n\n\n=========Server Metrics===========\n"
+              << metrics_str << "\n";
   }
   catch (const tds::TritonException& ex) {
     std::cerr << "Error: " << ex.what();
