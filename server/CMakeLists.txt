@@ -83,7 +83,7 @@ find_package(Threads REQUIRED)
 #
 # Triton Developer Tools Server
 #
-file(GLOB SRC_FILES src/*.cc)
+file(GLOB SRC_FILES src/*.cc src/*.h)
 
 add_library(
   triton-developer_tools-server

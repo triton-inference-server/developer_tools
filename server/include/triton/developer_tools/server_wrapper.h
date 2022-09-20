@@ -35,6 +35,7 @@
 #include <unordered_map>
 #include <vector>
 #include "../src/infer_requested_output.h"
+#include "../src/tracer.h"
 #include "common.h"
 #include "triton/core/tritonserver.h"
 #ifdef TRITON_ENABLE_GPU
@@ -47,6 +48,7 @@ class Allocator;
 class InferResult;
 class InferRequest;
 struct ResponseParameters;
+class TraceManager;
 
 using TensorAllocMap = std::unordered_map<
     std::string,
@@ -199,6 +201,46 @@ struct HostPolicy {
 };
 
 //==============================================================================
+/// Structure to hold global trace setting for 'ServerOptions' and
+/// model-specific trace setting for 'InferOptions'. See here for more
+/// information:
+/// https://github.com/triton-inference-server/server/blob/main/docs/user_guide/trace.md.
+struct Trace {
+  enum class Level { OFF, TIMESTAMPS, TENSORS };
+
+  Trace(const std::string& file, const Level& level);
+
+  Trace(
+      const std::string& file, const Level& level, const uint32_t rate,
+      const int32_t count, const uint32_t log_frequency);
+
+  ~Trace() = default;
+
+  // The file where trace output will be saved. If 'log-frequency' is also
+  // specified, this argument value will be the prefix of the files to save the
+  // trace output.
+  std::string file_;
+  // Specify a trace level. OFF to disable tracing, TIMESTAMPS to trace
+  // timestamps, TENSORS to trace tensors.
+  Level level_;
+  // The trace sampling rate. The value represents how many requests will one
+  // trace be sampled from. For example, if the trace rate is "1000", 1 trace
+  // will be sampled for every 1000 requests. Default is 1000.
+  uint32_t rate_;
+  // The number of traces to be sampled. If the value is -1, the number of
+  // traces to be sampled will not be limited. Default is -1.
+  int32_t count_;
+  // The trace log frequency. If the value is 0, Triton will only log the trace
+  // output to 'file_' when shutting down. Otherwise, Triton will log the trace
+  // output to 'file_.<idx>' when it collects the specified number of traces.
+  // For example, if the log frequency is 100, when Triton collects the 100-th
+  // trace, it logs the traces to file 'file_.0', and when it collects the
+  // 200-th trace, it logs the 101-th to the 200-th traces to file file_.1'.
+  // Default is 0.
+  uint32_t log_frequency_;
+};
+
+//==============================================================================
 /// Server options that are used to initialize Triton Server.
 ///
 struct ServerOptions {
@@ -222,7 +264,7 @@ struct ServerOptions {
       const int32_t buffer_manager_thread_count,
       const uint32_t model_load_thread_count,
       const std::vector<ModelLoadGPULimit>& model_load_gpu_limit,
-      const std::vector<HostPolicy>& host_policy);
+      const std::vector<HostPolicy>& host_policy, std::shared_ptr<Trace> trace);
 
   // Paths to model repository directory. Note that if a model is not unique
   // across all model repositories at any time, the model will not be available.
@@ -309,6 +351,9 @@ struct ServerOptions {
   // The host policy setting. See the 'HostPolicy' structure for more
   // information.
   std::vector<HostPolicy> host_policy_;
+  // The global trace setting. Default is nullptr, meaning that tracing is not
+  // enabled. See the 'Trace' structure for more information.
+  std::shared_ptr<Trace> trace_;
 };
 
 //==============================================================================
@@ -428,7 +473,7 @@ class TritonServer {
   /// \return Returns the result of inference as a future of
   /// a unique pointer of InferResult object.
   virtual std::future<std::unique_ptr<InferResult>> AsyncInfer(
-      const InferRequest& infer_request) = 0;
+      InferRequest& infer_request) = 0;
 
  protected:
   void PrepareInferenceRequest(
@@ -448,6 +493,8 @@ class TritonServer {
   std::shared_ptr<TRITONSERVER_Server> server_;
   // The allocator object allocating output tensor.
   TRITONSERVER_ResponseAllocator* allocator_;
+  // The trace manager.
+  std::shared_ptr<TraceManager> trace_manager_;
 };
 
 //==============================================================================
@@ -462,7 +509,8 @@ struct InferOptions {
       const std::string& correlation_id_str, const bool sequence_start,
       const bool sequence_end, const uint64_t priority,
       const uint64_t request_timeout,
-      std::shared_ptr<Allocator> custom_allocator);
+      std::shared_ptr<Allocator> custom_allocator,
+      std::shared_ptr<Trace> trace);
 
   /// The name of the model to run inference.
   std::string model_name_;
@@ -510,6 +558,10 @@ struct InferOptions {
   /// this `Allocator` object to call 'ResponseAllocatorReleaseFn_t' for
   /// releasing the response.
   std::shared_ptr<Allocator> custom_allocator_;
+  /// Update trace setting for the specified model. If not set, will use global
+  /// trace setting in 'ServerOptions' for tracing if tracing is enabled in
+  /// 'ServerOptions'. Default is nullptr.
+  std::shared_ptr<Trace> trace_;
 };
 
 //==============================================================================
@@ -592,8 +644,8 @@ class InferRequest {
   /// \param name The name of the output tensor.
   void AddRequestedOutput(const std::string& name);
 
-  /// Clear inputs and outputs of the request except for the callback functions.
-  /// This allows users to reuse the InferRequest object if needed.
+  /// Clear inputs and outputs of the request. This allows users to reuse the
+  /// InferRequest object if needed.
   void Reset();
 
   friend class TritonServer;
@@ -608,6 +660,11 @@ class InferRequest {
   // The map for each output tensor and a tuple of it's pre-allocated buffer,
   // byte size, memory type and memory type id.
   TensorAllocMap tensor_alloc_map_;
+  // The updated trace setting for the specified model set within
+  // 'InferOptions'. If set, the lifetime of this 'TraceManager::Trace' object
+  // should be long enough until the trace associated with this request is
+  // written to file.
+  std::shared_ptr<TraceManager::Trace> trace_;
 };
 
 //==============================================================================

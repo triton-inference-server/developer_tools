@@ -423,6 +423,10 @@ main(int argc, char** argv)
     options.logging_.verbose_ =
         tds::LoggingOptions::VerboseLevel(verbose_level);
     options.model_control_mode_ = tds::ModelControlMode::EXPLICIT;
+    // Enable tracing. The tracing output file 'trace_file' can be found after
+    // this example is completed.
+    options.trace_ = std::make_shared<tds::Trace>(
+        "trace_file", tds::Trace::Level::TIMESTAMPS, 1, -1, 0);
     auto server = tds::TritonServer::Create(options);
 
     // Load 'simple' and 'add_sub' models.

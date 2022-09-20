@@ -334,6 +334,22 @@ HostPolicySettingString(const HostPolicy::Setting& setting)
   }
 }
 
+TRITONSERVER_InferenceTraceLevel
+ToTritonTraceLevel(const Trace::Level& level)
+{
+  switch (level) {
+    case Trace::Level::OFF:
+      return TRITONSERVER_TRACE_LEVEL_DISABLED;
+    case Trace::Level::TIMESTAMPS:
+      return TRITONSERVER_TRACE_LEVEL_TIMESTAMPS;
+    case Trace::Level::TENSORS:
+      return TRITONSERVER_TRACE_LEVEL_TENSORS;
+
+    default:
+      throw TritonException("unsupported trace level.");
+  }
+}
+
 //==============================================================================
 /// Structure to hold response parameters for InfeResult object. The kinds
 /// of parameters in a response can be created by the backend side using
@@ -378,7 +394,7 @@ class InternalServer : public TritonServer {
       int64_t memory_type_id);
 
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
-      const InferRequest& infer_request) override;
+      InferRequest& infer_request) override;
 
  private:
   void StartRepoPollThread();
@@ -626,6 +642,7 @@ InferResponseComplete(
     std::unique_ptr<InferResult> infer_result = std::move(result);
     p->first->set_value(std::move(infer_result));
     delete p->first;
+    delete p;
   }
 }
 
@@ -710,6 +727,19 @@ HostPolicy::HostPolicy(
 {
 }
 
+Trace::Trace(const std::string& file, const Level& level)
+    : file_(file), level_(level), rate_(1000), count_(-1), log_frequency_(0)
+{
+}
+
+Trace::Trace(
+    const std::string& file, const Level& level, const uint32_t rate,
+    const int32_t count, const uint32_t log_frequency)
+    : file_(file), level_(level), rate_(rate), count_(count),
+      log_frequency_(log_frequency)
+{
+}
+
 ServerOptions::ServerOptions(
     const std::vector<std::string>& model_repository_paths)
     : model_repository_paths_(model_repository_paths),
@@ -722,7 +752,8 @@ ServerOptions::ServerOptions(
       min_cuda_compute_capability_(0), exit_on_error_(true),
       exit_timeout_secs_(30), buffer_manager_thread_count_(0),
       model_load_thread_count_(
-          std::max(2u, 2 * std::thread::hardware_concurrency()))
+          std::max(2u, 2 * std::thread::hardware_concurrency())),
+      trace_(nullptr)
 {
   // FIXME: Use iterator instead of vector for 'model_repository_paths_'.
   be_config_.clear();
@@ -750,7 +781,7 @@ ServerOptions::ServerOptions(
     const int32_t exit_timeout_secs, const int32_t buffer_manager_thread_count,
     const uint32_t model_load_thread_count,
     const std::vector<ModelLoadGPULimit>& model_load_gpu_limit,
-    const std::vector<HostPolicy>& host_policy)
+    const std::vector<HostPolicy>& host_policy, std::shared_ptr<Trace> trace)
     : model_repository_paths_(model_repository_paths), logging_(logging),
       metrics_(metrics), be_config_(be_config), server_id_(server_id),
       backend_dir_(backend_dir), repo_agent_dir_(repo_agent_dir),
@@ -766,7 +797,8 @@ ServerOptions::ServerOptions(
       exit_on_error_(exit_on_error), exit_timeout_secs_(exit_timeout_secs),
       buffer_manager_thread_count_(buffer_manager_thread_count),
       model_load_thread_count_(model_load_thread_count),
-      model_load_gpu_limit_(model_load_gpu_limit), host_policy_(host_policy)
+      model_load_gpu_limit_(model_load_gpu_limit), host_policy_(host_policy),
+      trace_(trace)
 {
 }
 
@@ -873,7 +905,7 @@ InferOptions::InferOptions(const std::string& model_name)
     : model_name_(model_name), model_version_(-1), request_id_(""),
       correlation_id_(0), correlation_id_str_(""), sequence_start_(false),
       sequence_end_(false), priority_(0), request_timeout_(0),
-      custom_allocator_(nullptr)
+      custom_allocator_(nullptr), trace_(nullptr)
 {
 }
 
@@ -882,12 +914,14 @@ InferOptions::InferOptions(
     const std::string& request_id, const uint64_t correlation_id,
     const std::string& correlation_id_str, const bool sequence_start,
     const bool sequence_end, const uint64_t priority,
-    const uint64_t request_timeout, std::shared_ptr<Allocator> custom_allocator)
+    const uint64_t request_timeout, std::shared_ptr<Allocator> custom_allocator,
+    std::shared_ptr<Trace> trace)
     : model_name_(model_name), model_version_(model_version),
       request_id_(request_id), correlation_id_(correlation_id),
       correlation_id_str_(correlation_id_str), sequence_start_(sequence_start),
       sequence_end_(sequence_end), priority_(priority),
-      request_timeout_(request_timeout), custom_allocator_(custom_allocator)
+      request_timeout_(request_timeout), custom_allocator_(custom_allocator),
+      trace_(trace)
 {
 }
 
@@ -1303,6 +1337,17 @@ InternalServer::InternalServer(const ServerOptions& options)
   THROW_IF_TRITON_ERR(TRITONSERVER_ResponseAllocatorSetQueryFunction(
       allocator_, OutputBufferQuery));
 
+  // Initialize trace manager
+  if (options.trace_) {
+    trace_manager_ = std::make_shared<TraceManager>(
+        ToTritonTraceLevel(options.trace_->level_), options.trace_->rate_,
+        options.trace_->count_, options.trace_->log_frequency_,
+        options.trace_->file_);
+  } else {
+    // Tracing is not enabled.
+    trace_manager_ = nullptr;
+  }
+
   StartRepoPollThread();
 }
 
@@ -1344,13 +1389,42 @@ InternalServer::StopRepoPollThread()
 }
 
 std::future<std::unique_ptr<InferResult>>
-InternalServer::AsyncInfer(const InferRequest& infer_request)
+InternalServer::AsyncInfer(InferRequest& infer_request)
 {
   std::future<std::unique_ptr<InferResult>> result_future;
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
   try {
     AsyncInferHelper(&irequest, infer_request);
+
+    TRITONSERVER_InferenceTrace* triton_trace = nullptr;
+    if (trace_manager_) {
+      // Update trace setting for specified model if needed.
+      if (infer_request.infer_options_->trace_) {
+        TraceManager::TraceSetting new_setting(
+            ToTritonTraceLevel(infer_request.infer_options_->trace_->level_),
+            infer_request.infer_options_->trace_->rate_,
+            infer_request.infer_options_->trace_->count_,
+            infer_request.infer_options_->trace_->log_frequency_,
+            std::make_shared<TraceManager::TraceFile>(
+                infer_request.infer_options_->trace_->file_));
+        trace_manager_->UpdateTraceSetting(
+            infer_request.infer_options_->model_name_, new_setting);
+      }
+      infer_request.trace_ = std::move(trace_manager_->SampleTrace(
+          infer_request.infer_options_->model_name_));
+      if (infer_request.trace_ != nullptr) {
+        triton_trace = infer_request.trace_->trace_;
+      }
+    } else if (infer_request.infer_options_->trace_) {
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_ERROR,
+          (std::string("error when updating trace setting for model '") +
+           infer_request.infer_options_->model_name_ +
+           "': tracing is not enabled.")
+              .c_str());
+    }
+
     {
       auto p = new std::promise<std::unique_ptr<InferResult>>();
       result_future = p->get_future();
@@ -1377,9 +1451,8 @@ InternalServer::AsyncInfer(const InferRequest& infer_request)
             nullptr /* response_allocator_userp */, InferResponseComplete,
             reinterpret_cast<void*>(result)));
       }
-
-      THROW_IF_TRITON_ERR(TRITONSERVER_ServerInferAsync(
-          server_.get(), irequest, nullptr /* trace */));
+      THROW_IF_TRITON_ERR(
+          TRITONSERVER_ServerInferAsync(server_.get(), irequest, triton_trace));
     }
   }
   catch (const TritonException& ex) {
@@ -1408,7 +1481,7 @@ InternalRequest::InternalRequest(const InferOptions& options)
       options.model_name_, options.model_version_, options.request_id_,
       options.correlation_id_, options.correlation_id_str_,
       options.sequence_start_, options.sequence_end_, options.priority_,
-      options.request_timeout_, options.custom_allocator_));
+      options.request_timeout_, options.custom_allocator_, options.trace_));
 
   // Store custom allocator as a static variable as it's needed in global
   // functions.
