@@ -512,55 +512,55 @@ struct InferOptions {
       std::shared_ptr<Allocator> custom_allocator,
       std::shared_ptr<Trace> trace);
 
-  /// The name of the model to run inference.
+  // The name of the model to run inference.
   std::string model_name_;
-  /// The version of the model to use while running inference. The default
-  /// value is "-1" which means the server will select the
-  /// version of the model based on its internal policy.
+  // The version of the model to use while running inference. The default
+  // value is "-1" which means the server will select the
+  // version of the model based on its internal policy.
   int64_t model_version_;
-  /// An identifier for the request. If specified will be returned
-  /// in the response. Default value is an empty string which means no
-  /// request_id will be used.
+  // An identifier for the request. If specified will be returned
+  // in the response. Default value is an empty string which means no
+  // request_id will be used.
   std::string request_id_;
-  /// The correlation ID of the inference request to be an unsigned integer.
-  /// Should be used exclusively with 'correlation_id_str_'.
-  /// Default is 0, which indicates that the request has no correlation ID.
+  // The correlation ID of the inference request to be an unsigned integer.
+  // Should be used exclusively with 'correlation_id_str_'.
+  // Default is 0, which indicates that the request has no correlation ID.
   uint64_t correlation_id_;
-  /// The correlation ID of the inference request to be a string.
-  /// Should be used exclusively with 'correlation_id_'.
-  /// Default value is "".
+  // The correlation ID of the inference request to be a string.
+  // Should be used exclusively with 'correlation_id_'.
+  // Default value is "".
   std::string correlation_id_str_;
-  /// Indicates whether the request being added marks the start of the
-  /// sequence. Default value is False. This argument is ignored if
-  /// 'sequence_id' is 0.
+  // Indicates whether the request being added marks the start of the
+  // sequence. Default value is False. This argument is ignored if
+  // 'sequence_id' is 0.
   bool sequence_start_;
-  /// Indicates whether the request being added marks the end of the
-  /// sequence. Default value is False. This argument is ignored if
-  /// 'sequence_id' is 0.
+  // Indicates whether the request being added marks the end of the
+  // sequence. Default value is False. This argument is ignored if
+  // 'sequence_id' is 0.
   bool sequence_end_;
-  /// Indicates the priority of the request. Priority value zero
-  /// indicates that the default priority level should be used
-  /// (i.e. same behavior as not specifying the priority parameter).
-  /// Lower value priorities indicate higher priority levels. Thus
-  /// the highest priority level is indicated by setting the parameter
-  /// to 1, the next highest is 2, etc. If not provided, the server
-  /// will handle the request using default setting for the model.
+  // Indicates the priority of the request. Priority value zero
+  // indicates that the default priority level should be used
+  // (i.e. same behavior as not specifying the priority parameter).
+  // Lower value priorities indicate higher priority levels. Thus
+  // the highest priority level is indicated by setting the parameter
+  // to 1, the next highest is 2, etc. If not provided, the server
+  // will handle the request using default setting for the model.
   uint64_t priority_;
-  /// The timeout value for the request, in microseconds. If the request
-  /// cannot be completed within the time by the server can take a
-  /// model-specific action such as terminating the request. If not
-  /// provided, the server will handle the request using default setting
-  /// for the model.
+  // The timeout value for the request, in microseconds. If the request
+  // cannot be completed within the time by the server can take a
+  // model-specific action such as terminating the request. If not
+  // provided, the server will handle the request using default setting
+  // for the model.
   uint64_t request_timeout_;
-  /// User-provided custom reponse allocator object. Default is nullptr.
-  /// If using custom allocator, the lifetime of this 'Allocator' object should
-  /// be long enough until `InferResult` object goes out of scope as we need
-  /// this `Allocator` object to call 'ResponseAllocatorReleaseFn_t' for
-  /// releasing the response.
+  // User-provided custom reponse allocator object. Default is nullptr.
+  // If using custom allocator, the lifetime of this 'Allocator' object should
+  // be long enough until `InferResult` object goes out of scope as we need
+  // this `Allocator` object to call 'ResponseAllocatorReleaseFn_t' for
+  // releasing the response.
   std::shared_ptr<Allocator> custom_allocator_;
-  /// Update trace setting for the specified model. If not set, will use global
-  /// trace setting in 'ServerOptions' for tracing if tracing is enabled in
-  /// 'ServerOptions'. Default is nullptr.
+  // Update trace setting for the specified model. If not set, will use global
+  // trace setting in 'ServerOptions' for tracing if tracing is enabled in
+  // 'ServerOptions'. Default is nullptr.
   std::shared_ptr<Trace> trace_;
 };
 
@@ -652,10 +652,12 @@ class InferRequest {
   friend class InternalServer;
 
  protected:
+  InferRequest();
+
   std::unique_ptr<InferOptions> infer_options_;
   std::list<std::string> str_bufs_;
-  std::unordered_map<std::string, std::unique_ptr<Tensor>> inputs_ = {};
-  std::vector<std::unique_ptr<InferRequestedOutput>> outputs_ = {};
+  std::unordered_map<std::string, std::unique_ptr<Tensor>> inputs_;
+  std::vector<std::unique_ptr<InferRequestedOutput>> outputs_;
 
   // The map for each output tensor and a tuple of it's pre-allocated buffer,
   // byte size, memory type and memory type id.
@@ -665,6 +667,13 @@ class InferRequest {
   // should be long enough until the trace associated with this request is
   // written to file.
   std::shared_ptr<TraceManager::Trace> trace_;
+
+  // If the requested model is a decoupled model. If true, the lifetime of this
+  // 'InferRequest' should be long enough until all the responses are returned
+  // and retrieved.
+  bool is_decoupled_;
+  // The promise object used for setting value to the result future.
+  std::unique_ptr<std::promise<std::unique_ptr<InferResult>>> prev_promise_;
 };
 
 //==============================================================================
@@ -718,6 +727,13 @@ class InferResult {
   /// \return The messsage for the error. Empty if no error.
   std::string ErrorMsg();
 
+  // Get the pointer to the future of the next result. This function is used for
+  // retrieving multiple responses from decoupled model. If there is no next
+  // result, this function will return nullptr.
+  std::unique_ptr<std::future<std::unique_ptr<InferResult>>> GetNextResult();
+
+  friend class InternalServer;
+
  protected:
   InferResult();
   const char* model_name_;
@@ -728,7 +744,11 @@ class InferResult {
   bool has_error_;
   std::string error_msg_;
 
-  TRITONSERVER_InferenceResponse* completed_response_ = nullptr;
+  // The pointer to the future of the next result.
+  std::unique_ptr<std::future<std::unique_ptr<InferResult>>>
+      next_result_future_;
+
+  TRITONSERVER_InferenceResponse* completed_response_;
 };
 
 //==============================================================================

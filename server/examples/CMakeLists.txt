@@ -99,3 +99,38 @@ install(
   TARGETS addsub_string_async_infer
   RUNTIME DESTINATION bin
 )
+
+#
+# square_async_infer
+#
+add_executable(
+  square_async_infer
+  square_async_infer.cc
+)
+
+set_target_properties(
+  square_async_infer
+  PROPERTIES
+    SKIP_BUILD_RPATH TRUE
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+    INSTALL_RPATH ""
+)
+
+target_include_directories(
+  square_async_infer
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+target_link_libraries(
+  square_async_infer
+  PRIVATE
+    triton-developer_tools-server
+    triton-core-serverstub
+)
+
+install(
+  TARGETS square_async_infer
+  RUNTIME DESTINATION bin
+)

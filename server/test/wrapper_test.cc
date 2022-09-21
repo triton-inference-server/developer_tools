@@ -134,10 +134,11 @@ TEST_F(TritonServerTest, StartNone)
   try {
     auto server = tds::TritonServer::Create(options_);
     std::set<std::string> loaded_models = server->LoadedModels();
-    ASSERT_EQ(loaded_models.size(), 3);
+    ASSERT_EQ(loaded_models.size(), 4);
     ASSERT_NE(loaded_models.find("add_sub"), loaded_models.end());
     ASSERT_NE(loaded_models.find("add_sub_str"), loaded_models.end());
     ASSERT_NE(loaded_models.find("failing_infer"), loaded_models.end());
+    ASSERT_NE(loaded_models.find("square_int32"), loaded_models.end());
   }
   catch (...) {
     ASSERT_NO_THROW(throw);
@@ -462,6 +463,108 @@ TEST_F(TritonServerTest, InferPreAllocatedBuffer)
     }
 
     free(buffer_output0);
+  }
+  catch (...) {
+    ASSERT_NO_THROW(throw);
+  }
+}
+
+TEST_F(TritonServerTest, InferDecoupledMultipleResponses)
+{
+  try {
+    auto server = tds::TritonServer::Create(options_);
+
+    std::vector<int32_t> input_data = {3};
+    auto request = tds::InferRequest::Create(tds::InferOptions("square_int32"));
+    request->AddInput(
+        "IN", tds::Tensor(
+                  reinterpret_cast<char*>(input_data.data()),
+                  input_data.size() * sizeof(int32_t), tds::DataType::INT32,
+                  {1}, tds::MemoryType::CPU, 0));
+    std::future<std::unique_ptr<tds::InferResult>> result_future =
+        server->AsyncInfer(*request);
+
+    // Retrieve results from multiple responses.
+    std::vector<std::unique_ptr<tds::InferResult>> results;
+    results.push_back(result_future.get());
+    size_t size = results.size();
+    int count = 0;
+    for (size_t i = 0; i < size; i++) {
+      if (results[i]) {
+        ASSERT_FALSE(results[i]->HasError()) << results[i]->ErrorMsg();
+        auto next_future = results[i]->GetNextResult();
+        if (next_future) {
+          results.push_back(next_future->get());
+          size++;
+        }
+        ASSERT_EQ(results[i]->ModelName(), "square_int32");
+        ASSERT_EQ(results[i]->ModelVersion(), "1");
+        ASSERT_EQ(results[i]->Id(), "");
+        count++;
+      }
+    }
+    ASSERT_EQ(count, 3);
+
+    // OUTPUT1 -> 3
+    {
+      for (auto& result : results) {
+        if (result) {
+          std::string out_name("OUT");
+          std::shared_ptr<tds::Tensor> out = result->Output(out_name);
+          ASSERT_EQ(out->shape_, std::vector<int64_t>{1});
+          ASSERT_EQ(out->data_type_, tds::DataType::INT32);
+          ASSERT_EQ(out->byte_size_, (input_data.size() * sizeof(int32_t)));
+          for (size_t i = 0; i < input_data.size(); ++i) {
+            EXPECT_EQ(reinterpret_cast<const int32_t*>(out->buffer_)[i], 3);
+          }
+        }
+      }
+    }
+  }
+  catch (...) {
+    ASSERT_NO_THROW(throw);
+  }
+}
+
+TEST_F(TritonServerTest, InferDecoupledZeroResponse)
+{
+  try {
+    auto server = tds::TritonServer::Create(options_);
+
+    std::vector<int32_t> input_data = {0};
+    auto request = tds::InferRequest::Create(tds::InferOptions("square_int32"));
+    request->AddInput(
+        "IN", tds::Tensor(
+                  reinterpret_cast<char*>(input_data.data()),
+                  input_data.size() * sizeof(int32_t), tds::DataType::INT32,
+                  {1}, tds::MemoryType::CPU, 0));
+    std::future<std::unique_ptr<tds::InferResult>> result_future =
+        server->AsyncInfer(*request);
+    std::vector<std::unique_ptr<tds::InferResult>> results;
+    results.push_back(result_future.get());
+    size_t size = results.size();
+    int count = 0;
+    for (size_t i = 0; i < size; i++) {
+      if (results[i]) {
+        ASSERT_FALSE(results[i]->HasError()) << results[i]->ErrorMsg();
+        auto next_future = results[i]->GetNextResult();
+        if (next_future) {
+          results.push_back(next_future->get());
+          size++;
+        }
+        ASSERT_EQ(results[i]->ModelName(), "square_int32");
+        ASSERT_EQ(results[i]->ModelVersion(), "1");
+        ASSERT_EQ(results[i]->Id(), "");
+        count++;
+      }
+    }
+    ASSERT_EQ(count, 0);
+
+    {
+      for (auto& result : results) {
+        ASSERT_FALSE(result) << "Unexpected response.";
+      }
+    }
   }
   catch (...) {
     ASSERT_NO_THROW(throw);

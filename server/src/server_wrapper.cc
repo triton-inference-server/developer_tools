@@ -393,6 +393,13 @@ class InternalServer : public TritonServer {
       void* buffer_userp, size_t byte_size, TRITONSERVER_MemoryType memory_type,
       int64_t memory_type_id);
 
+  static void InferResponseComplete(
+      TRITONSERVER_InferenceResponse* response, const uint32_t flags,
+      void* userp);
+  static void InferRequestComplete(
+      TRITONSERVER_InferenceRequest* request, const uint32_t flags,
+      void* userp);
+
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
       InferRequest& infer_request) override;
 
@@ -619,7 +626,7 @@ CustomAllocFn(
 }
 
 void
-InferRequestComplete(
+InternalServer::InferRequestComplete(
     TRITONSERVER_InferenceRequest* request, const uint32_t flags, void* userp)
 {
   if (request != nullptr) {
@@ -630,19 +637,53 @@ InferRequestComplete(
 }
 
 void
-InferResponseComplete(
+InternalServer::InferResponseComplete(
     TRITONSERVER_InferenceResponse* response, const uint32_t flags, void* userp)
 {
+  auto p = reinterpret_cast<InferRequest*>(userp);
+  // The allocation info of output tensor, which will be used to finalize
+  // the reponse and stored in the ouput 'Tensor' object so that When calling
+  // the destructor of an output tensor, it will know how to clean the buffer
+  // correctly.
+  AllocInfo alloc_info(
+      p->infer_options_->custom_allocator_, p->tensor_alloc_map_);
+  bool is_decoupled = p->is_decoupled_;
+
   if (response != nullptr) {
-    auto p = reinterpret_cast<
-        std::pair<std::promise<std::unique_ptr<InferResult>>*, AllocInfo>*>(
-        userp);
     std::unique_ptr<InternalResult> result = std::make_unique<InternalResult>();
-    result->FinalizeResponse(response, p->second);
+    result->FinalizeResponse(response, alloc_info);
     std::unique_ptr<InferResult> infer_result = std::move(result);
-    p->first->set_value(std::move(infer_result));
-    delete p->first;
-    delete p;
+
+    if (!is_decoupled) {
+      infer_result->next_result_future_.reset();
+      p->prev_promise_->set_value(std::move(infer_result));
+      p->prev_promise_.reset();
+    } else {
+      if ((flags & TRITONSERVER_RESPONSE_COMPLETE_FINAL) == 0) {
+        // Not the last reponse. Need to store the promise associated with the
+        // next future.
+        auto promise = new std::promise<std::unique_ptr<InferResult>>();
+        infer_result->next_result_future_ =
+            std::make_unique<std::future<std::unique_ptr<InferResult>>>(
+                promise->get_future());
+        p->prev_promise_->set_value(std::move(infer_result));
+        p->prev_promise_.reset(std::move(promise));
+      } else {
+        // The last response.
+        infer_result->next_result_future_.reset();
+        p->prev_promise_->set_value(std::move(infer_result));
+        p->prev_promise_.reset();
+      }
+    }
+  } else if (
+      is_decoupled && (flags & TRITONSERVER_RESPONSE_COMPLETE_FINAL) != 0) {
+    // An empty response may be the last reponse for decoupled models.
+    p->prev_promise_->set_value(nullptr);
+    p->prev_promise_.reset();
+  } else {
+    p->prev_promise_->set_value(nullptr);
+    p->prev_promise_.reset();
+    throw TritonException("Unexpected empty response.");
   }
 }
 
@@ -1095,7 +1136,8 @@ TritonServer::PrepareInferenceRequest(
     THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetTimeoutMicroseconds(
         *irequest, request.infer_options_->request_timeout_));
     THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetReleaseCallback(
-        *irequest, InferRequestComplete, nullptr /* request_release_userp */));
+        *irequest, InternalServer::InferRequestComplete,
+        nullptr /* request_release_userp */));
   }
   catch (const TritonException& ex) {
     throw TritonException(
@@ -1395,6 +1437,14 @@ InternalServer::AsyncInfer(InferRequest& infer_request)
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
   try {
+    uint32_t txn_flags;
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelTransactionProperties(
+        server_.get(), infer_request.infer_options_->model_name_.c_str(),
+        infer_request.infer_options_->model_version_, &txn_flags,
+        nullptr /* voidp */));
+    infer_request.is_decoupled_ =
+        ((txn_flags & TRITONSERVER_TXN_DECOUPLED) != 0);
+
     AsyncInferHelper(&irequest, infer_request);
 
     TRITONSERVER_InferenceTrace* triton_trace = nullptr;
@@ -1428,28 +1478,19 @@ InternalServer::AsyncInfer(InferRequest& infer_request)
     {
       auto p = new std::promise<std::unique_ptr<InferResult>>();
       result_future = p->get_future();
-
-      // Construct the allocation info of an output tensor and pass it to the
-      // callback function so that we can store the information in the ouput
-      // 'Tensor' object. When calling the destructor of an output tensor, it
-      // will know how to clean the buffer correctly.
-      AllocInfo alloc_info(
-          infer_request.infer_options_->custom_allocator_,
-          infer_request.tensor_alloc_map_);
-      auto result =
-          new std::pair<std::promise<std::unique_ptr<InferResult>>*, AllocInfo>(
-              p, alloc_info);
+      infer_request.prev_promise_.reset(std::move(p));
 
       if (infer_request.infer_options_->custom_allocator_ == nullptr) {
         THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
-            irequest, allocator_,
-            reinterpret_cast<void*>(const_cast<InferRequest*>(&infer_request)),
-            InferResponseComplete, reinterpret_cast<void*>(result)));
+            irequest, allocator_, reinterpret_cast<void*>(&infer_request),
+            InternalServer::InferResponseComplete,
+            reinterpret_cast<void*>(&infer_request)));
       } else {
         THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
             irequest, InternalRequest::custom_triton_allocator_,
-            nullptr /* response_allocator_userp */, InferResponseComplete,
-            reinterpret_cast<void*>(result)));
+            nullptr /* response_allocator_userp */,
+            InternalServer::InferResponseComplete,
+            reinterpret_cast<void*>(&infer_request)));
       }
       THROW_IF_TRITON_ERR(
           TRITONSERVER_ServerInferAsync(server_.get(), irequest, triton_trace));
@@ -1473,9 +1514,16 @@ InferRequest::Create(const InferOptions& options)
   return internal_request;
 }
 
+InferRequest::InferRequest() : is_decoupled_(false)
+{
+  str_bufs_.clear();
+  inputs_.clear();
+  outputs_.clear();
+}
+
 InferRequest::~InferRequest() {}
 
-InternalRequest::InternalRequest(const InferOptions& options)
+InternalRequest::InternalRequest(const InferOptions& options) : InferRequest()
 {
   infer_options_.reset(new InferOptions(
       options.model_name_, options.model_version_, options.request_id_,
@@ -1555,7 +1603,10 @@ InferRequest::Reset()
   tensor_alloc_map_.clear();
 }
 
-InferResult::InferResult() : has_error_(false), error_msg_("") {}
+InferResult::InferResult()
+    : has_error_(false), error_msg_(""), completed_response_(nullptr)
+{
+}
 
 InferResult::~InferResult() {}
 
@@ -1605,7 +1656,6 @@ InternalResult::FinalizeResponse(
     THROW_IF_TRITON_ERR(
         TRITONSERVER_InferenceResponseOutputCount(response, &output_count));
 
-    std::unordered_map<std::string, std::vector<char>> output_data;
     for (uint32_t idx = 0; idx < output_count; ++idx) {
       const char* cname;
       TRITONSERVER_DataType datatype;
@@ -1819,6 +1869,12 @@ std::string
 InferResult::ErrorMsg()
 {
   return error_msg_;
+}
+
+std::unique_ptr<std::future<std::unique_ptr<InferResult>>>
+InferResult::GetNextResult()
+{
+  return std::move(next_result_future_);
 }
 
 }}}  // namespace triton::developer_tools::server
