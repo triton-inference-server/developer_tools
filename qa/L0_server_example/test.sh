@@ -51,6 +51,11 @@ mkdir models
 cp -r ../L0_server_unit_test/models/add_sub* ./models/.
 git clone https://github.com/triton-inference-server/server.git
 cp -r server/docs/examples/model_repository/simple ./models/.
+# Copy over the decoupled model placed in the python_backend repository.
+git clone https://github.com/triton-inference-server/python_backend.git
+mkdir -p ./models/square_int32/1
+cp python_backend/examples/decoupled/square_model.py ./models/square_int32/1/model.py
+cp python_backend/examples/decoupled/square_config.pbtxt ./models/square_int32/config.pbtxt
 
 # Must explicitly set LD_LIBRARY_PATH so that the test can find
 # libtritonserver.so.
@@ -71,14 +76,14 @@ for i in \
         for MEM_TYPE in system pinned gpu ; do
             $i -v -m $MEM_TYPE >> $CLIENT_LOG.${SUFFIX}.$MEM_TYPE 2>&1
             if [ $? -ne 0 ]; then
-                cat $CLIENT_LOG.${SUFFIX}.$MEM_TYPE.log
+                cat $CLIENT_LOG.${SUFFIX}.$MEM_TYPE
                 RET=1
             fi
         done
     else
         $i -v >> ${CLIENT_LOG}.${SUFFIX} 2>&1
         if [ $? -ne 0 ]; then
-            cat ${CLIENT_LOG}.c++
+            cat ${CLIENT_LOG}.${SUFFIX}
             RET=1
         fi
     fi
