@@ -942,6 +942,18 @@ Tensor::~Tensor()
   }
 }
 
+NewModelRepo::NewModelRepo(const std::string& path)
+    : path_(path), original_name_(""), override_name_("")
+{
+}
+
+NewModelRepo::NewModelRepo(
+    const std::string& path, const std::string& original_name,
+    const std::string& override_name)
+    : path_(path), original_name_(original_name), override_name_(override_name)
+{
+}
+
 InferOptions::InferOptions(const std::string& model_name)
     : model_name_(model_name), model_version_(-1), request_id_(""),
       correlation_id_(0), correlation_id_str_(""), sequence_start_(false),
@@ -1099,6 +1111,166 @@ TritonServer::ModelStatistics(
   }
 
   return metrics_str;
+}
+
+bool
+TritonServer::IsServerLive()
+{
+  bool live = false;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerIsLive(server_.get(), &live));
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - IsLive: ") + ex.what());
+  }
+
+  return live;
+}
+
+bool
+TritonServer::IsServerReady()
+{
+  bool ready = false;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerIsReady(server_.get(), &ready));
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - IsReady: ") + ex.what());
+  }
+
+  return ready;
+}
+
+void
+TritonServer::ServerStop()
+{
+  TRITONSERVER_ServerStop(server_.get());
+}
+
+bool
+TritonServer::IsModelReady(
+    const std::string& model_name, const int64_t model_version)
+{
+  bool ready = false;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelIsReady(
+        server_.get(), model_name.c_str(), model_version, &ready));
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - IsModelReady: ") + ex.what());
+  }
+
+  return ready;
+}
+
+std::string
+TritonServer::ModelConfig(
+    const std::string& model_name, const int64_t model_version)
+{
+  std::string config_str = "";
+  TRITONSERVER_Message* model_config = nullptr;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelConfig(
+        server_.get(), model_name.c_str(), model_version,
+        1 /* config_version */, &model_config));
+    const char* base;
+    size_t byte_size;
+    THROW_IF_TRITON_ERR(
+        TRITONSERVER_MessageSerializeToJson(model_config, &base, &byte_size));
+    config_str = std::string(base, byte_size);
+    TRITONSERVER_MessageDelete(model_config);
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - ModelConfig: ") + ex.what());
+  }
+
+  return config_str;
+}
+
+std::string
+TritonServer::ServerMetadata()
+{
+  std::string metadata_str = "";
+  TRITONSERVER_Message* server_metadata = nullptr;
+  try {
+    THROW_IF_TRITON_ERR(
+        TRITONSERVER_ServerMetadata(server_.get(), &server_metadata));
+    const char* base;
+    size_t byte_size;
+    THROW_IF_TRITON_ERR(TRITONSERVER_MessageSerializeToJson(
+        server_metadata, &base, &byte_size));
+    metadata_str = std::string(base, byte_size);
+    TRITONSERVER_MessageDelete(server_metadata);
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - ModelConfig: ") + ex.what());
+  }
+
+  return metadata_str;
+}
+
+std::string
+TritonServer::ModelMetadata(
+    const std::string& model_name, const int64_t model_version)
+{
+  std::string metadata_str = "";
+  TRITONSERVER_Message* model_metadata = nullptr;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelMetadata(
+        server_.get(), model_name.c_str(), model_version, &model_metadata));
+    const char* base;
+    size_t byte_size;
+    THROW_IF_TRITON_ERR(
+        TRITONSERVER_MessageSerializeToJson(model_metadata, &base, &byte_size));
+    metadata_str = std::string(base, byte_size);
+    TRITONSERVER_MessageDelete(model_metadata);
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - ModelMetadata: ") + ex.what());
+  }
+
+  return metadata_str;
+}
+
+void
+TritonServer::RegisterModelRepo(const NewModelRepo& new_model_repo)
+{
+  try {
+    if (new_model_repo.original_name_.empty() ||
+        new_model_repo.override_name_.empty()) {
+      // Register without name mapping.
+      THROW_IF_TRITON_ERR(TRITONSERVER_ServerRegisterModelRepository(
+          server_.get(), new_model_repo.path_.c_str(), nullptr, 0));
+    } else {
+      std::shared_ptr<TRITONSERVER_Parameter> managed_param(
+          TRITONSERVER_ParameterNew(
+              new_model_repo.original_name_.c_str(),
+              TRITONSERVER_PARAMETER_STRING,
+              new_model_repo.override_name_.c_str()),
+          TRITONSERVER_ParameterDelete);
+      std::vector<const TRITONSERVER_Parameter*> name_map{managed_param.get()};
+      THROW_IF_TRITON_ERR(TRITONSERVER_ServerRegisterModelRepository(
+          server_.get(), new_model_repo.path_.c_str(), name_map.data(),
+          name_map.size()));
+    }
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(
+        std::string("Error - RegisterModelRepo: ") + ex.what());
+  }
+}
+
+void
+TritonServer::UnregisterModelRepo(const std::string& repo_path)
+{
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerUnregisterModelRepository(
+        server_.get(), repo_path.c_str()));
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(
+        std::string("Error - UnregisterModelRepo: ") + ex.what());
+  }
 }
 
 void

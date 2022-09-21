@@ -427,6 +427,29 @@ struct Tensor {
 };
 
 //==============================================================================
+/// Structure to hold the full path to the model repository to be registered and
+/// the mapping from the original model name to the overriden one. This object
+/// is used for calling 'TritonServer::RegisterModelRepo' for registering model
+/// repository.
+///
+struct NewModelRepo {
+  NewModelRepo(const std::string& path);
+
+  NewModelRepo(
+      const std::string& path, const std::string& original_name,
+      const std::string& override_name);
+
+  // The full path to the model repository.
+  std::string path_;
+  // The original name of the model. This field is optional when there is no
+  // name mapping needed.
+  std::string original_name_;
+  // The original name of the model. This field is optional when there is no
+  // name mapping needed.
+  std::string override_name_;
+};
+
+//==============================================================================
 /// Object that encapsulates in-process C API functionalities.
 ///
 class TritonServer {
@@ -474,6 +497,61 @@ class TritonServer {
   /// a unique pointer of InferResult object.
   virtual std::future<std::unique_ptr<InferResult>> AsyncInfer(
       InferRequest& infer_request) = 0;
+
+  /// Is the server live?
+  /// \return Returns true if server is live, false otherwise.
+  bool IsServerLive();
+
+  /// Is the server ready?
+  /// \return Returns true if server is ready, false otherwise.
+  bool IsServerReady();
+
+  /// Stop a server object. A server can't be restarted once it is
+  /// stopped.
+  void ServerStop();
+
+  /// Is the model ready?
+  /// \param model_name The name of the model to get readiness for.
+  /// \param model_version The version of the model to get readiness
+  /// for.  If -1 then the server will choose a version based on the
+  /// model's policy. This field is optional, default is -1.
+  /// \return Returns true if server is ready, false otherwise.
+  bool IsModelReady(
+      const std::string& model_name, const int64_t model_version = -1);
+
+  /// Get the configuration of specified model.
+  /// \param model_name The name of the model.
+  /// \param model_version The version of the model to get configuration.
+  /// The default value is -1 which means then the server will
+  /// choose a version based on the model and internal policy. This field is
+  /// optional. \return Returns JSON representation of model configuration as a
+  /// string.
+  std::string ModelConfig(
+      const std::string& model_name, const int64_t model_version = -1);
+
+  /// Get the metadata of the server.
+  /// \return Returns JSON representation of server metadata as a string.
+  std::string ServerMetadata();
+
+  /// Get the metadata of specified model.
+  /// \param model_name The name of the model.
+  /// \param model_version The version of the model to get configuration.
+  /// The default value is -1 which means then the server will choose a version
+  /// based on the model and internal policy. This field is optional. \return
+  /// Returns JSON representation of model metadata as a string.
+  std::string ModelMetadata(
+      const std::string& model_name, const int64_t model_version = -1);
+
+  /// Register a new model repository. This function is not available in polling
+  /// mode.
+  /// \param new_model_repo The 'NewModelRepo' object contains the info of the
+  /// new model repo to be registered.
+  void RegisterModelRepo(const NewModelRepo& new_model_repo);
+
+  /// Unregister a model repository. This function is not available in polling
+  /// mode.
+  /// \param repo_path The full path to the model repository.
+  void UnregisterModelRepo(const std::string& repo_path);
 
  protected:
   void PrepareInferenceRequest(

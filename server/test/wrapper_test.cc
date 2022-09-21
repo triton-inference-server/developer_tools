@@ -191,6 +191,42 @@ TEST_F(TritonServerTest, Explicit)
   }
 }
 
+TEST_F(TritonServerTest, ModelRepoRegister)
+{
+  try {
+    options_.model_control_mode_ = tds::ModelControlMode::EXPLICIT;
+    auto server = tds::TritonServer::Create(options_);
+    server->UnregisterModelRepo("./models");
+    try {
+      server->LoadModel("add_sub");
+    }
+    catch (std::exception& ex) {
+      ASSERT_STREQ(
+          ex.what(),
+          "Error - LoadModel: Internal-failed to load 'add_sub', failed to "
+          "poll from model repository\n");
+    }
+    server->RegisterModelRepo(
+        tds::NewModelRepo("./models1", "add_sub", "add_sub1"));
+    try {
+      server->LoadModel("add_sub");
+    }
+    catch (std::exception& ex) {
+      ASSERT_STREQ(
+          ex.what(),
+          "Error - LoadModel: Internal-failed to load 'add_sub', failed to "
+          "poll from model repository\n");
+    }
+    server->LoadModel("add_sub1");
+    std::set<std::string> loaded_models = server->LoadedModels();
+    ASSERT_EQ(loaded_models.size(), 1);
+    ASSERT_EQ(*loaded_models.begin(), "add_sub1");
+  }
+  catch (...) {
+    ASSERT_NO_THROW(throw);
+  }
+}
+
 TEST_F(TritonServerTest, InferMinimal)
 {
   try {

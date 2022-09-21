@@ -46,6 +46,8 @@ git clone https://github.com/triton-inference-server/python_backend.git
 mkdir -p ./models/square_int32/1
 cp python_backend/examples/decoupled/square_model.py ./models/square_int32/1/model.py
 cp python_backend/examples/decoupled/square_config.pbtxt ./models/square_int32/config.pbtxt
+# Copy the model repository for 'ModelRepoRegister' test case.
+cp -fr ./models ./models1
 
 RET=0
 
