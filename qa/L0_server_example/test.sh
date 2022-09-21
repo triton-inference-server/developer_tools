@@ -42,6 +42,7 @@ export CUDA_VISIBLE_DEVICES=0
 CLIENT_LOG=`pwd`/client.log
 SIMPLE_ADDSUB_ASYNC_INFER_CLIENT=/opt/tritonserver/developer_tools/server/build/install/bin/simple_addsub_async_infer
 ADDSUB_STRING_ASYNC_INFER_CLIENT=/opt/tritonserver/developer_tools/server/build/install/bin/addsub_string_async_infer
+SQUARE_ASYNC_INFER_CLIENT=/opt/tritonserver/developer_tools/server/build/install/bin/square_async_infer
 
 RET=0
 
@@ -60,6 +61,7 @@ set +e
 for i in \
     $SIMPLE_ADDSUB_ASYNC_INFER_CLIENT \
     $ADDSUB_STRING_ASYNC_INFER_CLIENT \
+    $SQUARE_ASYNC_INFER_CLIENT \
     ; do
     BASE=$(basename -- $i)
     SUFFIX="${BASE%.*}"
