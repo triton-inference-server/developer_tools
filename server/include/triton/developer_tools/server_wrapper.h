@@ -54,6 +54,23 @@ using TensorAllocMap = std::unordered_map<
     std::string,
     std::tuple<const void*, size_t, TRITONSERVER_MemoryType, int64_t>>;
 
+// struct ResponseParameters {
+//   explicit ResponseParameters(
+//       const char* name, TRITONSERVER_ParameterType type, const void* vvalue)
+//       : name_(name), type_(type), vvalue_(vvalue)
+//   {
+//   }
+
+//   // The name of the parameter.
+//   const char* name_;
+//   // The type of the parameter. Valid types are TRITONSERVER_PARAMETER_STRING,
+//   // TRITONSERVER_PARAMETER_INT, TRITONSERVER_PARAMETER_BOOL, and
+//   // TRITONSERVER_PARAMETER_BYTES.
+//   TRITONSERVER_ParameterType type_;
+//   // The pointer to the parameter value.
+//   const void* vvalue_;
+// };
+
 //==============================================================================
 /// Structure to hold logging options for setting 'ServerOptions'.
 ///
