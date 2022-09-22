@@ -525,57 +525,8 @@ InternalServer::ResponseRelease(
     size_t byte_size, TRITONSERVER_MemoryType memory_type,
     int64_t memory_type_id)
 {
-  auto p = reinterpret_cast<std::pair<std::string, bool>*>(buffer_userp);
-  std::string name = p->first;
-  // No need to free the pre-allocated output buffer as users should release the
-  // the buffer they povided.
-  if (p->second) {
-    std::stringstream ss;
-    ss << buffer;
-    std::string buffer_str = ss.str();
-
-    LOG_MESSAGE(
-        TRITONSERVER_LOG_VERBOSE,
-        ("Releasing buffer " + buffer_str + " of size " +
-         std::to_string(byte_size) + " in " +
-         TRITONSERVER_MemoryTypeString(memory_type) + " for result '" + name)
-            .c_str());
-
-    switch (memory_type) {
-      case TRITONSERVER_MEMORY_CPU:
-        free(buffer);
-        break;
-#ifdef TRITON_ENABLE_GPU
-      case TRITONSERVER_MEMORY_CPU_PINNED: {
-        auto err = cudaSetDevice(memory_type_id);
-        if (err == cudaSuccess) {
-          err = cudaFreeHost(buffer);
-        }
-        if (err != cudaSuccess) {
-          std::cerr << "error: failed to cudaFree " << buffer << ": "
-                    << cudaGetErrorString(err) << std::endl;
-        }
-        break;
-      }
-      case TRITONSERVER_MEMORY_GPU: {
-        auto err = cudaSetDevice(memory_type_id);
-        if (err == cudaSuccess) {
-          err = cudaFree(buffer);
-        }
-        if (err != cudaSuccess) {
-          std::cerr << "error: failed to cudaFree " << buffer << ": "
-                    << cudaGetErrorString(err) << std::endl;
-        }
-        break;
-      }
-#endif  // TRITON_ENABLE_GPU
-      default:
-        std::cerr << "error: unexpected buffer allocated in CUDA managed memory"
-                  << std::endl;
-        break;
-    }
-  }
-
+  // Do nothing here as the destructor of the output tensor will release the
+  // output buffer.
   return nullptr;  // Success
 }
 
