@@ -275,7 +275,14 @@ class TritonServer {
 
   /// Get the metrics of the server.
   /// \return Returns a string representing the metrics.
-  std::string Metrics();
+  std::string ServerMetrics();
+
+  /// Get the inference statistics of the specified model.
+  /// \param model_name The name of the model
+  /// \param model_version the version of the model requested
+  /// \return Returns a json string representing the model metrics
+  std::string ModelStatistics(
+    const std::string& model_name, const int64_t model_version);
 
   /// Run asynchronous inference on server.
   /// \param infer_request The InferRequest object contains
@@ -485,6 +492,9 @@ class InferResult {
   /// \return Returns the id of the request.
   std::string Id() noexcept;
 
+  /// Get the output names from the infer result
+  /// \return Vector of output names
+  std::vector<std::string> OutputNames();
   /// Get the result output as a shared pointer of 'Tensor' object. The 'buffer'
   /// field of the output is owned by the returned 'Tensor' object itself. Note
   /// that for string data, need to use 'StringData' function for string data

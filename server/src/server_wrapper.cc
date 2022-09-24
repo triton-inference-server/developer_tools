@@ -893,7 +893,7 @@ TritonServer::ModelIndex()
 }
 
 std::string
-TritonServer::Metrics()
+TritonServer::ServerMetrics()
 {
   std::string metrics_str;
   TRITONSERVER_Metrics* metrics = nullptr;
@@ -908,6 +908,32 @@ TritonServer::Metrics()
   }
   catch (const TritonException& ex) {
     throw TritonException(std::string("Error - Metrics: ") + ex.what());
+  }
+
+  return metrics_str;
+}
+
+std::string
+TritonServer::ModelStatistics(
+    const std::string& model_name, const int64_t model_version)
+{
+  TRITONSERVER_Message* model_stats = nullptr;
+  std::string metrics_str = "";
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelStatistics(
+        server_.get(), model_name.c_str(), model_version, &model_stats));
+  } catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - ModelStatistics: ") + ex.what());
+  }
+  const char* base;
+  size_t byte_size;
+  try {
+  THROW_IF_TRITON_ERR(TRITONSERVER_MessageSerializeToJson(
+      model_stats, &base, &byte_size));
+  metrics_str = std::string(base, byte_size);
+  THROW_IF_TRITON_ERR(TRITONSERVER_MessageDelete(model_stats));
+  }  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - ModelStatistics: ") + ex.what());
   }
 
   return metrics_str;
@@ -1381,6 +1407,17 @@ std::string
 InferResult::Id() noexcept
 {
   return request_id_;
+}
+
+std::vector<std::string>
+InferResult::OutputNames()
+{
+  std::vector<std::string> output_names;
+  for (const auto& outputs : infer_outputs_) {
+    output_names.push_back(outputs.first);
+  }
+
+  return output_names;
 }
 
 std::shared_ptr<Tensor>
