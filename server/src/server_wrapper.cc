@@ -922,7 +922,7 @@ TritonServer::ModelStatistics(
   try {
     THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelStatistics(
         server_.get(), model_name.c_str(), model_version, &model_stats));
-  } catch (const TritonException& ex) { \
+  } catch (const TritonException& ex) {
     throw TritonException(std::string("Error - ModelStatistics: ") + ex.what());
   }
   const char* base;

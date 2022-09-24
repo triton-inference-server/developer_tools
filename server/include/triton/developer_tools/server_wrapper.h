@@ -493,7 +493,7 @@ class InferResult {
   std::string Id() noexcept;
 
   /// Get the output names from the infer result
-  /// @return Vector of output names
+  /// \return Vector of output names
   std::vector<std::string> OutputNames();
   /// Get the result output as a shared pointer of 'Tensor' object. The 'buffer'
   /// field of the output is owned by the returned 'Tensor' object itself. Note
