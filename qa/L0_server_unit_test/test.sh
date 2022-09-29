@@ -41,6 +41,14 @@ export CUDA_VISIBLE_DEVICES=0
 
 TEST_LOG=test.log
 
+# Copy over the decoupled model placed in the python_backend repository.
+git clone https://github.com/triton-inference-server/python_backend.git
+mkdir -p ./models/square_int32/1
+cp python_backend/examples/decoupled/square_model.py ./models/square_int32/1/model.py
+cp python_backend/examples/decoupled/square_config.pbtxt ./models/square_int32/config.pbtxt
+# Copy the model repository for 'ModelRepoRegister' test case.
+cp -fr ./models ./models1
+
 RET=0
 
 cp /opt/tritonserver/developer_tools/server/build/install/bin/wrapper_test ./

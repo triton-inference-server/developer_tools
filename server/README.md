@@ -274,11 +274,9 @@ object goes out of scope.
 
 Server Wrapper contains APIs for loading/unloading models, getting metrics, and
 model index, etc. The use of these functions is straightforward and these
-functions are demonstrated in
-[simple_addsub_async_infer.cc](examples/simple_addsub_async_infer.cc)
-and
-[addsub_string_async_infer.cc](examples/addsub_string_async_infer.cc),
-and documented in [server_wrapper.h](include/triton/developer_tools/server_wrapper.h).
+functions are documented in
+[server_wrapper.h](include/triton/developer_tools/server_wrapper.h). You can
+find some of the functions demonstrated in the [examples](examples).
 
 #### Error Handling
 
@@ -292,17 +290,19 @@ error handling.
 A simple example using the Server Wrapper can be found in
 [simple_addsub_async_infer.cc](examples/simple_addsub_async_infer.cc)
 which is heavily commented. For string type IO, an example can be found in
-[addsub_string_async_infer.cc](examples/addsub_string_async_infer.cc).
+[addsub_string_async_infer.cc](examples/addsub_string_async_infer.cc). For
+decoupled models, please refer to
+[square_async_infer.cc](examples/square_async_infer.cc).
 
 When running the examples, make sure the model repository is placed under the
 same path, and `LD_LIBRARY_PATH` is set properly for `libtritonserver.so`.
 
 ```
+# Prepare the models required by the examples.
+
 $ cd /path/to/triton_developer_tools/server
 
 $ mkdir -p ./examples/models
-
-# Prepare the models required by the examples.
 
 # Copy over the models placed in the qa folder.
 $ cp -r ../qa/server_unit_test/models/add_sub* ./examples/models/.
@@ -311,8 +311,16 @@ $ cp -r ../qa/server_unit_test/models/add_sub* ./examples/models/.
 $ git clone https://github.com/triton-inference-server/server.git
 $ cp -r server/docs/examples/model_repository/simple ./examples/models/.
 
+# Copy over the decoupled model placed in the python_backend repository.
+$ git clone https://github.com/triton-inference-server/python_backend.git
+$ mkdir -p ./examples/models/square_int32/1
+$ cp python_backend/examples/decoupled/square_model.py ./examples/models/square_int32/1/model.py
+$ cp python_backend/examples/decoupled/square_config.pbtxt ./examples/models/square_int32/config.pbtxt
+
 # Copy over the executables from the install directory.
-$ cp /path/to/install/bin/simple_addsub_async_infer ./examples && cp /path/to/install/bin/addsub_string_async_infer ./examples
+$ cp /path/to/install/bin/simple_addsub_async_infer ./examples
+$ cp /path/to/install/bin/addsub_string_async_infer ./examples
+$ cp /path/to/install/bin/square_async_infer ./examples
 
 # Assume libtritonserver.so is placed under "/opt/tritonserver/lib"
 $ LD_LIBRARY_PATH=/opt/tritonserver/lib:${LD_LIBRARY_PATH}
@@ -322,10 +330,5 @@ $ cd ./examples
 # Run examples
 $ ./simple_addsub_async_infer
 $ ./addsub_string_async_infer
+$ ./square_async_infer
 ```
-
-#### Note
-
-Currently, Server Wrapper only provides limited functionality of Triton Server
-C-API. For example, decoupled models are not supported. More features will be
-supported in the future.

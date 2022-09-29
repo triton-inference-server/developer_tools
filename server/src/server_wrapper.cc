@@ -27,8 +27,10 @@
 #include "triton/developer_tools/server_wrapper.h"
 #include <stdlib.h>
 #include <iostream>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 #define TRITONJSON_STATUSTYPE TRITONSERVER_Error*
 #define TRITONJSON_STATUSRETURN(M) \
@@ -179,12 +181,12 @@ ToTritonModelControlMode(const ModelControlMode& mode)
 }
 
 TRITONSERVER_LogFormat
-ToTritonLogFormat(const LogFormat& format)
+ToTritonLogFormat(const LoggingOptions::LogFormat& format)
 {
   switch (format) {
-    case LogFormat::DEFAULT:
+    case LoggingOptions::LogFormat::DEFAULT:
       return TRITONSERVER_LOG_DEFAULT;
-    case LogFormat::ISO8601:
+    case LoggingOptions::LogFormat::ISO8601:
       return TRITONSERVER_LOG_ISO8601;
 
     default:
@@ -318,6 +320,36 @@ StringToModelReadyState(const std::string& state) noexcept
   }
 }
 
+std::string
+HostPolicySettingString(const HostPolicy::Setting& setting)
+{
+  switch (setting) {
+    case HostPolicy::Setting::NUMA_NODE:
+      return "numa-node";
+    case HostPolicy::Setting::CPU_CORES:
+      return "cpu-cores";
+
+    default:
+      throw TritonException("unsupported host policy setting.");
+  }
+}
+
+TRITONSERVER_InferenceTraceLevel
+ToTritonTraceLevel(const Trace::Level& level)
+{
+  switch (level) {
+    case Trace::Level::OFF:
+      return TRITONSERVER_TRACE_LEVEL_DISABLED;
+    case Trace::Level::TIMESTAMPS:
+      return TRITONSERVER_TRACE_LEVEL_TIMESTAMPS;
+    case Trace::Level::TENSORS:
+      return TRITONSERVER_TRACE_LEVEL_TENSORS;
+
+    default:
+      throw TritonException("unsupported trace level.");
+  }
+}
+
 //==============================================================================
 /// Structure to hold response parameters for InfeResult object. The kinds
 /// of parameters in a response can be created by the backend side using
@@ -361,8 +393,25 @@ class InternalServer : public TritonServer {
       void* buffer_userp, size_t byte_size, TRITONSERVER_MemoryType memory_type,
       int64_t memory_type_id);
 
+  static void InferResponseComplete(
+      TRITONSERVER_InferenceResponse* response, const uint32_t flags,
+      void* userp);
+  static void InferRequestComplete(
+      TRITONSERVER_InferenceRequest* request, const uint32_t flags,
+      void* userp);
+
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
-      const InferRequest& infer_request) override;
+      InferRequest& infer_request) override;
+
+ private:
+  void StartRepoPollThread();
+  void StopRepoPollThread();
+
+  bool is_exiting_;
+  std::mutex exit_mu_;
+  std::condition_variable exit_cv_;
+  int32_t repository_poll_secs_;
+  std::thread repo_poll_thread_;
 };
 
 //==============================================================================
@@ -577,7 +626,7 @@ CustomAllocFn(
 }
 
 void
-InferRequestComplete(
+InternalServer::InferRequestComplete(
     TRITONSERVER_InferenceRequest* request, const uint32_t flags, void* userp)
 {
   if (request != nullptr) {
@@ -588,18 +637,53 @@ InferRequestComplete(
 }
 
 void
-InferResponseComplete(
+InternalServer::InferResponseComplete(
     TRITONSERVER_InferenceResponse* response, const uint32_t flags, void* userp)
 {
+  auto p = reinterpret_cast<InferRequest*>(userp);
+  // The allocation info of output tensor, which will be used to finalize
+  // the reponse and stored in the ouput 'Tensor' object so that When calling
+  // the destructor of an output tensor, it will know how to clean the buffer
+  // correctly.
+  AllocInfo alloc_info(
+      p->infer_options_->custom_allocator_, p->tensor_alloc_map_);
+  bool is_decoupled = p->is_decoupled_;
+
   if (response != nullptr) {
-    auto p = reinterpret_cast<
-        std::pair<std::promise<std::unique_ptr<InferResult>>*, AllocInfo>*>(
-        userp);
     std::unique_ptr<InternalResult> result = std::make_unique<InternalResult>();
-    result->FinalizeResponse(response, p->second);
+    result->FinalizeResponse(response, alloc_info);
     std::unique_ptr<InferResult> infer_result = std::move(result);
-    p->first->set_value(std::move(infer_result));
-    delete p->first;
+
+    if (!is_decoupled) {
+      infer_result->next_result_future_.reset();
+      p->prev_promise_->set_value(std::move(infer_result));
+      p->prev_promise_.reset();
+    } else {
+      if ((flags & TRITONSERVER_RESPONSE_COMPLETE_FINAL) == 0) {
+        // Not the last reponse. Need to store the promise associated with the
+        // next future.
+        auto promise = new std::promise<std::unique_ptr<InferResult>>();
+        infer_result->next_result_future_ =
+            std::make_unique<std::future<std::unique_ptr<InferResult>>>(
+                promise->get_future());
+        p->prev_promise_->set_value(std::move(infer_result));
+        p->prev_promise_.reset(std::move(promise));
+      } else {
+        // The last response.
+        infer_result->next_result_future_.reset();
+        p->prev_promise_->set_value(std::move(infer_result));
+        p->prev_promise_.reset();
+      }
+    }
+  } else if (
+      is_decoupled && (flags & TRITONSERVER_RESPONSE_COMPLETE_FINAL) != 0) {
+    // An empty response may be the last reponse for decoupled models.
+    p->prev_promise_->set_value(nullptr);
+    p->prev_promise_.reset();
+  } else {
+    p->prev_promise_->set_value(nullptr);
+    p->prev_promise_.reset();
+    throw TritonException("Unexpected empty response.");
   }
 }
 
@@ -648,12 +732,52 @@ MetricsOptions::MetricsOptions(
 {
 }
 
-BackendConfig::BackendConfig() : backend_name_(""), setting_(""), value_("") {}
-
 BackendConfig::BackendConfig(
-    const std::string& backend_name, const std::string& setting,
+    const std::string& name, const std::string& setting,
     const std::string& value)
-    : backend_name_(backend_name), setting_(setting), value_(value)
+    : name_(name), setting_(setting), value_(value)
+{
+}
+
+RateLimitResource::RateLimitResource(const std::string& name, const int count)
+    : name_(name), count_(count), device_(-1)
+{
+}
+
+RateLimitResource::RateLimitResource(
+    const std::string& name, const int count, const int device)
+    : name_(name), count_(count), device_(device)
+{
+}
+
+CUDAMemoryPoolByteSize::CUDAMemoryPoolByteSize(
+    const int gpu_device, const uint64_t size)
+    : gpu_device_(gpu_device), size_(size)
+{
+}
+
+ModelLoadGPULimit::ModelLoadGPULimit(
+    const int device_id, const double& fraction)
+    : device_id_(device_id), fraction_(fraction)
+{
+}
+
+HostPolicy::HostPolicy(
+    const std::string& name, const Setting& setting, const std::string& value)
+    : name_(name), setting_(setting), value_(value)
+{
+}
+
+Trace::Trace(const std::string& file, const Level& level)
+    : file_(file), level_(level), rate_(1000), count_(-1), log_frequency_(0)
+{
+}
+
+Trace::Trace(
+    const std::string& file, const Level& level, const uint32_t rate,
+    const int32_t count, const uint32_t log_frequency)
+    : file_(file), level_(level), rate_(rate), count_(count),
+      log_frequency_(log_frequency)
 {
 }
 
@@ -664,10 +788,21 @@ ServerOptions::ServerOptions(
       server_id_("triton"), backend_dir_("/opt/tritonserver/backends"),
       repo_agent_dir_("/opt/tritonserver/repoagents"),
       disable_auto_complete_config_(false),
-      model_control_mode_(ModelControlMode::NONE)
+      model_control_mode_(ModelControlMode::NONE), repository_poll_secs_(15),
+      pinned_memory_pool_byte_size_(1 << 28), response_cache_byte_size_(0),
+      min_cuda_compute_capability_(0), exit_on_error_(true),
+      exit_timeout_secs_(30), buffer_manager_thread_count_(0),
+      model_load_thread_count_(
+          std::max(2u, 2 * std::thread::hardware_concurrency())),
+      trace_(nullptr)
 {
   // FIXME: Use iterator instead of vector for 'model_repository_paths_'.
   be_config_.clear();
+  startup_models_.clear();
+  rate_limit_resource_.clear();
+  cuda_memory_pool_byte_size_.clear();
+  model_load_gpu_limit_.clear();
+  host_policy_.clear();
 }
 
 ServerOptions::ServerOptions(
@@ -676,12 +811,35 @@ ServerOptions::ServerOptions(
     const std::vector<BackendConfig>& be_config, const std::string& server_id,
     const std::string& backend_dir, const std::string& repo_agent_dir,
     const bool disable_auto_complete_config,
-    const ModelControlMode& model_control_mode)
+    const ModelControlMode& model_control_mode,
+    const int32_t repository_poll_secs,
+    const std::set<std::string>& startup_models,
+    const std::vector<RateLimitResource>& rate_limit_resource,
+    const int64_t pinned_memory_pool_byte_size,
+    const std::vector<CUDAMemoryPoolByteSize>& cuda_memory_pool_byte_size,
+    const uint64_t response_cache_byte_size,
+    const double& min_cuda_compute_capability, const bool exit_on_error,
+    const int32_t exit_timeout_secs, const int32_t buffer_manager_thread_count,
+    const uint32_t model_load_thread_count,
+    const std::vector<ModelLoadGPULimit>& model_load_gpu_limit,
+    const std::vector<HostPolicy>& host_policy, std::shared_ptr<Trace> trace)
     : model_repository_paths_(model_repository_paths), logging_(logging),
       metrics_(metrics), be_config_(be_config), server_id_(server_id),
       backend_dir_(backend_dir), repo_agent_dir_(repo_agent_dir),
       disable_auto_complete_config_(disable_auto_complete_config),
-      model_control_mode_(model_control_mode)
+      model_control_mode_(model_control_mode),
+      repository_poll_secs_(repository_poll_secs),
+      startup_models_(startup_models),
+      rate_limit_resource_(rate_limit_resource),
+      pinned_memory_pool_byte_size_(pinned_memory_pool_byte_size),
+      cuda_memory_pool_byte_size_(cuda_memory_pool_byte_size),
+      response_cache_byte_size_(response_cache_byte_size),
+      min_cuda_compute_capability_(min_cuda_compute_capability),
+      exit_on_error_(exit_on_error), exit_timeout_secs_(exit_timeout_secs),
+      buffer_manager_thread_count_(buffer_manager_thread_count),
+      model_load_thread_count_(model_load_thread_count),
+      model_load_gpu_limit_(model_load_gpu_limit), host_policy_(host_policy),
+      trace_(trace)
 {
 }
 
@@ -693,8 +851,9 @@ RepositoryIndex::RepositoryIndex(
 }
 
 Tensor::Tensor(
-    char* buffer, const size_t& byte_size, DataType data_type,
-    std::vector<int64_t> shape, MemoryType memory_type, int64_t memory_type_id)
+    char* buffer, const size_t& byte_size, const DataType& data_type,
+    const std::vector<int64_t>& shape, const MemoryType& memory_type,
+    const int64_t memory_type_id)
     : buffer_(buffer), byte_size_(byte_size), data_type_(data_type),
       shape_(shape), memory_type_(memory_type), memory_type_id_(memory_type_id),
       is_pre_alloc_(false), is_output_(false)
@@ -703,8 +862,8 @@ Tensor::Tensor(
 }
 
 Tensor::Tensor(
-    char* buffer, size_t byte_size, MemoryType memory_type,
-    int64_t memory_type_id)
+    char* buffer, const size_t& byte_size, const MemoryType& memory_type,
+    const int64_t memory_type_id)
     : buffer_(buffer), byte_size_(byte_size), data_type_(DataType::INVALID),
       shape_({}), memory_type_(memory_type), memory_type_id_(memory_type_id),
       is_pre_alloc_(false), is_output_(false)
@@ -783,26 +942,39 @@ Tensor::~Tensor()
   }
 }
 
+NewModelRepo::NewModelRepo(const std::string& path)
+    : path_(path), original_name_(""), override_name_("")
+{
+}
+
+NewModelRepo::NewModelRepo(
+    const std::string& path, const std::string& original_name,
+    const std::string& override_name)
+    : path_(path), original_name_(original_name), override_name_(override_name)
+{
+}
+
 InferOptions::InferOptions(const std::string& model_name)
     : model_name_(model_name), model_version_(-1), request_id_(""),
       correlation_id_(0), correlation_id_str_(""), sequence_start_(false),
       sequence_end_(false), priority_(0), request_timeout_(0),
-      custom_allocator_(nullptr)
+      custom_allocator_(nullptr), trace_(nullptr)
 {
 }
 
 InferOptions::InferOptions(
-    const std::string& model_name, const int64_t& model_version,
-    const std::string& request_id, const uint64_t& correlation_id,
+    const std::string& model_name, const int64_t model_version,
+    const std::string& request_id, const uint64_t correlation_id,
     const std::string& correlation_id_str, const bool sequence_start,
-    const bool sequence_end, const uint64_t& priority,
-    const uint64_t& request_timeout,
-    std::shared_ptr<Allocator> custom_allocator)
+    const bool sequence_end, const uint64_t priority,
+    const uint64_t request_timeout, std::shared_ptr<Allocator> custom_allocator,
+    std::shared_ptr<Trace> trace)
     : model_name_(model_name), model_version_(model_version),
       request_id_(request_id), correlation_id_(correlation_id),
       correlation_id_str_(correlation_id_str), sequence_start_(sequence_start),
       sequence_end_(sequence_end), priority_(priority),
-      request_timeout_(request_timeout), custom_allocator_(custom_allocator)
+      request_timeout_(request_timeout), custom_allocator_(custom_allocator),
+      trace_(trace)
 {
 }
 
@@ -895,7 +1067,7 @@ TritonServer::ModelIndex()
 std::string
 TritonServer::ServerMetrics()
 {
-  std::string metrics_str;
+  std::string metrics_str = "";
   TRITONSERVER_Metrics* metrics = nullptr;
   try {
     THROW_IF_TRITON_ERR(TRITONSERVER_ServerMetrics(server_.get(), &metrics));
@@ -922,21 +1094,183 @@ TritonServer::ModelStatistics(
   try {
     THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelStatistics(
         server_.get(), model_name.c_str(), model_version, &model_stats));
-  } catch (const TritonException& ex) {
+  }
+  catch (const TritonException& ex) {
     throw TritonException(std::string("Error - ModelStatistics: ") + ex.what());
   }
   const char* base;
   size_t byte_size;
   try {
-  THROW_IF_TRITON_ERR(TRITONSERVER_MessageSerializeToJson(
-      model_stats, &base, &byte_size));
-  metrics_str = std::string(base, byte_size);
-  THROW_IF_TRITON_ERR(TRITONSERVER_MessageDelete(model_stats));
-  }  catch (const TritonException& ex) {
+    THROW_IF_TRITON_ERR(
+        TRITONSERVER_MessageSerializeToJson(model_stats, &base, &byte_size));
+    metrics_str = std::string(base, byte_size);
+    THROW_IF_TRITON_ERR(TRITONSERVER_MessageDelete(model_stats));
+  }
+  catch (const TritonException& ex) {
     throw TritonException(std::string("Error - ModelStatistics: ") + ex.what());
   }
 
   return metrics_str;
+}
+
+bool
+TritonServer::IsServerLive()
+{
+  bool live = false;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerIsLive(server_.get(), &live));
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - IsLive: ") + ex.what());
+  }
+
+  return live;
+}
+
+bool
+TritonServer::IsServerReady()
+{
+  bool ready = false;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerIsReady(server_.get(), &ready));
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - IsReady: ") + ex.what());
+  }
+
+  return ready;
+}
+
+void
+TritonServer::ServerStop()
+{
+  TRITONSERVER_ServerStop(server_.get());
+}
+
+bool
+TritonServer::IsModelReady(
+    const std::string& model_name, const int64_t model_version)
+{
+  bool ready = false;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelIsReady(
+        server_.get(), model_name.c_str(), model_version, &ready));
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - IsModelReady: ") + ex.what());
+  }
+
+  return ready;
+}
+
+std::string
+TritonServer::ModelConfig(
+    const std::string& model_name, const int64_t model_version)
+{
+  std::string config_str = "";
+  TRITONSERVER_Message* model_config = nullptr;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelConfig(
+        server_.get(), model_name.c_str(), model_version,
+        1 /* config_version */, &model_config));
+    const char* base;
+    size_t byte_size;
+    THROW_IF_TRITON_ERR(
+        TRITONSERVER_MessageSerializeToJson(model_config, &base, &byte_size));
+    config_str = std::string(base, byte_size);
+    TRITONSERVER_MessageDelete(model_config);
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - ModelConfig: ") + ex.what());
+  }
+
+  return config_str;
+}
+
+std::string
+TritonServer::ServerMetadata()
+{
+  std::string metadata_str = "";
+  TRITONSERVER_Message* server_metadata = nullptr;
+  try {
+    THROW_IF_TRITON_ERR(
+        TRITONSERVER_ServerMetadata(server_.get(), &server_metadata));
+    const char* base;
+    size_t byte_size;
+    THROW_IF_TRITON_ERR(TRITONSERVER_MessageSerializeToJson(
+        server_metadata, &base, &byte_size));
+    metadata_str = std::string(base, byte_size);
+    TRITONSERVER_MessageDelete(server_metadata);
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - ModelConfig: ") + ex.what());
+  }
+
+  return metadata_str;
+}
+
+std::string
+TritonServer::ModelMetadata(
+    const std::string& model_name, const int64_t model_version)
+{
+  std::string metadata_str = "";
+  TRITONSERVER_Message* model_metadata = nullptr;
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelMetadata(
+        server_.get(), model_name.c_str(), model_version, &model_metadata));
+    const char* base;
+    size_t byte_size;
+    THROW_IF_TRITON_ERR(
+        TRITONSERVER_MessageSerializeToJson(model_metadata, &base, &byte_size));
+    metadata_str = std::string(base, byte_size);
+    TRITONSERVER_MessageDelete(model_metadata);
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(std::string("Error - ModelMetadata: ") + ex.what());
+  }
+
+  return metadata_str;
+}
+
+void
+TritonServer::RegisterModelRepo(const NewModelRepo& new_model_repo)
+{
+  try {
+    if (new_model_repo.original_name_.empty() ||
+        new_model_repo.override_name_.empty()) {
+      // Register without name mapping.
+      THROW_IF_TRITON_ERR(TRITONSERVER_ServerRegisterModelRepository(
+          server_.get(), new_model_repo.path_.c_str(), nullptr, 0));
+    } else {
+      std::shared_ptr<TRITONSERVER_Parameter> managed_param(
+          TRITONSERVER_ParameterNew(
+              new_model_repo.original_name_.c_str(),
+              TRITONSERVER_PARAMETER_STRING,
+              new_model_repo.override_name_.c_str()),
+          TRITONSERVER_ParameterDelete);
+      std::vector<const TRITONSERVER_Parameter*> name_map{managed_param.get()};
+      THROW_IF_TRITON_ERR(TRITONSERVER_ServerRegisterModelRepository(
+          server_.get(), new_model_repo.path_.c_str(), name_map.data(),
+          name_map.size()));
+    }
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(
+        std::string("Error - RegisterModelRepo: ") + ex.what());
+  }
+}
+
+void
+TritonServer::UnregisterModelRepo(const std::string& repo_path)
+{
+  try {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerUnregisterModelRepository(
+        server_.get(), repo_path.c_str()));
+  }
+  catch (const TritonException& ex) {
+    throw TritonException(
+        std::string("Error - UnregisterModelRepo: ") + ex.what());
+  }
 }
 
 void
@@ -974,7 +1308,8 @@ TritonServer::PrepareInferenceRequest(
     THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetTimeoutMicroseconds(
         *irequest, request.infer_options_->request_timeout_));
     THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetReleaseCallback(
-        *irequest, InferRequestComplete, nullptr /* request_release_userp */));
+        *irequest, InternalServer::InferRequestComplete,
+        nullptr /* request_release_userp */));
   }
   catch (const TritonException& ex) {
     throw TritonException(
@@ -1053,6 +1388,7 @@ TritonServer::AsyncInferHelper(
 }
 
 InternalServer::InternalServer(const ServerOptions& options)
+    : is_exiting_(false)
 {
   uint32_t api_version_major, api_version_minor;
   THROW_IF_TRITON_ERR(
@@ -1100,7 +1436,7 @@ InternalServer::InternalServer(const ServerOptions& options)
   // Set backend configuration
   for (const auto& bc : options.be_config_) {
     THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBackendConfig(
-        server_options, bc.backend_name_.c_str(), bc.setting_.c_str(),
+        server_options, bc.name_.c_str(), bc.setting_.c_str(),
         bc.value_.c_str()));
   }
 
@@ -1126,6 +1462,81 @@ InternalServer::InternalServer(const ServerOptions& options)
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelControlMode(
       server_options, model_control_mode));
 
+  if (model_control_mode == TRITONSERVER_MODEL_CONTROL_POLL) {
+    repository_poll_secs_ = std::max(0, options.repository_poll_secs_);
+  } else {
+    repository_poll_secs_ = 0;
+  }
+
+  // Set startup models
+  for (const auto& model : options.startup_models_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetStartupModel(
+        server_options, model.c_str()));
+  }
+
+  // Set rate limit mode and resource
+  if (!options.rate_limit_resource_.empty()) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetRateLimiterMode(
+        server_options, TRITONSERVER_RATE_LIMIT_EXEC_COUNT));
+    for (const auto& resource : options.rate_limit_resource_) {
+      THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsAddRateLimiterResource(
+          server_options, resource.name_.c_str(), resource.count_,
+          resource.device_));
+    }
+  } else {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetRateLimiterMode(
+        server_options, TRITONSERVER_RATE_LIMIT_OFF));
+  }
+
+  // Set pinned memory pool byte size
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetPinnedMemoryPoolByteSize(
+      server_options, options.pinned_memory_pool_byte_size_));
+
+  // Set CUDA memory pool byte size
+  for (const auto& cuda_pool : options.cuda_memory_pool_byte_size_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetCudaMemoryPoolByteSize(
+        server_options, cuda_pool.gpu_device_, cuda_pool.size_));
+  }
+
+  // Set response cache byte size
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetResponseCacheByteSize(
+      server_options, options.response_cache_byte_size_));
+
+  // Set minimum supported CUDA compute capability
+  THROW_IF_TRITON_ERR(
+      TRITONSERVER_ServerOptionsSetMinSupportedComputeCapability(
+          server_options, options.min_cuda_compute_capability_));
+
+  // Set exit on error
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetExitOnError(
+      server_options, options.exit_on_error_));
+
+  // Set exit timeout
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetExitTimeout(
+      server_options, std::max(0, options.exit_timeout_secs_)));
+
+  // Set buffer manager thread count
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetBufferManagerThreadCount(
+      server_options, std::max(0, options.buffer_manager_thread_count_)));
+
+  // Set model load thread count
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelLoadThreadCount(
+      server_options, std::max(1u, options.model_load_thread_count_)));
+
+  // Set model load device limit
+  for (const auto& limit : options.model_load_gpu_limit_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetModelLoadDeviceLimit(
+        server_options, TRITONSERVER_INSTANCEGROUPKIND_GPU, limit.device_id_,
+        limit.fraction_));
+  }
+
+  // Set host policy
+  for (const auto& hp : options.host_policy_) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsSetHostPolicy(
+        server_options, hp.name_.c_str(),
+        HostPolicySettingString(hp.setting_).c_str(), hp.value_.c_str()));
+  }
+
   TRITONSERVER_Server* server_ptr;
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerNew(&server_ptr, server_options));
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsDelete(server_options));
@@ -1139,6 +1550,19 @@ InternalServer::InternalServer(const ServerOptions& options)
       InternalServer::ResponseRelease, nullptr /* StartFn*/));
   THROW_IF_TRITON_ERR(TRITONSERVER_ResponseAllocatorSetQueryFunction(
       allocator_, OutputBufferQuery));
+
+  // Initialize trace manager
+  if (options.trace_) {
+    trace_manager_ = std::make_shared<TraceManager>(
+        ToTritonTraceLevel(options.trace_->level_), options.trace_->rate_,
+        options.trace_->count_, options.trace_->log_frequency_,
+        options.trace_->file_);
+  } else {
+    // Tracing is not enabled.
+    trace_manager_ = nullptr;
+  }
+
+  StartRepoPollThread();
 }
 
 InternalServer::~InternalServer()
@@ -1148,45 +1572,100 @@ InternalServer::~InternalServer()
         TRITONSERVER_ResponseAllocatorDelete(allocator_),
         "Failed to delete allocator.");
   }
+
+  StopRepoPollThread();
+}
+
+void
+InternalServer::StartRepoPollThread()
+{
+  repo_poll_thread_ = std::thread([this]() {
+    while (!is_exiting_) {
+      if (repository_poll_secs_ > 0) {
+        THROW_IF_TRITON_ERR(
+            TRITONSERVER_ServerPollModelRepository(server_.get()));
+      }
+      std::unique_lock<std::mutex> lock(exit_mu_);
+      std::chrono::seconds wait_timeout(
+          (repository_poll_secs_ == 0) ? 3600 : repository_poll_secs_);
+      exit_cv_.wait_for(lock, wait_timeout);
+    }
+  });
+}
+
+void
+InternalServer::StopRepoPollThread()
+{
+  std::unique_lock<std::mutex> lock(exit_mu_);
+  is_exiting_ = true;
+  exit_cv_.notify_all();
+  repo_poll_thread_.detach();
 }
 
 std::future<std::unique_ptr<InferResult>>
-InternalServer::AsyncInfer(const InferRequest& infer_request)
+InternalServer::AsyncInfer(InferRequest& infer_request)
 {
   std::future<std::unique_ptr<InferResult>> result_future;
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
   try {
+    uint32_t txn_flags;
+    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelTransactionProperties(
+        server_.get(), infer_request.infer_options_->model_name_.c_str(),
+        infer_request.infer_options_->model_version_, &txn_flags,
+        nullptr /* voidp */));
+    infer_request.is_decoupled_ =
+        ((txn_flags & TRITONSERVER_TXN_DECOUPLED) != 0);
+
     AsyncInferHelper(&irequest, infer_request);
+
+    TRITONSERVER_InferenceTrace* triton_trace = nullptr;
+    if (trace_manager_) {
+      // Update trace setting for specified model if needed.
+      if (infer_request.infer_options_->trace_) {
+        TraceManager::TraceSetting new_setting(
+            ToTritonTraceLevel(infer_request.infer_options_->trace_->level_),
+            infer_request.infer_options_->trace_->rate_,
+            infer_request.infer_options_->trace_->count_,
+            infer_request.infer_options_->trace_->log_frequency_,
+            std::make_shared<TraceManager::TraceFile>(
+                infer_request.infer_options_->trace_->file_));
+        trace_manager_->UpdateTraceSetting(
+            infer_request.infer_options_->model_name_, new_setting);
+      }
+      infer_request.trace_ = std::move(trace_manager_->SampleTrace(
+          infer_request.infer_options_->model_name_));
+      if (infer_request.trace_ != nullptr) {
+        triton_trace = infer_request.trace_->trace_;
+      }
+    } else if (infer_request.infer_options_->trace_) {
+      LOG_MESSAGE(
+          TRITONSERVER_LOG_ERROR,
+          (std::string("error when updating trace setting for model '") +
+           infer_request.infer_options_->model_name_ +
+           "': tracing is not enabled.")
+              .c_str());
+    }
+
     {
       auto p = new std::promise<std::unique_ptr<InferResult>>();
       result_future = p->get_future();
-
-      // Construct the allocation info of an output tensor and pass it to the
-      // callback function so that we can store the information in the ouput
-      // 'Tensor' object. When calling the destructor of an output tensor, it
-      // will know how to clean the buffer correctly.
-      AllocInfo alloc_info(
-          infer_request.infer_options_->custom_allocator_,
-          infer_request.tensor_alloc_map_);
-      auto result =
-          new std::pair<std::promise<std::unique_ptr<InferResult>>*, AllocInfo>(
-              p, alloc_info);
+      infer_request.prev_promise_.reset(std::move(p));
 
       if (infer_request.infer_options_->custom_allocator_ == nullptr) {
         THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
-            irequest, allocator_,
-            reinterpret_cast<void*>(const_cast<InferRequest*>(&infer_request)),
-            InferResponseComplete, reinterpret_cast<void*>(result)));
+            irequest, allocator_, reinterpret_cast<void*>(&infer_request),
+            InternalServer::InferResponseComplete,
+            reinterpret_cast<void*>(&infer_request)));
       } else {
         THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
             irequest, InternalRequest::custom_triton_allocator_,
-            nullptr /* response_allocator_userp */, InferResponseComplete,
-            reinterpret_cast<void*>(result)));
+            nullptr /* response_allocator_userp */,
+            InternalServer::InferResponseComplete,
+            reinterpret_cast<void*>(&infer_request)));
       }
-
-      THROW_IF_TRITON_ERR(TRITONSERVER_ServerInferAsync(
-          server_.get(), irequest, nullptr /* trace */));
+      THROW_IF_TRITON_ERR(
+          TRITONSERVER_ServerInferAsync(server_.get(), irequest, triton_trace));
     }
   }
   catch (const TritonException& ex) {
@@ -1207,15 +1686,22 @@ InferRequest::Create(const InferOptions& options)
   return internal_request;
 }
 
+InferRequest::InferRequest() : is_decoupled_(false)
+{
+  str_bufs_.clear();
+  inputs_.clear();
+  outputs_.clear();
+}
+
 InferRequest::~InferRequest() {}
 
-InternalRequest::InternalRequest(const InferOptions& options)
+InternalRequest::InternalRequest(const InferOptions& options) : InferRequest()
 {
   infer_options_.reset(new InferOptions(
       options.model_name_, options.model_version_, options.request_id_,
       options.correlation_id_, options.correlation_id_str_,
       options.sequence_start_, options.sequence_end_, options.priority_,
-      options.request_timeout_, options.custom_allocator_));
+      options.request_timeout_, options.custom_allocator_, options.trace_));
 
   // Store custom allocator as a static variable as it's needed in global
   // functions.
@@ -1289,7 +1775,10 @@ InferRequest::Reset()
   tensor_alloc_map_.clear();
 }
 
-InferResult::InferResult() : has_error_(false), error_msg_("") {}
+InferResult::InferResult()
+    : has_error_(false), error_msg_(""), completed_response_(nullptr)
+{
+}
 
 InferResult::~InferResult() {}
 
@@ -1339,7 +1828,6 @@ InternalResult::FinalizeResponse(
     THROW_IF_TRITON_ERR(
         TRITONSERVER_InferenceResponseOutputCount(response, &output_count));
 
-    std::unordered_map<std::string, std::vector<char>> output_data;
     for (uint32_t idx = 0; idx < output_count; ++idx) {
       const char* cname;
       TRITONSERVER_DataType datatype;
@@ -1553,6 +2041,12 @@ std::string
 InferResult::ErrorMsg()
 {
   return error_msg_;
+}
+
+std::unique_ptr<std::future<std::unique_ptr<InferResult>>>
+InferResult::GetNextResult()
+{
+  return std::move(next_result_future_);
 }
 
 }}}  // namespace triton::developer_tools::server
