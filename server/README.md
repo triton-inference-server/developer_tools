@@ -305,7 +305,7 @@ $ cd /path/to/triton_developer_tools/server
 $ mkdir -p ./examples/models
 
 # Copy over the models placed in the qa folder.
-$ cp -r ../qa/server_unit_test/models/add_sub* ./examples/models/.
+$ cp -r ../qa/L0_server_unit_test/models/add_sub* ./examples/models/.
 
 # Copy over the models placed in the server repository.
 $ git clone https://github.com/triton-inference-server/server.git
