@@ -16,12 +16,12 @@
 
 # keep the files in alphabetical order!
 add_library(
-  triton_rapids-identity SHARED
+  triton_tools-identity SHARED
   src/api.cc
 )
 
 if(TRITON_ENABLE_GPU)
-  set_target_properties(triton_rapids-identity
+  set_target_properties(triton_tools-identity
   PROPERTIES BUILD_RPATH                         "\$ORIGIN"
              # set target compile options
              CXX_STANDARD                        17
@@ -32,7 +32,7 @@ if(TRITON_ENABLE_GPU)
              INTERFACE_POSITION_INDEPENDENT_CODE ON
   )
 else()
-  set_target_properties(triton_rapids-identity
+  set_target_properties(triton_tools-identity
   PROPERTIES BUILD_RPATH                         "\$ORIGIN"
              # set target compile options
              CXX_STANDARD                        17
@@ -42,27 +42,26 @@ else()
   )
 endif()
 
-target_compile_options(triton_rapids-identity
-        PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_CXX_FLAGS}>"
-                "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_CUDA_FLAGS}>"
+target_compile_options(triton_tools-identity
+        PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${DEVELOPER_TOOLS_BACKEND_CXX_FLAGS}>"
+                "$<$<COMPILE_LANGUAGE:CUDA>:${DEVELOPER_TOOLS_BACKEND_CUDA_FLAGS}>"
 )
 
-target_include_directories(triton_rapids-identity
-  PRIVATE  "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/include>"
+target_include_directories(triton_tools-identity
+  PRIVATE  "$<BUILD_INTERFACE:${DEVELOPER_TOOLS_BACKEND_SOURCE_DIR}/include>"
             "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
-target_link_libraries(triton_rapids-identity
+target_link_libraries(triton_tools-identity
 PRIVATE
   $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
   $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>
   triton-core-serverstub
   triton-backend-utils
-  "${TRITONSERVER_LIB}"
   $<TARGET_NAME_IF_EXISTS:conda_env>
 )
 
 install(
-  TARGETS triton_rapids-identity
-  LIBRARY DESTINATION /opt/tritonserver/backends/rapids-identity
+  TARGETS triton_tools-identity
+  LIBRARY DESTINATION /opt/tritonserver/backends/tools-identity
 )

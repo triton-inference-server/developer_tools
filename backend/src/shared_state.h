@@ -19,26 +19,26 @@
 #include <names.h>
 
 #include <memory>
-#include <rapids_triton/model/shared_state.hpp>
+#include <triton/developer_tools/model/shared_state.hpp>
 
 namespace triton {
-namespace backend {
+namespace developer_tools {
 namespace NAMESPACE {
 
 /* Triton allows multiple instances of a single model to be instantiated at the
  * same time (e.g. on different GPUs). All instances of a model share access to
  * an object which manages any state that can be shared across all instances.
  * Any logic necessary for managing such state should be implemented in a
- * struct named RapidsSharedState, as shown here. Models may access this shared
+ * struct named ToolsSharedState, as shown here. Models may access this shared
  * state object via the `get_shared_state` method, which returns a shared
- * pointer to the RapidsSharedState object.
+ * pointer to the ToolsSharedState object.
  *
  * Not all backends require shared state, so leaving this implementation empty
  * is entirely valid */
 
-struct RapidsSharedState : rapids::SharedModelState {
-  RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
-    : rapids::SharedModelState{std::move(config)}
+struct ToolsSharedState : backend::SharedModelState {
+  ToolsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
+    : backend::SharedModelState{std::move(config)}
   {
   }
   void load() {}
@@ -46,5 +46,5 @@ struct RapidsSharedState : rapids::SharedModelState {
 };
 
 }  // namespace NAMESPACE
-}  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

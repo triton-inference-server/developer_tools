@@ -28,8 +28,8 @@ include(rapids-find)
 # - User Options  ------------------------------------------------------------
 
 option(TRITON_ENABLE_GPU "Enable GPU support in Triton" ON)
-option(BUILD_TESTS "Build rapids_triton unit-tests" ON)
-option(BUILD_EXAMPLE "Build rapids_identity example backend" OFF)
+option(BUILD_TESTS "Build developer_tools_backend unit-tests" ON)
+option(BUILD_EXAMPLE "Build developer_tools_backend example backend" OFF)
 option(CUDA_ENABLE_KERNELINFO "Enable kernel resource usage info" OFF)
 option(CUDA_ENABLE_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler)" OFF)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA runtime" OFF)
@@ -41,27 +41,27 @@ set(TRITON_COMMON_REPO_TAG "r21.12" CACHE STRING "Tag for triton-inference-serve
 set(TRITON_CORE_REPO_TAG "r21.12" CACHE STRING "Tag for triton-inference-server/core repo")
 set(TRITON_BACKEND_REPO_TAG "r21.12" CACHE STRING "Tag for triton-inference-server/backend repo")
 
-message(VERBOSE "RAPIDS_TRITON: Build RAPIDS_TRITON unit-tests: ${BUILD_TESTS}")
-message(VERBOSE "RAPIDS_TRITON: Enable detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
-message(VERBOSE "RAPIDS_TRITON: Disable depreaction warnings " ${DISABLE_DEPRECATION_WARNINGS})
-message(VERBOSE "RAPIDS_TRITON: Enable kernel resource usage info: ${CUDA_ENABLE_KERNELINFO}")
-message(VERBOSE "RAPIDS_TRITON: Enable lineinfo in nvcc: ${CUDA_ENABLE_LINEINFO}")
-message(VERBOSE "RAPIDS_TRITON: Enable nvtx markers: ${NVTX}")
-message(VERBOSE "RAPIDS_TRITON: Statically link the CUDA runtime: ${CUDA_STATIC_RUNTIME}")
-message(VERBOSE "RAPIDS_TRITON: Enable GPU support: ${TRITON_ENABLE_GPU}")
-message(VERBOSE "RAPIDS_TRITON: Enable statistics collection in Triton: ${TRITON_ENABLE_STATS}")
-message(VERBOSE "RAPIDS_TRITON: Triton common repo tag: ${TRITON_COMMON_REPO_TAG}")
-message(VERBOSE "RAPIDS_TRITON: Triton core repo tag: ${TRITON_CORE_REPO_TAG}")
-message(VERBOSE "RAPIDS_TRITON: Triton backend repo tag: ${TRITON_BACKEND_REPO_TAG}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Build DEVELOPER_TOOLS_BACKEND unit-tests: ${BUILD_TESTS}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Enable detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Disable depreaction warnings " ${DISABLE_DEPRECATION_WARNINGS})
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Enable kernel resource usage info: ${CUDA_ENABLE_KERNELINFO}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Enable lineinfo in nvcc: ${CUDA_ENABLE_LINEINFO}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Enable nvtx markers: ${NVTX}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Statically link the CUDA runtime: ${CUDA_STATIC_RUNTIME}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Enable GPU support: ${TRITON_ENABLE_GPU}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Enable statistics collection in Triton: ${TRITON_ENABLE_STATS}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Triton common repo tag: ${TRITON_COMMON_REPO_TAG}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Triton core repo tag: ${TRITON_CORE_REPO_TAG}")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Triton backend repo tag: ${TRITON_BACKEND_REPO_TAG}")
 
 ##############################################################################
 # - Project Initialization ---------------------------------------------------
 
 if(TRITON_ENABLE_GPU)
-  rapids_cuda_init_architectures(RAPIDS_TRITON)
-  project(RAPIDS_TRITON VERSION 22.02.00 LANGUAGES CXX CUDA)
+  rapids_cuda_init_architectures(DEVELOPER_TOOLS_BACKEND)
+  project(DEVELOPER_TOOLS_BACKEND VERSION 22.02.00 LANGUAGES CXX CUDA)
 else()
-  project(RAPIDS_TRITON VERSION 22.02.00 LANGUAGES CXX)
+  project(DEVELOPER_TOOLS_BACKEND VERSION 22.02.00 LANGUAGES CXX)
 endif()
 
 
@@ -77,7 +77,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Set RMM logging level
 set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
 set_property(CACHE RMM_LOGGING_LEVEL PROPERTY STRINGS "TRACE" "DEBUG" "INFO" "WARN" "ERROR" "CRITICAL" "OFF")
-message(VERBOSE "RAPIDS_TRITON: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
+message(VERBOSE "DEVELOPER_TOOLS_BACKEND: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
 
 ##############################################################################
 # - Conda environment detection ----------------------------------------------
@@ -85,7 +85,7 @@ message(VERBOSE "RAPIDS_TRITON: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
 if(DETECT_CONDA_ENV)
   rapids_cmake_support_conda_env( conda_env MODIFY_PREFIX_PATH )
   if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND DEFINED ENV{CONDA_PREFIX})
-      message(STATUS "RAPIDS_TRITON: No CMAKE_INSTALL_PREFIX argument detected, setting to: $ENV{CONDA_PREFIX}")
+      message(STATUS "DEVELOPER_TOOLS_BACKEND: No CMAKE_INSTALL_PREFIX argument detected, setting to: $ENV{CONDA_PREFIX}")
       set(CMAKE_INSTALL_PREFIX "$ENV{CONDA_PREFIX}")
   endif()
 endif()
@@ -98,8 +98,8 @@ if(TRITON_ENABLE_GPU)
   # * enable the CMake CUDA language
   # * set other CUDA compilation flags
   rapids_find_package(CUDAToolkit REQUIRED
-      BUILD_EXPORT_SET rapids_triton-exports
-      INSTALL_EXPORT_SET rapids_triton-exports
+      BUILD_EXPORT_SET developer_tools_backend-exports
+      INSTALL_EXPORT_SET developer_tools_backend-exports
       )
   include(cmake/modules/ConfigureCUDA.cmake)
 endif()
@@ -125,12 +125,12 @@ endif()
 ##############################################################################
 # - install targets-----------------------------------------------------------
 
-add_library(rapids_triton INTERFACE)
-add_library(rapids_triton::rapids_triton ALIAS rapids_triton)
-target_include_directories(rapids_triton INTERFACE "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/include>"
+add_library(developer_tools_backend INTERFACE)
+add_library(developer_tools_backend::developer_tools_backend ALIAS developer_tools_backend)
+target_include_directories(developer_tools_backend INTERFACE "$<BUILD_INTERFACE:${DEVELOPER_TOOLS_BACKEND_SOURCE_DIR}/include>"
                                           "$<INSTALL_INTERFACE:include>")
 
-target_link_libraries(rapids_triton
+target_link_libraries(developer_tools_backend
 INTERFACE
   $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
   $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>
@@ -140,58 +140,58 @@ INTERFACE
 
 if (TRITON_ENABLE_GPU)
   target_compile_features(
-    rapids_triton INTERFACE cxx_std_17
+    developer_tools_backend INTERFACE cxx_std_17
     $<BUILD_INTERFACE:cuda_std_17>
   )
 else()
   target_compile_features(
-    rapids_triton INTERFACE cxx_std_17
+    developer_tools_backend INTERFACE cxx_std_17
   )
 endif()
 
 rapids_cmake_install_lib_dir(lib_dir)
-install(TARGETS rapids_triton
+install(TARGETS developer_tools_backend
         DESTINATION ${lib_dir}
-        EXPORT rapids_triton-exports
+        EXPORT developer_tools_backend-exports
         )
 
 include(GNUInstallDirs)
-install(DIRECTORY include/rapids_triton/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rapids_triton
+install(DIRECTORY include/triton/developer_tools/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/triton/developer_tools
         )
 
-# Temporary install of rapids_triton.hpp while the file is removed
-install(FILES include/rapids_triton.hpp
-	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rapids_triton
+# Temporary install of backend_tools.hpp while the file is removed
+install(FILES include/backend_tools.hpp
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/triton/developer_tools
 	)
 
 ##############################################################################
 # - install export -----------------------------------------------------------
 set(doc_string
 [=[
-Provide targets for RAPIDS_TRITON.
+Provide targets for DEVELOPER_TOOLS_BACKEND.
 
-RAPIDS_TRITON is a header-only library designed to make it easier and faster
-to integrate RAPIDS algorithms as Triton backends.
+DEVELOPER_TOOLS_BACKEND is a header-only library designed to make it easier and faster
+to implement Triton backends.
 
 ]=])
 
- rapids_export(INSTALL rapids_triton
-    EXPORT_SET rapids_triton-exports
-    GLOBAL_TARGETS rapids_triton # since we can't hook into EXPORT SETS
-    NAMESPACE rapids_triton::
+ rapids_export(INSTALL developer_tools_backend
+    EXPORT_SET developer_tools_backend-exports
+    GLOBAL_TARGETS developer_tools_backend # since we can't hook into EXPORT SETS
+    NAMESPACE developer_tools_backend::
     DOCUMENTATION doc_string
     )
 
 ##############################################################################
 # - build export -------------------------------------------------------------
 
-rapids_export(BUILD rapids_triton
-    EXPORT_SET rapids_triton-exports
-    GLOBAL_TARGETS rapids_triton # since we can't hook into EXPORT SETS
+rapids_export(BUILD developer_tools_backend
+    EXPORT_SET developer_tools_backend-exports
+    GLOBAL_TARGETS developer_tools_backend # since we can't hook into EXPORT SETS
     LANGUAGES CUDA
     DOCUMENTATION doc_string
-    NAMESPACE rapids_triton::
+    NAMESPACE developer_tools_backend::
     )
 
 ##############################################################################

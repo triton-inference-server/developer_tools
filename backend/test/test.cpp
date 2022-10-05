@@ -16,13 +16,13 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton.hpp>
+#include <backend_tools.hpp>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
 
-TEST(RapidsTriton, installed) { std::cout << test_install() << "\n"; }
-}  // namespace rapids
+TEST(BackendTools, installed) { std::cout << test_install() << "\n"; }
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

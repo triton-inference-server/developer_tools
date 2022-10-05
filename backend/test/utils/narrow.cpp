@@ -16,13 +16,13 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton/utils/narrow.hpp>
+#include <triton/developer_tools/utils/narrow.hpp>
 #include <string>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, narrow)
+TEST(BackendTools, narrow)
 {
   EXPECT_THROW(narrow<std::size_t>(-1), TritonException);
   narrow<std::size_t>(int{5});
@@ -30,6 +30,6 @@ TEST(RapidsTriton, narrow)
   narrow<int>(std::size_t{5});
 }
 
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

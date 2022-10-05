@@ -17,18 +17,18 @@
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
 #else
-#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <triton/developer_tools/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 #include <gtest/gtest.h>
 
-#include <rapids_triton/exceptions.hpp>
+#include <triton/developer_tools/exceptions.hpp>
 #include <string>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
 
-TEST(RapidsTriton, default_except)
+TEST(BackendTools, default_except)
 {
   try {
     throw TritonException();
@@ -37,7 +37,7 @@ TEST(RapidsTriton, default_except)
   }
 }
 
-TEST(RapidsTriton, msg_except)
+TEST(BackendTools, msg_except)
 {
   auto msg = std::string("TEST ERROR MESSAGE");
   try {
@@ -61,14 +61,14 @@ TEST(RapidsTriton, msg_except)
   }
 }
 
-TEST(RapidsTriton, triton_check)
+TEST(BackendTools, triton_check)
 {
   auto msg = std::string("TEST ERROR MESSAGE");
   EXPECT_THROW(triton_check(TRITONSERVER_ErrorNew(Error::Internal, msg.c_str())), TritonException);
   triton_check(nullptr);
 }
 
-TEST(RapidsTriton, cuda_check)
+TEST(BackendTools, cuda_check)
 {
 #ifdef TRITON_ENABLE_GPU
   EXPECT_THROW(cuda_check(cudaError::cudaErrorMissingConfiguration), TritonException);
@@ -78,6 +78,6 @@ TEST(RapidsTriton, cuda_check)
 #endif
 }
 
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

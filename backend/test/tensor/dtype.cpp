@@ -16,11 +16,11 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton/tensor/dtype.hpp>
+#include <triton/developer_tools/tensor/dtype.hpp>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
 
 template <DType D>
 void check_dtype_conversion()
@@ -29,7 +29,7 @@ void check_dtype_conversion()
   EXPECT_EQ(D, TritonDtype<typename TritonType<D>::type const>::value);
 }
 
-TEST(RapidsTriton, dtype)
+TEST(BackendTools, dtype)
 {
   check_dtype_conversion<DTypeBool>();
   check_dtype_conversion<DTypeUint8>();
@@ -46,6 +46,6 @@ TEST(RapidsTriton, dtype)
   check_dtype_conversion<DTypeFloat64>();
 }
 
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

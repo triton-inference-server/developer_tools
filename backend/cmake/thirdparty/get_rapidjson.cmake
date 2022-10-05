@@ -19,8 +19,8 @@ function(find_and_configure_rapidjson VERSION)
 
     rapids_cpm_find(rapidjson ${VERSION}
         GLOBAL_TARGETS      rapidjson::rapidjson
-        BUILD_EXPORT_SET    rapids_triton-exports
-        INSTALL_EXPORT_SET  rapids_triton-exports
+        BUILD_EXPORT_SET    developer_tools_backend-exports
+        INSTALL_EXPORT_SET  developer_tools_backend-exports
         CPM_ARGS
             GIT_REPOSITORY https://github.com/Tencent/rapidjson
             GIT_TAG "v${VERSION}"

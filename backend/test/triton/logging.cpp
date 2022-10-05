@@ -17,12 +17,12 @@
 #include <gtest/gtest.h>
 
 #include <iostream>
-#include <rapids_triton/triton/logging.hpp>
+#include <triton/developer_tools/triton/logging.hpp>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, logging)
+TEST(BackendTools, logging)
 {
   log_debug("Debug test message");
   log_info("Info test message");
@@ -30,7 +30,7 @@ TEST(RapidsTriton, logging)
   log_error("Error test message");
 }
 
-TEST(RapidsTriton, stream_logging)
+TEST(BackendTools, stream_logging)
 {
   log_debug() << "Streamed debug test message";
   log_info() << "Streamed info test message";
@@ -38,6 +38,6 @@ TEST(RapidsTriton, stream_logging)
   log_error() << "Streamed error test message";
 }
 
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

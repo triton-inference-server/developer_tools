@@ -22,8 +22,8 @@ function(find_and_configure_raft)
 
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
-      BUILD_EXPORT_SET    rapids_triton-exports
-      INSTALL_EXPORT_SET  rapids_triton-exports
+      BUILD_EXPORT_SET    developer_tools_backend-exports
+      INSTALL_EXPORT_SET  developer_tools_backend-exports
         CPM_ARGS
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
@@ -33,17 +33,17 @@ function(find_and_configure_raft)
               "RAFT_COMPILE_LIBRARIES OFF"
     )
 
-    message(VERBOSE "RAPIDS_TRITON: Using RAFT located in ${raft_SOURCE_DIR}")
+    message(VERBOSE "DEVELOPER_TOOLS_BACKEND: Using RAFT located in ${raft_SOURCE_DIR}")
 
 endfunction()
 
-set(RAPIDS_TRITON_MIN_VERSION_raft "${RAPIDS_TRITON_VERSION_MAJOR}.${RAPIDS_TRITON_VERSION_MINOR}.00")
-set(RAPIDS_TRITON_BRANCH_VERSION_raft "${RAPIDS_TRITON_VERSION_MAJOR}.${RAPIDS_TRITON_VERSION_MINOR}")
+set(DEVELOPER_TOOLS_BACKEND_MIN_VERSION_raft "${DEVELOPER_TOOLS_BACKEND_VERSION_MAJOR}.${DEVELOPER_TOOLS_BACKEND_VERSION_MINOR}.00")
+set(DEVELOPER_TOOLS_BACKEND_BRANCH_VERSION_raft "${DEVELOPER_TOOLS_BACKEND_VERSION_MAJOR}.${DEVELOPER_TOOLS_BACKEND_VERSION_MINOR}")
 
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_raft(VERSION    ${RAPIDS_TRITON_MIN_VERSION_raft}
+find_and_configure_raft(VERSION    ${DEVELOPER_TOOLS_BACKEND_MIN_VERSION_raft}
                         FORK       rapidsai
-                        PINNED_TAG branch-${RAPIDS_TRITON_BRANCH_VERSION_raft}
+                        PINNED_TAG branch-${DEVELOPER_TOOLS_BACKEND_BRANCH_VERSION_raft}
                         )

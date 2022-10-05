@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/model.hpp>
+#include <triton/developer_tools/triton/model.hpp>

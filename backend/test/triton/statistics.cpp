@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/statistics.hpp>
+#include <triton/developer_tools/triton/statistics.hpp>

@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/api/initialize.hpp>
+#include <triton/developer_tools/triton/api/initialize.hpp>

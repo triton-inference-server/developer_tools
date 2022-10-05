@@ -17,27 +17,27 @@
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
 #else
-#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <triton/developer_tools/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <rapids_triton/tensor/dtype.hpp>
-#include <rapids_triton/tensor/tensor.hpp>
+#include <triton/developer_tools/tensor/dtype.hpp>
+#include <triton/developer_tools/tensor/tensor.hpp>
 #include <vector>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
 
-TEST(RapidsTriton, default_tensor)
+TEST(BackendTools, default_tensor)
 {
   auto tensor = Tensor<int>();
   EXPECT_EQ(tensor.buffer().size(), 0);
   EXPECT_EQ(tensor.shape().size(), 0);
 }
 
-TEST(RapidsTriton, move_buffer_tensor)
+TEST(BackendTools, move_buffer_tensor)
 {
   auto shape  = std::vector<std::size_t>{2, 2};
   auto data   = std::vector<int>{1, 2, 3, 4};
@@ -56,7 +56,7 @@ TEST(RapidsTriton, move_buffer_tensor)
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
-TEST(RapidsTriton, multi_buffer_tensor)
+TEST(BackendTools, multi_buffer_tensor)
 {
   auto shape = std::vector<std::size_t>{2, 2};
   auto data  = std::vector<int>{1, 2, 3, 4};
@@ -85,7 +85,7 @@ TEST(RapidsTriton, multi_buffer_tensor)
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
-TEST(RapidsTriton, tensor_copy)
+TEST(BackendTools, tensor_copy)
 {
   auto shape = std::vector<std::size_t>{2, 2};
   auto data  = std::vector<int>{1, 2, 3, 4};
@@ -95,7 +95,7 @@ TEST(RapidsTriton, tensor_copy)
   auto data2   = std::vector<int>(data1.size());
   auto tensor2 = Tensor<int>(shape, Buffer<int>{data.data(), data.size(), HostMemory});
 
-  rapids::copy(tensor2, tensor1);
+  backend::copy(tensor2, tensor1);
 
   auto data_out = std::vector<int>(tensor2.data(), tensor2.data() + tensor2.size());
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
@@ -105,10 +105,10 @@ TEST(RapidsTriton, tensor_copy)
   auto tensor3 =
     Tensor<int>(small_shape, Buffer<int>{small_data.data(), small_data.size(), HostMemory});
 
-  EXPECT_THROW(rapids::copy(tensor3, tensor1), TritonException);
+  EXPECT_THROW(backend::copy(tensor3, tensor1), TritonException);
 }
 
-TEST(RapidsTriton, tensor_multi_copy)
+TEST(BackendTools, tensor_multi_copy)
 {
   auto shape = std::vector<std::size_t>{2, 2};
   auto data  = std::vector<int>{1, 2, 3, 4};
@@ -125,7 +125,7 @@ TEST(RapidsTriton, tensor_multi_copy)
       return Tensor<int>(receiver_shape, Buffer<int>{std::size_t{1}, HostMemory});
     });
 
-  rapids::copy(receivers.begin(), receivers.end(), tensor1);
+  backend::copy(receivers.begin(), receivers.end(), tensor1);
 
   auto data_out = std::vector<int>{};
   data_out.reserve(receivers.size());
@@ -137,9 +137,9 @@ TEST(RapidsTriton, tensor_multi_copy)
 
   // Throw if trying to copy to too many outputs
   receivers.emplace_back(receiver_shape, Buffer<int>{std::size_t{1}, HostMemory});
-  EXPECT_THROW(rapids::copy(receivers.begin(), receivers.end(), tensor1), TritonException);
+  EXPECT_THROW(backend::copy(receivers.begin(), receivers.end(), tensor1), TritonException);
 }
 
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

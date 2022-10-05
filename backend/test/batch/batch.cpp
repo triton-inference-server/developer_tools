@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/batch/batch.hpp>
+#include <triton/developer_tools/batch/batch.hpp>

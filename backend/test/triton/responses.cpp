@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/responses.hpp>
+#include <triton/developer_tools/triton/responses.hpp>

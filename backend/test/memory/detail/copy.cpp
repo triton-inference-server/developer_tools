@@ -16,21 +16,21 @@
 
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
-#include <rapids_triton/memory/detail/gpu_only/copy.hpp>
+#include <triton/developer_tools/memory/detail/gpu_only/copy.hpp>
 #else
-#include <rapids_triton/memory/detail/cpu_only/copy.hpp>
+#include <triton/developer_tools/memory/detail/cpu_only/copy.hpp>
 #endif
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/memory/types.hpp>
+#include <triton/developer_tools/build_control.hpp>
+#include <triton/developer_tools/memory/types.hpp>
 #include <vector>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, copy)
+TEST(BackendTools, copy)
 {
   auto data     = std::vector<int>{1, 2, 3};
   auto data_out = std::vector<int>(data.size());
@@ -57,6 +57,6 @@ TEST(RapidsTriton, copy)
 #endif
 }
 
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

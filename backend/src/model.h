@@ -19,40 +19,40 @@
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
 #else
-#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <triton/developer_tools/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 #include <names.h>
 #include <shared_state.h>
 
 #include <memory>
 #include <optional>
-#include <rapids_triton/batch/batch.hpp>        // rapids::Batch
-#include <rapids_triton/memory/types.hpp>       // rapids::MemoryType
-#include <rapids_triton/model/model.hpp>        // rapids::Model
-#include <rapids_triton/tensor/tensor.hpp>      // rapids::copy
-#include <rapids_triton/triton/deployment.hpp>  // rapids::DeploymentType
-#include <rapids_triton/triton/device.hpp>      // rapids::device_id_t
+#include <triton/developer_tools/batch/batch.hpp>        // backend::Batch
+#include <triton/developer_tools/memory/types.hpp>       // backend::MemoryType
+#include <triton/developer_tools/model/model.hpp>        // backend::Model
+#include <triton/developer_tools/tensor/tensor.hpp>      // backend::copy
+#include <triton/developer_tools/triton/deployment.hpp>  // backend::DeploymentType
+#include <triton/developer_tools/triton/device.hpp>      // backend::device_id_t
 
 namespace triton {
-namespace backend {
+namespace developer_tools {
 namespace NAMESPACE {
 
 /* Any logic necessary to perform inference with a model and manage its data
- * should be implemented in a struct named RapidsModel, as shown here */
+ * should be implemented in a struct named ToolsModel, as shown here */
 
-struct RapidsModel : rapids::Model<RapidsSharedState> {
+struct ToolsModel : backend::Model<ToolsSharedState> {
   /***************************************************************************
    * BOILERPLATE                                                             *
    * *********************************************************************** *
    * The following constructor can be copied directly into any model
    * implementation.
    **************************************************************************/
-  RapidsModel(std::shared_ptr<RapidsSharedState> shared_state,
-              rapids::device_id_t device_id,
+  ToolsModel(std::shared_ptr<ToolsSharedState> shared_state,
+              backend::device_id_t device_id,
               cudaStream_t default_stream,
-              rapids::DeploymentType deployment_type,
+              backend::DeploymentType deployment_type,
               std::string const& filepath)
-    : rapids::Model<RapidsSharedState>(
+    : backend::Model<ToolsSharedState>(
         shared_state, device_id, default_stream, deployment_type, filepath)
   {
   }
@@ -82,7 +82,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
    *    pointer to the underlying data.
    * 4. Call the `finalize` method on all output tensors.
    **************************************************************************/
-  void predict(rapids::Batch& batch) const
+  void predict(backend::Batch& batch) const
   {
     // 1. Acquire a tensor representing the input named "input__0"
     auto input = get_input<float>(batch, "input__0");
@@ -91,7 +91,7 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
 
     // 3. Perform inference. In this example, we simply copy the data from the
     // input to the output tensor.
-    rapids::copy(output, input);
+    backend::copy(output, input);
 
     // 4. Call finalize on all output tensors. In this case, we have just one
     // output, so we call finalize on it.
@@ -142,15 +142,15 @@ struct RapidsModel : rapids::Model<RapidsSharedState> {
    * implementations that may switch their preferred memory location based on
    * properties of the batch.
    *
-   * Valid MemoryType options to return are rapids::HostMemory and
-   * rapids::DeviceMemory.
+   * Valid MemoryType options to return are backend::HostMemory and
+   * backend::DeviceMemory.
    **************************************************************************/
-  std::optional<rapids::MemoryType> preferred_mem_type(rapids::Batch& batch) const
+  std::optional<backend::MemoryType> preferred_mem_type(backend::Batch& batch) const
   {
     return std::nullopt;
   }
 };
 
 }  // namespace NAMESPACE
-}  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

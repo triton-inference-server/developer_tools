@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/input.hpp>
+#include <triton/developer_tools/triton/input.hpp>

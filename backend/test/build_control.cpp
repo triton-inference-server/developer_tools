@@ -16,13 +16,13 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton/build_control.hpp>
+#include <triton/developer_tools/build_control.hpp>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
 
-TEST(RapidsTriton, build_control)
+TEST(BackendTools, build_control)
 {
 #ifdef TRITON_ENABLE_GPU
   ASSERT_EQ(IS_GPU_BUILD, true) << "IS_GPU_BUILD constant has wrong value\n";
@@ -30,6 +30,6 @@ TEST(RapidsTriton, build_control)
   ASSERT_EQ(IS_GPU_BUILD, false) << "IS_GPU_BUILD constant has wrong value\n";
 #endif
 }
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

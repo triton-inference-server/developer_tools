@@ -24,15 +24,15 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/resource.hpp>
+#include <triton/developer_tools/build_control.hpp>
+#include <triton/developer_tools/exceptions.hpp>
+#include <triton/developer_tools/memory/resource.hpp>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
 
-TEST(RapidsTriton, set_memory_resource)
+TEST(BackendTools, set_memory_resource)
 {
 #ifdef TRITON_ENABLE_GPU
   auto device_id = int{};
@@ -47,6 +47,6 @@ TEST(RapidsTriton, set_memory_resource)
 #endif
 }
 
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton

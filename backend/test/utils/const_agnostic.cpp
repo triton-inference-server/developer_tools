@@ -16,18 +16,18 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton/utils/const_agnostic.hpp>
+#include <triton/developer_tools/utils/const_agnostic.hpp>
 #include <type_traits>
 
 namespace triton {
+namespace developer_tools {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, const_agnostic)
+TEST(BackendTools, const_agnostic)
 {
   static_assert(std::is_same<const_agnostic_same_t<bool const, bool>, void>::value);
   static_assert(std::is_same<const_agnostic_same_t<bool, bool>, void>::value);
 }
 
-}  // namespace rapids
 }  // namespace backend
+}  // namespace developer_tools
 }  // namespace triton
