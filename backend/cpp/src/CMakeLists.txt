@@ -43,12 +43,12 @@ else()
 endif()
 
 target_compile_options(triton_dev_tools-identity
-        PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_CXX_FLAGS}>"
-                "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_CUDA_FLAGS}>"
+  PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${DEV_TOOLS_CXX_FLAGS}>"
+  "$<$<COMPILE_LANGUAGE:CUDA>:${DEV_TOOLS_CUDA_FLAGS}>"
 )
 
 target_include_directories(triton_dev_tools-identity
-  PRIVATE  "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/include>"
+  PRIVATE  "$<BUILD_INTERFACE:${DEV_TOOLS_SOURCE_DIR}/include>"
             "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
