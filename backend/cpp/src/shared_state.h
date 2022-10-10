@@ -36,9 +36,9 @@ namespace NAMESPACE {
  * Not all backends require shared state, so leaving this implementation empty
  * is entirely valid */
 
-struct DevToolsSharedState : rapids::SharedModelState {
+struct DevToolsSharedState : dev_tools::SharedModelState {
   DevToolsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
-    : rapids::SharedModelState{std::move(config)}
+    : dev_tools::SharedModelState{std::move(config)}
   {
   }
   void load() {}

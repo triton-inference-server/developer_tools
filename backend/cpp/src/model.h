@@ -26,12 +26,12 @@
 
 #include <memory>
 #include <optional>
-#include <triton_backend/batch/batch.hpp>        // rapids::Batch
-#include <triton_backend/memory/types.hpp>       // rapids::MemoryType
-#include <triton_backend/model/model.hpp>        // rapids::Model
-#include <triton_backend/tensor/tensor.hpp>      // rapids::copy
-#include <triton_backend/triton/deployment.hpp>  // rapids::DeploymentType
-#include <triton_backend/triton/device.hpp>      // rapids::device_id_t
+#include <triton_backend/batch/batch.hpp>        // dev_tools::Batch
+#include <triton_backend/memory/types.hpp>       // dev_tools::MemoryType
+#include <triton_backend/model/model.hpp>        // dev_tools::Model
+#include <triton_backend/tensor/tensor.hpp>      // dev_tools::copy
+#include <triton_backend/triton/deployment.hpp>  // dev_tools::DeploymentType
+#include <triton_backend/triton/device.hpp>      // dev_tools::device_id_t
 
 namespace triton {
 namespace backend {
@@ -40,7 +40,7 @@ namespace NAMESPACE {
 /* Any logic necessary to perform inference with a model and manage its data
  * should be implemented in a struct named DevToolsModel, as shown here */
 
-struct DevToolsModel : rapids::Model<DevToolsSharedState> {
+struct DevToolsModel : dev_tools::Model<DevToolsSharedState> {
   /***************************************************************************
    * BOILERPLATE                                                             *
    * *********************************************************************** *
@@ -48,11 +48,11 @@ struct DevToolsModel : rapids::Model<DevToolsSharedState> {
    * implementation.
    **************************************************************************/
   DevToolsModel(std::shared_ptr<DevToolsSharedState> shared_state,
-              rapids::device_id_t device_id,
+              dev_tools::device_id_t device_id,
               cudaStream_t default_stream,
-              rapids::DeploymentType deployment_type,
+              dev_tools::DeploymentType deployment_type,
               std::string const& filepath)
-    : rapids::Model<DevToolsSharedState>(
+    : dev_tools::Model<DevToolsSharedState>(
         shared_state, device_id, default_stream, deployment_type, filepath)
   {
   }
@@ -82,7 +82,7 @@ struct DevToolsModel : rapids::Model<DevToolsSharedState> {
    *    pointer to the underlying data.
    * 4. Call the `finalize` method on all output tensors.
    **************************************************************************/
-  void predict(rapids::Batch& batch) const
+  void predict(dev_tools::Batch& batch) const
   {
     // 1. Acquire a tensor representing the input named "input__0"
     auto input = get_input<float>(batch, "input__0");
@@ -91,7 +91,7 @@ struct DevToolsModel : rapids::Model<DevToolsSharedState> {
 
     // 3. Perform inference. In this example, we simply copy the data from the
     // input to the output tensor.
-    rapids::copy(output, input);
+    dev_tools::copy(output, input);
 
     // 4. Call finalize on all output tensors. In this case, we have just one
     // output, so we call finalize on it.
@@ -142,10 +142,10 @@ struct DevToolsModel : rapids::Model<DevToolsSharedState> {
    * implementations that may switch their preferred memory location based on
    * properties of the batch.
    *
-   * Valid MemoryType options to return are rapids::HostMemory and
-   * rapids::DeviceMemory.
+   * Valid MemoryType options to return are dev_tools::HostMemory and
+   * dev_tools::DeviceMemory.
    **************************************************************************/
-  std::optional<rapids::MemoryType> preferred_mem_type(rapids::Batch& batch) const
+  std::optional<dev_tools::MemoryType> preferred_mem_type(dev_tools::Batch& batch) const
   {
     return std::nullopt;
   }
