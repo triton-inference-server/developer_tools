@@ -25,9 +25,9 @@ namespace triton {
 namespace backend {
 namespace dev_tools {
 
-template <typename RapidsModel, typename RapidsSharedState>
+template <typename DevToolsModel, typename DevToolsSharedState>
 struct ModelInstanceState : public BackendModelInstance {
-  ModelInstanceState(TritonModelState<RapidsSharedState>& model_state,
+  ModelInstanceState(TritonModelState<DevToolsSharedState>& model_state,
                      TRITONBACKEND_ModelInstance* triton_model_instance)
     : BackendModelInstance(&model_state, triton_model_instance),
       model_(model_state.get_shared_state(),
@@ -46,7 +46,7 @@ struct ModelInstanceState : public BackendModelInstance {
   void unload() { model_.unload(); }
 
  private:
-  RapidsModel model_;
+  DevToolsModel model_;
 };
 
 }  // namespace dev_tools

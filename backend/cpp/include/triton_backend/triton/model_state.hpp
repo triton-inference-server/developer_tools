@@ -22,11 +22,11 @@
 namespace triton {
 namespace backend {
 namespace dev_tools {
-template <typename RapidsSharedState>
+template <typename DevToolsSharedState>
 struct TritonModelState : public BackendModel {
   TritonModelState(TRITONBACKEND_Model& triton_model)
     : BackendModel(&triton_model),
-      state_{std::make_shared<RapidsSharedState>(get_model_config(triton_model))}
+      state_{std::make_shared<DevToolsSharedState>(get_model_config(triton_model))}
   {
   }
 
@@ -36,7 +36,7 @@ struct TritonModelState : public BackendModel {
   auto get_shared_state() { return state_; }
 
  private:
-  std::shared_ptr<RapidsSharedState> state_;
+  std::shared_ptr<DevToolsSharedState> state_;
 };
 
 }  // namespace dev_tools
