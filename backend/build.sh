@@ -99,10 +99,10 @@ do
       ;;
     --tag-commit )
       [ -z $EXAMPLE_TAG ] \
-        && EXAMPLE_TAG="rapids_triton_identity:$(cd $REPODIR; git rev-parse --short HEAD)" \
+        && EXAMPLE_TAG="triton_dt_identity:$(cd $REPODIR; git rev-parse --short HEAD)" \
         || true
       [ -z $TEST_TAG ] \
-        && TEST_TAG="rapids_triton_identity_test:$(cd $REPODIR; git rev-parse --short HEAD)" \
+        && TEST_TAG="triton_dt_identity_test:$(cd $REPODIR; git rev-parse --short HEAD)" \
         || true
       ;;
     --)
@@ -115,11 +115,11 @@ done
 
 if [ -z $EXAMPLE_TAG ]
 then
-  EXAMPLE_TAG='rapids_triton_identity'
+  EXAMPLE_TAG='triton_dt_identity'
 fi
 if [ -z $TEST_TAG ]
 then
-  TEST_TAG='rapids_triton_identity_test'
+  TEST_TAG='triton_dt_identity_test'
 fi
 
 DOCKER_ARGS="$DOCKER_ARGS --build-arg BUILD_TYPE=${BUILD_TYPE}"
