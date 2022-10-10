@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/device.hpp>
+#include <triton_backend/triton/device.hpp>

@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/memory/types.hpp>
+#include <triton_backend/memory/types.hpp>

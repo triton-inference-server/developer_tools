@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/api/instance_finalize.hpp>
+#include <triton_backend/triton/api/instance_finalize.hpp>

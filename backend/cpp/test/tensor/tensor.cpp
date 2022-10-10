@@ -17,13 +17,13 @@
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
 #else
-#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <triton_backend/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <rapids_triton/tensor/dtype.hpp>
-#include <rapids_triton/tensor/tensor.hpp>
+#include <triton_backend/tensor/dtype.hpp>
+#include <triton_backend/tensor/tensor.hpp>
 #include <vector>
 
 namespace triton {

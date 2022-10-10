@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/deployment.hpp>
+#include <triton_backend/triton/deployment.hpp>

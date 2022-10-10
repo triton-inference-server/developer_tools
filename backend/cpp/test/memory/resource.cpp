@@ -24,9 +24,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/resource.hpp>
+#include <triton_backend/build_control.hpp>
+#include <triton_backend/exceptions.hpp>
+#include <triton_backend/memory/resource.hpp>
 
 namespace triton {
 namespace backend {

@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton/tensor/dtype.hpp>
+#include <triton_backend/tensor/dtype.hpp>
 
 namespace triton {
 namespace backend {

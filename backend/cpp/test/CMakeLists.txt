@@ -15,7 +15,7 @@
 #=============================================================================
 
 # keep the files in alphabetical order!
-add_executable(test_rapids_triton
+add_executable(test_triton_backend
     test/batch/batch.cpp
     test/build_control.cpp
     test/exceptions.cpp
@@ -49,7 +49,7 @@ add_executable(test_rapids_triton
 )
 
 IF(TRITON_ENABLE_GPU)
-  set_target_properties(test_rapids_triton
+  set_target_properties(test_triton_backend
   PROPERTIES BUILD_RPATH                         "\$ORIGIN"
              # set target compile options
              CXX_STANDARD                        17
@@ -60,7 +60,7 @@ IF(TRITON_ENABLE_GPU)
              INTERFACE_POSITION_INDEPENDENT_CODE ON
   )
 else()
-  set_target_properties(test_rapids_triton
+  set_target_properties(test_triton_backend
   PROPERTIES BUILD_RPATH                         "\$ORIGIN"
              # set target compile options
              CXX_STANDARD                        17
@@ -70,12 +70,12 @@ else()
   )
 endif()
 
-target_compile_options(test_rapids_triton
+target_compile_options(test_triton_backend
         PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_CXX_FLAGS}>"
                 "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_CUDA_FLAGS}>"
 )
 
-target_include_directories(test_rapids_triton
+target_include_directories(test_triton_backend
     PUBLIC  "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/include>"
             "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/test>"
 )
@@ -87,7 +87,7 @@ find_library(
   PATHS /opt/tritonserver/lib
 )
 
-target_link_libraries(test_rapids_triton
+target_link_libraries(test_triton_backend
 PRIVATE
   $<$<BOOL:${TRITON_ENABLE_GPU}>:rmm::rmm>
   $<$<BOOL:${TRITON_ENABLE_GPU}>:raft::raft>

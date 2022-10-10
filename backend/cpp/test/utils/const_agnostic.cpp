@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton/utils/const_agnostic.hpp>
+#include <triton_backend/utils/const_agnostic.hpp>
 #include <type_traits>
 
 namespace triton {

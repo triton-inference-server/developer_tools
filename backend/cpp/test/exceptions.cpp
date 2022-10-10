@@ -17,11 +17,11 @@
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
 #else
-#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <triton_backend/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 #include <gtest/gtest.h>
 
-#include <rapids_triton/exceptions.hpp>
+#include <triton_backend/exceptions.hpp>
 #include <string>
 
 namespace triton {

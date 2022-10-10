@@ -16,15 +16,15 @@
 
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
-#include <rapids_triton/memory/detail/gpu_only/owned_device_buffer.hpp>
+#include <triton_backend/memory/detail/gpu_only/owned_device_buffer.hpp>
 #else
-#include <rapids_triton/memory/detail/cpu_only/owned_device_buffer.hpp>
+#include <triton_backend/memory/detail/cpu_only/owned_device_buffer.hpp>
 #endif
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/exceptions.hpp>
+#include <triton_backend/build_control.hpp>
+#include <triton_backend/exceptions.hpp>
 #include <vector>
 
 namespace triton {

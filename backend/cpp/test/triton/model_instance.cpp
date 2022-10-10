@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/model_instance.hpp>
+#include <triton_backend/triton/model_instance.hpp>

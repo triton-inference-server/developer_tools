@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 
 #include <iostream>
-#include <rapids_triton/triton/logging.hpp>
+#include <triton_backend/triton/logging.hpp>
 
 namespace triton {
 namespace backend {

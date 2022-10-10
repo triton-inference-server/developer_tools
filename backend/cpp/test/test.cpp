@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton.hpp>
+#include <triton_backend.hpp>
 
 namespace triton {
 namespace backend {

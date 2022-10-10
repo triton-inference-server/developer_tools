@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-#include <rapids_triton/triton/api/execute.hpp>
+#include <triton_backend/triton/api/execute.hpp>

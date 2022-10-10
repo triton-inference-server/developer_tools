@@ -21,10 +21,10 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
-#include <rapids_triton/build_control.hpp>
-#include <rapids_triton/exceptions.hpp>
-#include <rapids_triton/memory/buffer.hpp>
-#include <rapids_triton/memory/types.hpp>
+#include <triton_backend/build_control.hpp>
+#include <triton_backend/exceptions.hpp>
+#include <triton_backend/memory/buffer.hpp>
+#include <triton_backend/memory/types.hpp>
 #include <vector>
 
 namespace triton {

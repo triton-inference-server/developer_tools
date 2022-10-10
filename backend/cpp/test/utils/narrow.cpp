@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#include <rapids_triton/utils/narrow.hpp>
+#include <triton_backend/utils/narrow.hpp>
 #include <string>
 
 namespace triton {
