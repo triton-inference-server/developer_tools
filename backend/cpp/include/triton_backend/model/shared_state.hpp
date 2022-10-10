@@ -73,9 +73,9 @@ struct SharedModelState {
           if (shape[0] != -1) { shape.insert(shape.begin(), -1); }
           // The squeeze_output option was introduced to handle a bad choice of
           // convention in the original FIL backend implementation. For legacy
-          // compatibility, we introduced this option into RAPIDS-Triton, but
-          // in general, new backends are advised to avoid using it and defer
-          // this sort of flattening operation to the consumer.
+          // compatibility, we introduced this option into Triton's dev tools,
+          // but in general, new backends are advised to avoid using it and
+          // defer this sort of flattening operation to the consumer.
           if (squeeze_output) {
             shape.erase(std::remove(shape.begin(), shape.end(), std::int64_t{1}), shape.end());
           }

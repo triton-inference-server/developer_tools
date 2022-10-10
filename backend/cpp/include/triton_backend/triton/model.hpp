@@ -63,7 +63,7 @@ inline auto get_model_config(TRITONBACKEND_Model& model)
  *
  * This function accepts a unique_ptr to an object derived from a Triton
  * BackendModel object and sets it as the stored state for a model in the
- * Triton server. Note that this object is not the same as a RAPIDS-Triton
+ * Triton server. Note that this object is not the same as a dev tools
  * "SharedModelState" object. The object that Triton expects must wrap this
  * SharedModelState and provide additional interface compatibility.
  */

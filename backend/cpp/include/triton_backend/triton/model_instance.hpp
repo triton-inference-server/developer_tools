@@ -70,7 +70,7 @@ inline auto* get_model_from_instance(TRITONBACKEND_ModelInstance& instance)
  *
  * This function accepts a unique_ptr to an object derived from a Triton
  * BackendModelInstance object and sets it as the stored state for a model in the
- * Triton server. Note that this object is not the same as a RAPIDS-Triton
+ * Triton server. Note that this object is not the same as a dev tools
  * "Model" object. The object that Triton expects must wrap this Model and
  * provide additional interface compatibility.
  */
