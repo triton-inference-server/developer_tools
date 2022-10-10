@@ -1,4 +1,4 @@
-backend: "rapids-identity"
+backend: "dev_tools-identity"
 max_batch_size: 32768
 input [
  {
@@ -17,6 +17,4 @@ output [
 version_policy: { all { }}
 instance_group [{ kind: KIND_CPU }]
 parameters [ ]
-dynamic_batching {
-  max_queue_delay_microseconds: 50
-}
+dynamic_batching { }

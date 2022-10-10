@@ -52,7 +52,7 @@ RUN conda env update -f /environment.yml \
 
 ENV PYTHONDONTWRITEBYTECODE=false
 
-SHELL ["conda", "run", "--no-capture-output", "-n", "triton_backend", "/bin/bash", "-c"]
+SHELL ["conda", "run", "--no-capture-output", "-n", "triton_backend_dev", "/bin/bash", "-c"]
 
 FROM base as build-stage
 
