@@ -24,7 +24,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 namespace {
 /** Log message at indicated level */
@@ -154,6 +154,6 @@ inline auto log_debug(char const* filename, int line)
 }
 inline auto log_debug() { return log_stream(TRITONSERVER_LOG_VERBOSE); }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

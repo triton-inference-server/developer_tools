@@ -25,7 +25,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 inline auto get_model_version(TRITONBACKEND_Model& model)
 {
@@ -85,6 +85,6 @@ auto* get_model_state(TRITONBACKEND_Model& model)
   return model_state;
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

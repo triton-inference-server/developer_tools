@@ -24,7 +24,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 using request_size_t = uint32_t;
 
 template <typename Iter>
@@ -38,6 +38,6 @@ void release_requests(Iter begin, Iter end)
     }
   });
 }
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

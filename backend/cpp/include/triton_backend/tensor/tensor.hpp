@@ -40,7 +40,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 template <typename T>
 struct BaseTensor {
   using size_type = typename Buffer<T>::size_type;
@@ -200,6 +200,6 @@ void copy(Iter begin, Iter end, BaseTensor<T>& src)
   });
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -23,7 +23,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 using time_point = std::chrono::time_point<std::chrono::steady_clock>;
 
 /**
@@ -84,6 +84,6 @@ inline void report_statistics(TRITONBACKEND_ModelInstance& instance,
                                                      compute_end_time.time_since_epoch().count(),
                                                      end_time.time_since_epoch().count()));
 }
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

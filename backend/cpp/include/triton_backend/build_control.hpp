@@ -19,7 +19,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 #ifdef TRITON_ENABLE_GPU
 auto constexpr IS_GPU_BUILD = true;
@@ -27,6 +27,6 @@ auto constexpr IS_GPU_BUILD = true;
 auto constexpr IS_GPU_BUILD = false;
 #endif
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -21,7 +21,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 template <typename RapidsSharedState>
 struct TritonModelState : public BackendModel {
   TritonModelState(TRITONBACKEND_Model& triton_model)
@@ -39,6 +39,6 @@ struct TritonModelState : public BackendModel {
   std::shared_ptr<RapidsSharedState> state_;
 };
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -25,13 +25,13 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 inline auto get_max_batch_size(common::TritonJson::Value& config)
 {
   auto reported = int64_t{};
   triton_check(config.MemberAsInt("max_batch_size", &reported));
   return narrow<std::size_t>(reported);
 }
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

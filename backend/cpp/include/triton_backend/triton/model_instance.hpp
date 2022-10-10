@@ -24,7 +24,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 /** Get the name of a Triton model instance from the instance itself */
 inline auto get_model_instance_name(TRITONBACKEND_ModelInstance& instance)
 {
@@ -92,6 +92,6 @@ auto* get_instance_state(TRITONBACKEND_ModelInstance& instance)
   return instance_state;
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -27,7 +27,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 using ErrorCode = TRITONSERVER_Error_Code;
 
@@ -89,6 +89,6 @@ inline void cuda_check(cudaError_t const& err)
   }
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

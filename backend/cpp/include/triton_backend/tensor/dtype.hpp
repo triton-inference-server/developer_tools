@@ -22,7 +22,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 using DType                 = TRITONSERVER_DataType;
 auto constexpr DTypeBool    = TRITONSERVER_TYPE_BOOL;
@@ -163,6 +163,6 @@ inline std::ostream& operator<<(std::ostream& out, DType const& dtype)
   return out;
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

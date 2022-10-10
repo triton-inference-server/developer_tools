@@ -27,7 +27,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace triton_api {
 template <typename ModelState, typename ModelInstanceState>
 auto* instance_initialize(TRITONBACKEND_ModelInstance* instance)
@@ -53,22 +53,22 @@ auto* instance_initialize(TRITONBACKEND_ModelInstance* instance)
       setup_memory_resource(device_id, model_state->TritonMemoryManager());
     }
 
-    auto rapids_model = std::make_unique<ModelInstanceState>(*model_state, instance);
+    auto dev_tools_model = std::make_unique<ModelInstanceState>(*model_state, instance);
     if constexpr (IS_GPU_BUILD) {
-      auto& model = rapids_model->get_model();
+      auto& model = dev_tools_model->get_model();
       if (model.get_deployment_type() == GPUDeployment) {
         cuda_check(cudaSetDevice(model.get_device_id()));
       }
     }
-    rapids_model->load();
+    dev_tools_model->load();
 
-    set_instance_state<ModelInstanceState>(*instance, std::move(rapids_model));
+    set_instance_state<ModelInstanceState>(*instance, std::move(dev_tools_model));
   } catch (TritonException& err) {
     result = err.error();
   }
   return result;
 }
 }  // namespace triton_api
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

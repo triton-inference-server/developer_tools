@@ -21,7 +21,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace detail {
 
 template<bool enable_gpu>
@@ -30,6 +30,6 @@ inline void setup_memory_resource(device_id_t device_id,
 }
 
 }  // namespace detail
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -46,7 +46,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 /**
  * @brief A representation of all data about a single batch of inference
  * requests
@@ -64,7 +64,7 @@ namespace rapids {
  *
  * It is not recommended that developers of triton_backend backends try to
  * construct Batch objects directly. Instead, you should make use of the
- * rapids::triton_api::execute template, which will construct the Batch for
+ * dev_tools::triton_api::execute template, which will construct the Batch for
  * you.
  */
 struct Batch {
@@ -268,6 +268,6 @@ struct Batch {
   std::chrono::time_point<std::chrono::steady_clock> compute_start_time_;
   std::optional<size_type> batch_size_;
 };
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

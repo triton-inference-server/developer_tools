@@ -23,7 +23,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace detail {
 
 template<typename T>
@@ -44,6 +44,6 @@ struct owned_device_buffer<T, true> {
 };
 
 }  // namespace detail
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

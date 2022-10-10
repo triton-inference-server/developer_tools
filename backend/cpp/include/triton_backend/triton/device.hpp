@@ -19,7 +19,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 using device_id_t = std::int32_t;
 }
 }  // namespace backend

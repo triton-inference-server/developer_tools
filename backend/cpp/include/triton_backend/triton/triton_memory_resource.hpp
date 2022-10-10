@@ -29,7 +29,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 struct triton_memory_resource final : public rmm::mr::device_memory_resource {
   triton_memory_resource(TRITONBACKEND_MemoryManager* manager,
                          device_id_t device_id,
@@ -81,6 +81,6 @@ struct triton_memory_resource final : public rmm::mr::device_memory_resource {
   }
 };
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

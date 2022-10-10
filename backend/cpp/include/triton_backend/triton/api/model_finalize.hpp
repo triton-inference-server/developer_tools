@@ -23,7 +23,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace triton_api {
 template <typename ModelState>
 auto* model_finalize(TRITONBACKEND_Model* model)
@@ -43,6 +43,6 @@ auto* model_finalize(TRITONBACKEND_Model* model)
   return result;
 }
 }  // namespace triton_api
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -39,7 +39,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 template <typename T>
 struct Buffer {
   using size_type  = std::size_t;
@@ -312,6 +312,6 @@ void copy(Buffer<T>& dst,
 {
   copy(dst, src, 0, src_begin, src_end);
 }
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

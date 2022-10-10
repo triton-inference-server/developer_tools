@@ -32,7 +32,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace triton_api {
 inline auto* initialize(TRITONBACKEND_Backend* backend)
 {
@@ -64,6 +64,6 @@ inline auto* initialize(TRITONBACKEND_Backend* backend)
   return result;
 }
 }  // namespace triton_api
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -19,7 +19,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 template <typename T, typename U>
 using const_agnostic_same_t =

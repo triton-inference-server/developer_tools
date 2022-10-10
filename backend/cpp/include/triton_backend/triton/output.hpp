@@ -21,7 +21,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 inline auto* get_triton_input(TRITONBACKEND_Request* request, std::string const& name)
 {
   auto* result = static_cast<TRITONBACKEND_Input*>(nullptr);
@@ -67,6 +67,6 @@ auto get_triton_output_shape(Iter requests_begin, Iter requests_end, std::string
 
   return result;
 }
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

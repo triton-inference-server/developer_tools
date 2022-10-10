@@ -19,13 +19,13 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 /* Function for testing triton_backend include
  *
  * @return message indicating triton_backend has been included succesfully*/
 inline auto test_install() { return std::string("triton_backend set up successfully"); }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

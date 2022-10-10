@@ -30,7 +30,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace triton_api {
 template <typename ModelState, typename ModelInstanceState>
 auto* execute(TRITONBACKEND_ModelInstance* instance,
@@ -116,6 +116,6 @@ auto* execute(TRITONBACKEND_ModelInstance* instance,
   return result;
 }
 }  // namespace triton_api
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

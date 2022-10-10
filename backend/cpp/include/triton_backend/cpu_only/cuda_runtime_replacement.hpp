@@ -21,7 +21,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 using cudaStream_t = void*;
 
@@ -48,7 +48,7 @@ inline auto cudaGetDeviceCount(int* count) {
 }
 
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton
 #endif

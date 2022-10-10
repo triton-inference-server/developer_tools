@@ -29,7 +29,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace detail {
 
 inline auto& resource_lock()
@@ -92,6 +92,6 @@ inline void setup_memory_resource<true>(device_id_t device_id,
 inline auto* get_memory_resource() { return rmm::mr::get_current_device_resource(); } */
 
 }  // namespace detail
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

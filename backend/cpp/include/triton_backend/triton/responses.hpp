@@ -24,7 +24,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 template <typename Iter>
 auto construct_responses(Iter requests_begin, Iter requests_end)
@@ -70,6 +70,6 @@ void send_responses(Iter begin, Iter end, TRITONSERVER_Error* err)
   });
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

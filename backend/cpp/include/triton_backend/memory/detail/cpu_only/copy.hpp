@@ -26,7 +26,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace detail {
 
 template <typename T>
@@ -45,6 +45,6 @@ void copy(T* dst,
 }
 
 }  // namespace detail
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

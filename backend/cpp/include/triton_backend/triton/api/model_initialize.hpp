@@ -23,7 +23,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 namespace triton_api {
 template <typename ModelState>
 auto* model_initialize(TRITONBACKEND_Model* model)
@@ -37,10 +37,10 @@ auto* model_initialize(TRITONBACKEND_Model* model)
     log_info(__FILE__, __LINE__) << "TRITONBACKEND_ModelInitialize: " << name << " (version "
                                  << version << ")";
 
-    auto rapids_model_state = std::make_unique<ModelState>(*model);
-    rapids_model_state->load();
+    auto dev_tools_model_state = std::make_unique<ModelState>(*model);
+    dev_tools_model_state->load();
 
-    set_model_state(*model, std::move(rapids_model_state));
+    set_model_state(*model, std::move(dev_tools_model_state));
   } catch (TritonException& err) {
     result = err.error();
   }
@@ -48,6 +48,6 @@ auto* model_initialize(TRITONBACKEND_Model* model)
   return result;
 }
 }  // namespace triton_api
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

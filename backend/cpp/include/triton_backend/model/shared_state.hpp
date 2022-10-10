@@ -37,7 +37,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 /**
  * @brief Stores shared state for multiple instances of the same model
  */
@@ -184,6 +184,6 @@ struct SharedModelState {
     return result;
   }
 };
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

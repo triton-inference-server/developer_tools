@@ -33,7 +33,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 template <typename SharedState = SharedModelState>
 struct Model {
   virtual void predict(Batch& batch) const = 0;
@@ -192,6 +192,6 @@ struct Model {
   DeploymentType deployment_type_;
   std::string filepath_;
 };
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

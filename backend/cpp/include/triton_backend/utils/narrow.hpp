@@ -20,7 +20,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 template <typename T, typename F>
 auto narrow(F from)
@@ -36,6 +36,6 @@ auto narrow(F from)
   return to;
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -23,7 +23,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 /** Struct for setting cuda device within a code block */
 struct device_setter {
@@ -45,6 +45,6 @@ struct device_setter {
   device_id_t prev_device_;
 };
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

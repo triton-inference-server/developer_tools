@@ -19,10 +19,10 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 using MemoryType            = TRITONSERVER_MemoryType;
 auto constexpr DeviceMemory = TRITONSERVER_MEMORY_GPU;
 auto constexpr HostMemory   = TRITONSERVER_MEMORY_CPU;
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

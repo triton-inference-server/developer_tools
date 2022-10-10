@@ -23,7 +23,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 template <typename RapidsModel, typename RapidsSharedState>
 struct ModelInstanceState : public BackendModelInstance {
@@ -31,7 +31,7 @@ struct ModelInstanceState : public BackendModelInstance {
                      TRITONBACKEND_ModelInstance* triton_model_instance)
     : BackendModelInstance(&model_state, triton_model_instance),
       model_(model_state.get_shared_state(),
-             rapids::get_device_id(*triton_model_instance),
+             dev_tools::get_device_id(*triton_model_instance),
              CudaStream(),
              Kind(),
              JoinPath({model_state.RepositoryPath(),
@@ -49,6 +49,6 @@ struct ModelInstanceState : public BackendModelInstance {
   RapidsModel model_;
 };
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

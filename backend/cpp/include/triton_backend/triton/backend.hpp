@@ -24,7 +24,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 inline auto get_backend_name(TRITONBACKEND_Backend& backend)
 {
   const char* cname;
@@ -56,6 +56,6 @@ inline auto check_backend_version(TRITONBACKEND_Backend& backend)
   return ((version.major == TRITONBACKEND_API_VERSION_MAJOR) &&
           (version.minor >= TRITONBACKEND_API_VERSION_MINOR));
 }
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton
