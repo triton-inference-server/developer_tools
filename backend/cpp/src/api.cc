@@ -35,9 +35,9 @@ namespace triton {
 namespace backend {
 namespace NAMESPACE {
 
-using ModelState = rapids::TritonModelState<RapidsSharedState>;
+using ModelState = rapids::TritonModelState<DevToolsSharedState>;
 using ModelInstanceState =
-    rapids::ModelInstanceState<RapidsModel, RapidsSharedState>;
+    rapids::ModelInstanceState<DevToolsModel, DevToolsSharedState>;
 
 extern "C" {
 

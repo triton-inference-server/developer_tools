@@ -38,21 +38,21 @@ namespace backend {
 namespace NAMESPACE {
 
 /* Any logic necessary to perform inference with a model and manage its data
- * should be implemented in a struct named RapidsModel, as shown here */
+ * should be implemented in a struct named DevToolsModel, as shown here */
 
-struct RapidsModel : rapids::Model<RapidsSharedState> {
+struct DevToolsModel : rapids::Model<DevToolsSharedState> {
   /***************************************************************************
    * BOILERPLATE                                                             *
    * *********************************************************************** *
    * The following constructor can be copied directly into any model
    * implementation.
    **************************************************************************/
-  RapidsModel(std::shared_ptr<RapidsSharedState> shared_state,
+  DevToolsModel(std::shared_ptr<DevToolsSharedState> shared_state,
               rapids::device_id_t device_id,
               cudaStream_t default_stream,
               rapids::DeploymentType deployment_type,
               std::string const& filepath)
-    : rapids::Model<RapidsSharedState>(
+    : rapids::Model<DevToolsSharedState>(
         shared_state, device_id, default_stream, deployment_type, filepath)
   {
   }
