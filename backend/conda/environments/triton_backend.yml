@@ -1,5 +1,5 @@
 ---
-name: rapids_triton_dev
+name: triton_backend_dev
 channels:
   - conda-forge
 dependencies:
