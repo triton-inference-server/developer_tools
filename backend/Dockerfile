@@ -42,7 +42,7 @@ RUN wget \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \
     && rm -f Miniconda3-latest-Linux-x86_64.sh 
 
-COPY ./conda/environments/rapids_triton_dev.yml /environment.yml
+COPY ./conda/environments/triton_backend.yml /environment.yml
 
 RUN conda env update -f /environment.yml \
     && rm /environment.yml \
@@ -52,11 +52,11 @@ RUN conda env update -f /environment.yml \
 
 ENV PYTHONDONTWRITEBYTECODE=false
 
-SHELL ["conda", "run", "--no-capture-output", "-n", "rapids_triton_dev", "/bin/bash", "-c"]
+SHELL ["conda", "run", "--no-capture-output", "-n", "triton_backend", "/bin/bash", "-c"]
 
 FROM base as build-stage
 
-COPY ./cpp /rapids_triton
+COPY ./cpp /triton_backend
 
 ARG TRITON_VERSION
 ENV TRITON_VERSION=$TRITON_VERSION
@@ -70,9 +70,9 @@ ENV BUILD_EXAMPLE=$BUILD_EXAMPLE
 ARG TRITON_ENABLE_GPU
 ENV TRITON_ENABLE_GPU=$TRITON_ENABLE_GPU
 
-RUN mkdir /rapids_triton/build
+RUN mkdir /triton_backend/build
 
-WORKDIR /rapids_triton/build
+WORKDIR /triton_backend/build
 
 RUN cmake \
       -GNinja \
@@ -88,7 +88,7 @@ RUN --mount=type=cache,target=/ccache/ ninja install
 
 FROM base as test-install
 
-COPY ./conda/environments/rapids_triton_test.yml /environment.yml
+COPY ./conda/environments/triton_backend_test.yml /environment.yml
 
 RUN conda env update -f /environment.yml \
     && rm /environment.yml \
@@ -96,33 +96,33 @@ RUN conda env update -f /environment.yml \
     && find /root/miniconda3/ -follow -type f -name '*.pyc' -delete \
     && find /root/miniconda3/ -follow -type f -name '*.js.map' -delete
 
-COPY ./python /rapids_triton
+COPY ./python /triton_backend
 
-RUN conda run -n rapids_triton_test pip install /rapids_triton \
- && rm -rf /rapids_triton
+RUN conda run -n triton_backend_test pip install /triton_backend \
+ && rm -rf /triton_backend
 
 FROM build-stage as test-stage
 
 COPY --from=test-install /root/miniconda3 /root/miniconda3
 
-ENV TEST_EXE=/rapids_triton/build/test_rapids_triton
+ENV TEST_EXE=/triton_backend/build/test_triton_backend
 
 COPY qa /qa
 
-ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "rapids_triton_test", "/bin/bash", "/qa/entrypoint.sh"]
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "triton_backend_test", "/bin/bash", "/qa/entrypoint.sh"]
 
 FROM ${BASE_IMAGE}
 
 RUN mkdir /models
 
 # Remove existing backend install
-RUN if [ -d /opt/tritonserver/backends/rapids-identity ]; \
+RUN if [ -d /opt/tritonserver/backends/dev_tools-identity ]; \
     then \
-      rm -rf /opt/tritonserver/backends/rapids-identity/*; \
+      rm -rf /opt/tritonserver/backends/dev_tools-identity/*; \
     fi
 
 COPY --from=build-stage \
-  /opt/tritonserver/backends/rapids-identity \
-  /opt/tritonserver/backends/rapids-identity
+  /opt/tritonserver/backends/dev_tools-identity \
+  /opt/tritonserver/backends/dev_tools-identity
 
 ENTRYPOINT ["tritonserver", "--model-repository=/models"]
