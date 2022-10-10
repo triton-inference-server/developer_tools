@@ -71,13 +71,13 @@ else()
 endif()
 
 target_compile_options(test_triton_backend
-        PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${RAPIDS_TRITON_CXX_FLAGS}>"
-                "$<$<COMPILE_LANGUAGE:CUDA>:${RAPIDS_TRITON_CUDA_FLAGS}>"
+        PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${DEV_TOOLS_CXX_FLAGS}>"
+                "$<$<COMPILE_LANGUAGE:CUDA>:${DEV_TOOLS_CUDA_FLAGS}>"
 )
 
 target_include_directories(test_triton_backend
-    PUBLIC  "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/include>"
-            "$<BUILD_INTERFACE:${RAPIDS_TRITON_SOURCE_DIR}/test>"
+    PUBLIC  "$<BUILD_INTERFACE:${DEV_TOOLS_SOURCE_DIR}/include>"
+            "$<BUILD_INTERFACE:${DEV_TOOLS_SOURCE_DIR}/test>"
 )
 
 

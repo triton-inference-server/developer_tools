@@ -20,9 +20,9 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
-TEST(RapidsTriton, build_control)
+TEST(DevToolsTriton, build_control)
 {
 #ifdef TRITON_ENABLE_GPU
   ASSERT_EQ(IS_GPU_BUILD, true) << "IS_GPU_BUILD constant has wrong value\n";
@@ -30,6 +30,6 @@ TEST(RapidsTriton, build_control)
   ASSERT_EQ(IS_GPU_BUILD, false) << "IS_GPU_BUILD constant has wrong value\n";
 #endif
 }
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

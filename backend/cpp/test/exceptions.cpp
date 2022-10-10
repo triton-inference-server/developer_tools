@@ -26,9 +26,9 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
-TEST(RapidsTriton, default_except)
+TEST(DevToolsTriton, default_except)
 {
   try {
     throw TritonException();
@@ -37,7 +37,7 @@ TEST(RapidsTriton, default_except)
   }
 }
 
-TEST(RapidsTriton, msg_except)
+TEST(DevToolsTriton, msg_except)
 {
   auto msg = std::string("TEST ERROR MESSAGE");
   try {
@@ -61,14 +61,14 @@ TEST(RapidsTriton, msg_except)
   }
 }
 
-TEST(RapidsTriton, triton_check)
+TEST(DevToolsTriton, triton_check)
 {
   auto msg = std::string("TEST ERROR MESSAGE");
   EXPECT_THROW(triton_check(TRITONSERVER_ErrorNew(Error::Internal, msg.c_str())), TritonException);
   triton_check(nullptr);
 }
 
-TEST(RapidsTriton, cuda_check)
+TEST(DevToolsTriton, cuda_check)
 {
 #ifdef TRITON_ENABLE_GPU
   EXPECT_THROW(cuda_check(cudaError::cudaErrorMissingConfiguration), TritonException);
@@ -78,6 +78,6 @@ TEST(RapidsTriton, cuda_check)
 #endif
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

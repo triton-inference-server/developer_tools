@@ -21,13 +21,13 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, const_agnostic)
+namespace dev_tools {
+TEST(DevToolsTriton, const_agnostic)
 {
   static_assert(std::is_same<const_agnostic_same_t<bool const, bool>, void>::value);
   static_assert(std::is_same<const_agnostic_same_t<bool, bool>, void>::value);
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

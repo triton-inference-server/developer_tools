@@ -30,9 +30,9 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
-TEST(RapidsTriton, set_memory_resource)
+TEST(DevToolsTriton, set_memory_resource)
 {
 #ifdef TRITON_ENABLE_GPU
   auto device_id = int{};
@@ -47,6 +47,6 @@ TEST(RapidsTriton, set_memory_resource)
 #endif
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

@@ -29,8 +29,8 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, copy)
+namespace dev_tools {
+TEST(DevToolsTriton, copy)
 {
   auto data     = std::vector<int>{1, 2, 3};
   auto data_out = std::vector<int>(data.size());
@@ -57,6 +57,6 @@ TEST(RapidsTriton, copy)
 #endif
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

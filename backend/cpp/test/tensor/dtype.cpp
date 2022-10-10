@@ -20,7 +20,7 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
 template <DType D>
 void check_dtype_conversion()
@@ -29,7 +29,7 @@ void check_dtype_conversion()
   EXPECT_EQ(D, TritonDtype<typename TritonType<D>::type const>::value);
 }
 
-TEST(RapidsTriton, dtype)
+TEST(DevToolsTriton, dtype)
 {
   check_dtype_conversion<DTypeBool>();
   check_dtype_conversion<DTypeUint8>();
@@ -46,6 +46,6 @@ TEST(RapidsTriton, dtype)
   check_dtype_conversion<DTypeFloat64>();
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

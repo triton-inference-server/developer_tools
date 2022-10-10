@@ -21,8 +21,8 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, narrow)
+namespace dev_tools {
+TEST(DevToolsTriton, narrow)
 {
   EXPECT_THROW(narrow<std::size_t>(-1), TritonException);
   narrow<std::size_t>(int{5});
@@ -30,6 +30,6 @@ TEST(RapidsTriton, narrow)
   narrow<int>(std::size_t{5});
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

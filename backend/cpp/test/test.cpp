@@ -20,9 +20,9 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
+namespace dev_tools {
 
-TEST(RapidsTriton, installed) { std::cout << test_install() << "\n"; }
-}  // namespace rapids
+TEST(DevToolsTriton, installed) { std::cout << test_install() << "\n"; }
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

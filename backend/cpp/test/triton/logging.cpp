@@ -21,8 +21,8 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, logging)
+namespace dev_tools {
+TEST(DevToolsTriton, logging)
 {
   log_debug("Debug test message");
   log_info("Info test message");
@@ -30,7 +30,7 @@ TEST(RapidsTriton, logging)
   log_error("Error test message");
 }
 
-TEST(RapidsTriton, stream_logging)
+TEST(DevToolsTriton, stream_logging)
 {
   log_debug() << "Streamed debug test message";
   log_info() << "Streamed info test message";
@@ -38,6 +38,6 @@ TEST(RapidsTriton, stream_logging)
   log_error() << "Streamed error test message";
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

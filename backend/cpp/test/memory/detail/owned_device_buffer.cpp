@@ -29,8 +29,8 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, owned_device_buffer)
+namespace dev_tools {
+TEST(DevToolsTriton, owned_device_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
 #ifdef TRITON_ENABLE_GPU
@@ -59,6 +59,6 @@ TEST(RapidsTriton, owned_device_buffer)
 #endif
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton

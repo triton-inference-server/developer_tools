@@ -29,8 +29,8 @@
 
 namespace triton {
 namespace backend {
-namespace rapids {
-TEST(RapidsTriton, default_buffer)
+namespace dev_tools {
+TEST(DevToolsTriton, default_buffer)
 {
   auto buffer = Buffer<int>();
   EXPECT_EQ(buffer.mem_type(), HostMemory);
@@ -47,7 +47,7 @@ TEST(RapidsTriton, default_buffer)
 #endif
 }
 
-TEST(RapidsTriton, device_buffer)
+TEST(DevToolsTriton, device_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
 #ifdef TRITON_ENABLE_GPU
@@ -73,7 +73,7 @@ TEST(RapidsTriton, device_buffer)
 #endif
 }
 
-TEST(RapidsTriton, non_owning_device_buffer)
+TEST(DevToolsTriton, non_owning_device_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
 #ifdef TRITON_ENABLE_GPU
@@ -102,7 +102,7 @@ TEST(RapidsTriton, non_owning_device_buffer)
 #endif
 }
 
-TEST(RapidsTriton, host_buffer)
+TEST(DevToolsTriton, host_buffer)
 {
   auto data   = std::vector<int>{1, 2, 3};
   auto buffer = Buffer<int>(data.size(), HostMemory, 0, 0);
@@ -118,7 +118,7 @@ TEST(RapidsTriton, host_buffer)
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
-TEST(RapidsTriton, non_owning_host_buffer)
+TEST(DevToolsTriton, non_owning_host_buffer)
 {
   auto data   = std::vector<int>{1, 2, 3};
   auto buffer = Buffer<int>(data.data(), data.size(), HostMemory);
@@ -131,7 +131,7 @@ TEST(RapidsTriton, non_owning_host_buffer)
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
-TEST(RapidsTriton, copy_buffer)
+TEST(DevToolsTriton, copy_buffer)
 {
   auto data        = std::vector<int>{1, 2, 3};
   auto orig_buffer = Buffer<int>(data.data(), data.size(), HostMemory);
@@ -145,7 +145,7 @@ TEST(RapidsTriton, copy_buffer)
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
-TEST(RapidsTriton, move_buffer)
+TEST(DevToolsTriton, move_buffer)
 {
   auto data   = std::vector<int>{1, 2, 3};
   auto buffer = Buffer<int>(Buffer<int>(data.data(), data.size(), HostMemory));
@@ -158,7 +158,7 @@ TEST(RapidsTriton, move_buffer)
   EXPECT_THAT(data_out, ::testing::ElementsAreArray(data));
 }
 
-TEST(RapidsTriton, move_assignment_buffer)
+TEST(DevToolsTriton, move_assignment_buffer)
 {
   auto data = std::vector<int>{1, 2, 3};
 
@@ -173,6 +173,6 @@ TEST(RapidsTriton, move_assignment_buffer)
   ASSERT_EQ(buffer.size(), data.size());
 }
 
-}  // namespace rapids
+}  // namespace dev_tools
 }  // namespace backend
 }  // namespace triton
