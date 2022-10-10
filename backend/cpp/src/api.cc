@@ -22,14 +22,14 @@
 #include <triton/backend/backend_model.h>
 #include <triton/backend/backend_model_instance.h>
 
-#include <rapids_triton/triton/api/execute.hpp>
-#include <rapids_triton/triton/api/initialize.hpp>
-#include <rapids_triton/triton/api/instance_finalize.hpp>
-#include <rapids_triton/triton/api/instance_initialize.hpp>
-#include <rapids_triton/triton/api/model_finalize.hpp>
-#include <rapids_triton/triton/api/model_initialize.hpp>
-#include <rapids_triton/triton/model_instance_state.hpp>
-#include <rapids_triton/triton/model_state.hpp>
+#include <triton_backend/triton/api/execute.hpp>
+#include <triton_backend/triton/api/initialize.hpp>
+#include <triton_backend/triton/api/instance_finalize.hpp>
+#include <triton_backend/triton/api/instance_initialize.hpp>
+#include <triton_backend/triton/api/model_finalize.hpp>
+#include <triton_backend/triton/api/model_initialize.hpp>
+#include <triton_backend/triton/model_instance_state.hpp>
+#include <triton_backend/triton/model_state.hpp>
 
 namespace triton {
 namespace backend {

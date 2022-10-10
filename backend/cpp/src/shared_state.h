@@ -19,7 +19,7 @@
 #include <names.h>
 
 #include <memory>
-#include <rapids_triton/model/shared_state.hpp>
+#include <triton_backend/model/shared_state.hpp>
 
 namespace triton {
 namespace backend {

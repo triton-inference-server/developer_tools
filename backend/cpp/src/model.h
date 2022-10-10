@@ -19,19 +19,19 @@
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
 #else
-#include <rapids_triton/cpu_only/cuda_runtime_replacement.hpp>
+#include <triton_backend/cpu_only/cuda_runtime_replacement.hpp>
 #endif
 #include <names.h>
 #include <shared_state.h>
 
 #include <memory>
 #include <optional>
-#include <rapids_triton/batch/batch.hpp>        // rapids::Batch
-#include <rapids_triton/memory/types.hpp>       // rapids::MemoryType
-#include <rapids_triton/model/model.hpp>        // rapids::Model
-#include <rapids_triton/tensor/tensor.hpp>      // rapids::copy
-#include <rapids_triton/triton/deployment.hpp>  // rapids::DeploymentType
-#include <rapids_triton/triton/device.hpp>      // rapids::device_id_t
+#include <triton_backend/batch/batch.hpp>        // rapids::Batch
+#include <triton_backend/memory/types.hpp>       // rapids::MemoryType
+#include <triton_backend/model/model.hpp>        // rapids::Model
+#include <triton_backend/tensor/tensor.hpp>      // rapids::copy
+#include <triton_backend/triton/deployment.hpp>  // rapids::DeploymentType
+#include <triton_backend/triton/device.hpp>      // rapids::device_id_t
 
 namespace triton {
 namespace backend {
