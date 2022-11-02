@@ -117,8 +117,8 @@ wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | 
 
 # TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/triton_developer_tools.git"}
 # git clone --single-branch --depth=1 -b ${TOOLS_BRANCH_TAG} ${TOOLS_BRANCH} 
-cd triton_developer_tools
-rm -r build && mkdir build && cd build
+cd triton_developer_tools/server
+mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
 make install
 # Copy wrapper includes to triton home
@@ -137,12 +137,12 @@ cp server/src/infer_requested_output.h ${TRITON_HOME}/include/triton/developer_t
 # Clone JavaCPP-presets, build java bindings and copy jar to /opt/tritonserver 
 git clone --single-branch --depth=1 -b ${JAVACPP_BRANCH_TAG} ${JAVACPP_BRANCH}
 cd javacpp-presets
-${MAVEN_PATH} clean install --projects .,tritonserver-wrapper
-${MAVEN_PATH} clean install -f platform --projects ../tritonserver/platform -Djavacpp.platform=linux-x86_64
+${MAVEN_PATH} clean install --projects .,tritonserverwrapper
+${MAVEN_PATH} clean install -f platform --projects ../tritonserverwrapper/platform -Djavacpp.platform=linux-x86_64
 
 # Copy over the jar to a specific location
 mkdir -p ${JAR_INSTALL_PATH}
-cp ${BUILD_HOME}/javacpp-presets/tritonserver/platform/target/tritonserver-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
+# cp ${BUILD_HOME}/javacpp-presets/tritonserver/platform/target/tritonserver-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
 # rm -r ${BUILD_HOME}
 # rm -r /root/.m2/repository
 
