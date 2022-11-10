@@ -26,6 +26,12 @@
 
 cmake_minimum_required(VERSION 3.18)
 
+# Gperftools
+#
+link_directories(/usr/local/lib)
+LIST(APPEND CMAKE_MODULE_PATH "${repo-common_SOURCE_DIR}/cmake")
+find_package(Gperftools REQUIRED)
+
 #
 # examples
 #
@@ -58,6 +64,7 @@ target_link_libraries(
   PRIVATE
     triton-developer_tools-server
     triton-core-serverstub
+    tcmalloc
 )
 
 install(
@@ -93,6 +100,7 @@ target_link_libraries(
   PRIVATE
     triton-developer_tools-server
     triton-core-serverstub
+    tcmalloc
 )
 
 install(
@@ -128,6 +136,7 @@ target_link_libraries(
   PRIVATE
     triton-developer_tools-server
     triton-core-serverstub
+    tcmalloc
 )
 
 install(
