@@ -63,7 +63,8 @@ using TensorAllocMap = std::unordered_map<
 
 //   // The name of the parameter.
 //   const char* name_;
-//   // The type of the parameter. Valid types are TRITONSERVER_PARAMETER_STRING,
+//   // The type of the parameter. Valid types are
+//   TRITONSERVER_PARAMETER_STRING,
 //   // TRITONSERVER_PARAMETER_INT, TRITONSERVER_PARAMETER_BOOL, and
 //   // TRITONSERVER_PARAMETER_BYTES.
 //   TRITONSERVER_ParameterType type_;
