@@ -32,6 +32,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "triton/developer_tools/generic_server_wrapper.h"
 #define TRITONJSON_STATUSTYPE TRITONSERVER_Error*
 #define TRITONJSON_STATUSRETURN(M) \
   return TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_INTERNAL, (M).c_str())
@@ -409,8 +410,10 @@ class InternalServer : public TritonServer {
 
   std::unique_ptr<InferResult> Infer(InferRequest& infer_request) override;
 
+  // START_JAVA_CUSTOM_FUNCTIONS
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
       InferRequest& infer_request) override;
+  // END_JAVA_CUSTOM_FUNCTIONS
 
  private:
   void StartRepoPollThread();
@@ -986,6 +989,15 @@ InferOptions::InferOptions(
       trace_(trace)
 {
 }
+
+std::unique_ptr<GenericTritonServer>
+GenericTritonServer::Create(const ServerOptions& server_options)
+{
+  return TritonServer::Create(server_options);
+}
+
+GenericTritonServer::~GenericTritonServer() {}
+
 
 std::unique_ptr<TritonServer>
 TritonServer::Create(const ServerOptions& options)
@@ -1808,6 +1820,8 @@ InferRequest::Reset()
   outputs_.clear();
   tensor_alloc_map_.clear();
 }
+
+GenericInferResult::~GenericInferResult() {}
 
 InferResult::InferResult()
     : has_error_(false), error_msg_(""), completed_response_(nullptr)

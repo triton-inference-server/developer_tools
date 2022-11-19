@@ -29,14 +29,13 @@
 #include <future>
 #include <iostream>
 #include <list>
-#include <memory>
-#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include "../src/infer_requested_output.h"
 #include "../src/tracer.h"
 #include "common.h"
+#include "generic_server_wrapper.h"
 #include "triton/core/tritonserver.h"
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
@@ -447,8 +446,8 @@ struct Tensor {
 //==============================================================================
 /// Structure to hold the full path to the model repository to be registered and
 /// the mapping from the original model name to the overriden one. This object
-/// is used for calling 'TritonServer::RegisterModelRepo' for registering model
-/// repository.
+/// is used for calling 'TritonServer::RegisterModelRepo' for registering
+/// model repository.
 ///
 struct NewModelRepo {
   NewModelRepo(const std::string& path);
@@ -470,9 +469,8 @@ struct NewModelRepo {
 //==============================================================================
 /// Object that encapsulates in-process C API functionalities.
 ///
-class TritonServer {
+class TritonServer : public GenericTritonServer {
  public:
-  ///  Create a TritonServer instance.
   static std::unique_ptr<TritonServer> Create(
       const ServerOptions& server_options);
 
@@ -480,33 +478,33 @@ class TritonServer {
 
   /// Load the requested model or reload the model if it is already loaded.
   /// \param model_name The name of the model.
-  void LoadModel(const std::string& model_name);
+  void LoadModel(const std::string& model_name) override;
 
   /// Unload the requested model. Unloading a model that is not loaded
   /// on server has no affect.
   /// \param model_name The name of the model.
-  void UnloadModel(const std::string& model_name);
+  void UnloadModel(const std::string& model_name) override;
 
   /// Get the set of names of models that are loaded and ready for inference.
   /// \return Returns the set of names of models that are
   /// loaded and ready for inference.
-  std::set<std::string> LoadedModels();
+  std::set<std::string> LoadedModels() override;
 
   /// Get the index of model repository contents.
   /// \return Returns a vector of 'RepositoryIndex' object
   /// representing the repository index.
-  std::vector<RepositoryIndex> ModelIndex();
+  std::vector<RepositoryIndex> ModelIndex() override;
 
   /// Get the metrics of the server.
   /// \return Returns a string representing the metrics.
-  std::string ServerMetrics();
+  std::string ServerMetrics() override;
 
   /// Get the inference statistics of the specified model.
   /// \param model_name The name of the model.
   /// \param model_version the version of the model requested.
   /// \return Returns a json string representing the model metrics.
   std::string ModelStatistics(
-      const std::string& model_name, const int64_t model_version);
+      const std::string& model_name, const int64_t model_version) override;
 
   /// Run synchronous inference on server.
   /// \param infer_request The InferRequest object contains
@@ -525,15 +523,15 @@ class TritonServer {
 
   /// Is the server live?
   /// \return Returns true if server is live, false otherwise.
-  bool IsServerLive();
+  bool IsServerLive() override;
 
   /// Is the server ready?
   /// \return Returns true if server is ready, false otherwise.
-  bool IsServerReady();
+  bool IsServerReady() override;
 
   /// Stop a server object. A server can't be restarted once it is
   /// stopped.
-  void ServerStop();
+  void ServerStop() override;
 
   /// Is the model ready?
   /// \param model_name The name of the model to get readiness for.
@@ -542,7 +540,7 @@ class TritonServer {
   /// model's policy. This field is optional, default is -1.
   /// \return Returns true if server is ready, false otherwise.
   bool IsModelReady(
-      const std::string& model_name, const int64_t model_version = -1);
+      const std::string& model_name, const int64_t model_version = -1) override;
 
   /// Get the configuration of specified model.
   /// \param model_name The name of the model.
@@ -552,31 +550,31 @@ class TritonServer {
   /// optional. \return Returns JSON representation of model configuration as a
   /// string.
   std::string ModelConfig(
-      const std::string& model_name, const int64_t model_version = -1);
+      const std::string& model_name, const int64_t model_version = -1) override;
 
   /// Get the metadata of the server.
   /// \return Returns JSON representation of server metadata as a string.
-  std::string ServerMetadata();
+  std::string ServerMetadata() override;
 
   /// Get the metadata of specified model.
   /// \param model_name The name of the model.
   /// \param model_version The version of the model to get configuration.
   /// The default value is -1 which means then the server will choose a version
-  /// based on the model and internal policy. This field is optional. \return
-  /// Returns JSON representation of model metadata as a string.
+  /// based on the model and internal policy. This field is optional.
+  /// \return Returns JSON representation of model metadata as a string.
   std::string ModelMetadata(
-      const std::string& model_name, const int64_t model_version = -1);
+      const std::string& model_name, const int64_t model_version = -1) override;
 
   /// Register a new model repository. This function is not available in polling
   /// mode.
   /// \param new_model_repo The 'NewModelRepo' object contains the info of the
   /// new model repo to be registered.
-  void RegisterModelRepo(const NewModelRepo& new_model_repo);
+  void RegisterModelRepo(const NewModelRepo& new_model_repo) override;
 
   /// Unregister a model repository. This function is not available in polling
   /// mode.
   /// \param repo_path The full path to the model repository.
-  void UnregisterModelRepo(const std::string& repo_path);
+  void UnregisterModelRepo(const std::string& repo_path) override;
 
  protected:
   void PrepareInferenceRequest(
@@ -783,32 +781,32 @@ class InferRequest {
 /// An interface for InferResult object to interpret the response to an
 /// inference request.
 ///
-class InferResult {
+class InferResult : public GenericInferResult {
  public:
   virtual ~InferResult();
 
   /// Get the name of the model which generated this response.
   /// \return Returns the name of the model.
-  std::string ModelName() noexcept;
+  std::string ModelName() noexcept override;
 
   /// Get the version of the model which generated this response.
   /// \return Returns the version of the model.
-  std::string ModelVersion() noexcept;
+  std::string ModelVersion() noexcept override;
 
   /// Get the id of the request which generated this response.
   /// \return Returns the id of the request.
-  std::string Id() noexcept;
+  std::string Id() noexcept override;
 
   /// Get the output names from the infer result
   /// \return Vector of output names
-  std::vector<std::string> OutputNames();
+  std::vector<std::string> OutputNames() override;
   /// Get the result output as a shared pointer of 'Tensor' object. The 'buffer'
   /// field of the output is owned by the returned 'Tensor' object itself. Note
   /// that for string data, need to use 'StringData' function for string data
   /// result.
   /// \param name The name of the output tensor to be retrieved.
   /// \return Returns the output result as a shared pointer of 'Tensor' object.
-  std::shared_ptr<Tensor> Output(const std::string& name);
+  std::shared_ptr<Tensor> Output(const std::string& name) override;
 
   /// Get the result data as a vector of strings. The vector will
   /// receive a copy of result data. An exception will be thrown if
@@ -816,19 +814,19 @@ class InferResult {
   /// \param output_name The name of the output to get result data.
   /// \return Returns the result data represented as a vector of strings. The
   /// strings are stored in the row-major order.
-  std::vector<std::string> StringData(const std::string& output_name);
+  std::vector<std::string> StringData(const std::string& output_name) override;
 
   /// Return the complete response as a user friendly string.
   /// \return The string describing the complete response.
-  std::string DebugString();
+  std::string DebugString() override;
 
   /// Return if there is an error within this result.
   /// \return True if this 'InferResult' object has an error, false if no error.
-  bool HasError();
+  bool HasError() override;
 
   /// Return the error message of the error.
   /// \return The messsage for the error. Empty if no error.
-  std::string ErrorMsg();
+  std::string ErrorMsg() override;
 
   // Get the pointer to the future of the next result. This function is used for
   // retrieving multiple responses from decoupled model. If there is no next
