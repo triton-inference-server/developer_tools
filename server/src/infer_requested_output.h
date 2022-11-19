@@ -26,8 +26,8 @@
 #pragma once
 
 #include <string>
-#include "../include/triton/developer_tools/common.h"
 #include "triton/core/tritonserver.h"
+#include "triton/developer_tools/common.h"
 
 namespace triton { namespace developer_tools { namespace server {
 
