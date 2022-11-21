@@ -32,7 +32,7 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include "triton/developer_tools/generic_server_wrapper.h"
+#include "triton/developer_tools/server_wrapper.h"
 #define TRITONJSON_STATUSTYPE TRITONSERVER_Error*
 #define TRITONJSON_STATUSRETURN(M) \
   return TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_INTERNAL, (M).c_str())
