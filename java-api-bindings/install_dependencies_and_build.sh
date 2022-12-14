@@ -121,11 +121,13 @@ cd triton_developer_tools/server
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
 make install
+cd ..
 # Copy wrapper includes to triton home
-mkdir -p /opt/tritonserver/include/triton/developer_tools/src
-mkdir -p /opt/tritonserver/include/triton/developer_tools/include
-cp -r server/include ${TRITON_HOME}/include/triton/developer_tools
-cp server/src/infer_requested_output.h ${TRITON_HOME}/include/triton/developer_tools/src/
+mkdir -p ${TRITON_HOME}/include/triton/developer_tools/src
+mkdir -p ${TRITON_HOME}/include/triton/developer_tools/include
+cp include/triton/developer_tools/common.h ${TRITON_HOME}/include/triton/developer_tools/common.h
+cp include/triton/developer_tools/generic_server_wrapper.h ${TRITON_HOME}/include/triton/developer_tools/generic_server_wrapper.h
+cp src/infer_requested_output.h ${TRITON_HOME}/include/triton/developer_tools/src/.
 
 # Copy necessary tritonserver.h files so the bindings can be generated
 # mkdir -p ${TRITON_HOME}/lib/
