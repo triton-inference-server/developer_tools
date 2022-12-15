@@ -19,8 +19,8 @@
 #include <cuda_runtime_api.h>
 #include <names.h>
 #include <gpu_infer.h>
-#include <rapids_triton/batch/batch.hpp>
-#include <rapids_triton/tensor/tensor.hpp>
+#include <triton_backend/batch/batch.hpp>
+#include <triton_backend/tensor/tensor.hpp>
 
 namespace triton { namespace backend { namespace NAMESPACE {
 

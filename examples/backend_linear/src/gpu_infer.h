@@ -20,8 +20,8 @@
 #include <names.h>
 
 #include <cstddef>
-#include <rapids_triton/batch/batch.hpp>
-#include <rapids_triton/tensor/tensor.hpp>
+#include <triton_backend/batch/batch.hpp>
+#include <triton_backend/tensor/tensor.hpp>
 
 namespace triton {
 namespace backend {

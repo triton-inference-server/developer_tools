@@ -19,8 +19,8 @@
 #include <names.h>
 
 #include <memory>
-#include <rapids_triton/model/shared_state.hpp>
-#include <rapids_triton/triton/logging.hpp>
+#include <triton_backend/model/shared_state.hpp>
+#include <triton_backend/triton/logging.hpp>
 #include <vector>
 
 namespace triton {
