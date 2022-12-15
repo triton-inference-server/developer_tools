@@ -27,12 +27,12 @@ namespace triton {
 namespace backend {
 namespace NAMESPACE {
 
-struct RapidsSharedState : rapids::SharedModelState {
+struct RapidsSharedState : dev_tools::SharedModelState {
   RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
-      : rapids::SharedModelState{std::move(config)} {}
+      : dev_tools::SharedModelState{std::move(config)} {}
   void load() { alpha = get_config_param<float>("alpha"); }
   void unload() {
-    rapids::log_info(__FILE__, __LINE__) << "Unloading shared state...";
+    dev_tools::log_info(__FILE__, __LINE__) << "Unloading shared state...";
   }
 
   float alpha = 1.0f;

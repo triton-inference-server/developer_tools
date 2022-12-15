@@ -35,41 +35,41 @@ namespace triton {
 namespace backend {
 namespace NAMESPACE {
 
-using ModelState = rapids::TritonModelState<RapidsSharedState>;
+using ModelState = dev_tools::TritonModelState<RapidsSharedState>;
 using ModelInstanceState =
-    rapids::ModelInstanceState<RapidsModel, RapidsSharedState>;
+    dev_tools::ModelInstanceState<RapidsModel, RapidsSharedState>;
 
 extern "C" {
 
 /** Confirm that backend is compatible with Triton's backend API version
  */
 TRITONSERVER_Error* TRITONBACKEND_Initialize(TRITONBACKEND_Backend* backend) {
-  return rapids::triton_api::initialize(backend);
+  return dev_tools::triton_api::initialize(backend);
 }
 
 TRITONSERVER_Error* TRITONBACKEND_ModelInitialize(TRITONBACKEND_Model* model) {
-  return rapids::triton_api::model_initialize<ModelState>(model);
+  return dev_tools::triton_api::model_initialize<ModelState>(model);
 }
 
 TRITONSERVER_Error* TRITONBACKEND_ModelFinalize(TRITONBACKEND_Model* model) {
-  return rapids::triton_api::model_finalize<ModelState>(model);
+  return dev_tools::triton_api::model_finalize<ModelState>(model);
 }
 
 TRITONSERVER_Error* TRITONBACKEND_ModelInstanceInitialize(
     TRITONBACKEND_ModelInstance* instance) {
-  return rapids::triton_api::instance_initialize<ModelState,
+  return dev_tools::triton_api::instance_initialize<ModelState,
                                                  ModelInstanceState>(instance);
 }
 
 TRITONSERVER_Error* TRITONBACKEND_ModelInstanceFinalize(
     TRITONBACKEND_ModelInstance* instance) {
-  return rapids::triton_api::instance_finalize<ModelInstanceState>(instance);
+  return dev_tools::triton_api::instance_finalize<ModelInstanceState>(instance);
 }
 
 TRITONSERVER_Error* TRITONBACKEND_ModelInstanceExecute(
     TRITONBACKEND_ModelInstance* instance, TRITONBACKEND_Request** raw_requests,
     uint32_t const request_count) {
-  return rapids::triton_api::execute<ModelState, ModelInstanceState>(
+  return dev_tools::triton_api::execute<ModelState, ModelInstanceState>(
       instance, raw_requests, static_cast<std::size_t>(request_count));
 }
 

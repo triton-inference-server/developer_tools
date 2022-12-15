@@ -220,13 +220,13 @@ it from the configuration each time (which may involve additional parsing).
 
 All RAPIDS-Triton backends store their shared state in a class called
 `RapidsSharedState` in their own namespace, which inherits from
-`rapids::SharedModelState`. A basic implementation of this class for the
+`dev_tools::SharedModelState`. A basic implementation of this class for the
 current backend might look something like the following:
 
 ```cpp
-struct RapidsSharedState : rapids::SharedModelState {
+struct RapidsSharedState : dev_tools::SharedModelState {
   RapidsSharedState(std::unique_ptr<common::TritonJson::Value>&& config)
-      : rapids::SharedModelState{std::move(config)} {}
+      : dev_tools::SharedModelState{std::move(config)} {}
   void load() {}
   void unload() {}
 
@@ -266,7 +266,7 @@ We will instead use it here simply to illustrate the use of RAPIDS-Triton
 logging functions. Logging functions are defined in
 `rapids_triton/triton/logging.hpp` and may be invoked as follows:
 ```cpp
-void unload() { rapids::log_info(__FILE__, __LINE__) << "Unloading shared state..."; }
+void unload() { dev_tools::log_info(__FILE__, __LINE__) << "Unloading shared state..."; }
 ```
 The arguments to `log_info` and related functions may be omitted, but if
 included may provide some use in debugging.
@@ -302,11 +302,11 @@ on host or device **or** a non-owning view on host/device memory that was
 allocated elsewhere. We'll introduce a `Buffer` member to RapidsModel to store **c**:
 
 ```cpp
-rapids::Buffer<float> c{};
+dev_tools::Buffer<float> c{};
 ```
 
 Now, we are ready to actually load **c** from its file representation.
-`rapids::Model`, the abstract parent class of `RapidsModel` implementations,
+`dev_tools::Model`, the abstract parent class of `RapidsModel` implementations,
 defines several methods to help with model deserialization, including:
 - `get_filepath`, which returns the path to the model file if it is specified
   in the config or the model directory if it is not
@@ -341,20 +341,20 @@ text file representation:
 We then query the model to figure out exactly what sort of Buffer will be
 needed to store **c**:
 ```cpp
-auto memory_type = rapids::MemoryType{};
-if (get_deployment_type() == rapids::GPUDeployment) {
-  memory_type = rapids::DeviceMemory;
+auto memory_type = dev_tools::MemoryType{};
+if (get_deployment_type() == dev_tools::GPUDeployment) {
+  memory_type = dev_tools::DeviceMemory;
 } else {
-  memory_type = rapids::HostMemory;
+  memory_type = dev_tools::HostMemory;
 }
-c = rapids::Buffer<float>(model_vec.size(), memory_type, get_device_id());
+c = dev_tools::Buffer<float>(model_vec.size(), memory_type, get_device_id());
 ```
 
-Finally, we use the helper function `rapids::copy` to copy the values of **c**
+Finally, we use the helper function `dev_tools::copy` to copy the values of **c**
 from a Buffer-based view of `model_vec` to the `c` Buffer itself:
 ```cpp
-rapids::copy(c, rapids::Buffer<float>(model_vec.data(), model_vec.size(),
-                                      rapids::HostMemory));
+dev_tools::copy(c, dev_tools::Buffer<float>(model_vec.data(), model_vec.size(),
+                                      dev_tools::HostMemory));
 ```
 
 By taking advantage of Buffer's RAII semantics, we eliminate the need to
@@ -385,7 +385,7 @@ returned tensor to determine how inference will proceed.
 For tensors on the host, our inference logic might look something like:
 
 ```cpp
-if (u.mem_type() == rapids::HostMemory) {
+if (u.mem_type() == dev_tools::HostMemory) {
   auto alpha = get_shared_state()->alpha;
   for (std::size_t i{}; i < u.size(); ++i) {
     r.data()[i] =
