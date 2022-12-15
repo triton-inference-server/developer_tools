@@ -137,7 +137,7 @@ target_include_directories(${BACKEND_TARGET}
 
 target_link_libraries(${BACKEND_TARGET}
 PRIVATE
-  rapids_triton::rapids_triton
+  triton_backend::triton_backend
   triton-core-serverstub
   triton-backend-utils
   "${TRITONSERVER_LIB}"

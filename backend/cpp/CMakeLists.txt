@@ -59,9 +59,9 @@ message(VERBOSE "DEV_TOOLS: Triton backend repo tag: ${TRITON_BACKEND_REPO_TAG}"
 
 if(TRITON_ENABLE_GPU)
   rapids_cuda_init_architectures(DEV_TOOLS)
-  project(DEV_TOOLS VERSION 22.02.00 LANGUAGES CXX CUDA)
+  project(DEV_TOOLS VERSION 23.01.00 LANGUAGES CXX CUDA)
 else()
-  project(DEV_TOOLS VERSION 22.02.00 LANGUAGES CXX)
+  project(DEV_TOOLS VERSION 23.01.00 LANGUAGES CXX)
 endif()
 
 

@@ -14,20 +14,20 @@
 # limitations under the License.
 #=============================================================================
 
-function(find_and_configure_rapids_triton)
+function(find_and_configure_backend_dev_tools)
 
     set(oneValueArgs VERSION FORK PINNED_TAG)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
-    rapids_cpm_find(rapids_triton ${PKG_VERSION}
-      GLOBAL_TARGETS      rapids_triton::rapids_triton
-      BUILD_EXPORT_SET    rapids_triton_linear-exports
-      INSTALL_EXPORT_SET  rapids_triton_linear-exports
+    rapids_cpm_find(triton_backend ${PKG_VERSION}
+      GLOBAL_TARGETS      triton_backend::triton_backend
+      BUILD_EXPORT_SET    triton_backend-exports
+      INSTALL_EXPORT_SET  triton_backend-exports
         CPM_ARGS
-            GIT_REPOSITORY https://github.com/${PKG_FORK}/rapids-triton.git
+            GIT_REPOSITORY https://github.com/${PKG_FORK}/triton_developer_tools.git
             GIT_TAG        ${PKG_PINNED_TAG}
-            SOURCE_SUBDIR  cpp
+            SOURCE_SUBDIR  backend/cpp
             OPTIONS
               "BUILD_TESTS OFF"
               "BUILD_EXAMPLE OFF"
@@ -40,7 +40,7 @@ endfunction()
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
-find_and_configure_rapids_triton(VERSION    21.10
-                        FORK       rapidsai
-                        PINNED_TAG branch-21.10
+find_and_configure_backend_dev_tools(VERSION    23.01
+                        FORK       wphicks
+                        PINNED_TAG fea-backend
                         )
