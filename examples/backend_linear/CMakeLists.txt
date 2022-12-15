@@ -24,7 +24,7 @@ set(BACKEND_TARGET "triton_${BACKEND_NAME}")
 
 ##############################################################################
 # - Prepare rapids-cmake -----------------------------------------------------
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-21.10/RAPIDS.cmake
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.12/RAPIDS.cmake
     ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(rapids-cmake)
@@ -33,9 +33,9 @@ include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
 
-rapids_cuda_init_architectures(RAPIDS_TRITON_BACKEND)
+rapids_cuda_init_architectures(TRITON_LINEAR_EXAMPLE)
 
-project(RAPIDS_TRITON_BACKEND VERSION 21.10.00 LANGUAGES CXX CUDA)
+project(TRITON_LINEAR_EXAMPLE VERSION 21.10.00 LANGUAGES CXX CUDA)
 
 ##############################################################################
 # - build type ---------------------------------------------------------------
@@ -56,16 +56,16 @@ option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies"
 option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
 option(NVTX "Enable nvtx markers" OFF)
 
-message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
-message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling kernelinfo in nvcc: ${CUDA_ENABLE_KERNEL_INFO}")
-message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling lineinfo in nvcc: ${CUDA_ENABLE_LINE_INFO}")
-message(VERBOSE "RAPIDS_TRITON_BACKEND: Enabling nvtx markers: ${NVTX}")
-message(VERBOSE "RAPIDS_TRITON_BACKEND: Build RAPIDS_TRITON_BACKEND unit-tests: ${BUILD_TESTS}")
+message(VERBOSE "TRITON_LINEAR_EXAMPLE: Enabling detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")
+message(VERBOSE "TRITON_LINEAR_EXAMPLE: Enabling kernelinfo in nvcc: ${CUDA_ENABLE_KERNEL_INFO}")
+message(VERBOSE "TRITON_LINEAR_EXAMPLE: Enabling lineinfo in nvcc: ${CUDA_ENABLE_LINE_INFO}")
+message(VERBOSE "TRITON_LINEAR_EXAMPLE: Enabling nvtx markers: ${NVTX}")
+message(VERBOSE "TRITON_LINEAR_EXAMPLE: Build TRITON_LINEAR_EXAMPLE unit-tests: ${BUILD_TESTS}")
 
 # Set RMM logging level
 set(RMM_LOGGING_LEVEL "INFO" CACHE STRING "Choose the logging level.")
 set_property(CACHE RMM_LOGGING_LEVEL PROPERTY STRINGS "TRACE" "DEBUG" "INFO" "WARN" "ERROR" "CRITICAL" "OFF")
-message(VERBOSE "RAPIDS_TRITON_BACKEND: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
+message(VERBOSE "TRITON_LINEAR_EXAMPLE: RMM_LOGGING_LEVEL = '${RMM_LOGGING_LEVEL}'.")
 
 ##############################################################################
 # - Conda environment detection ----------------------------------------------
@@ -86,9 +86,9 @@ endif()
 # * enable the CMake CUDA language
 # * set other CUDA compilation flags
 rapids_find_package(CUDAToolkit REQUIRED
-    BUILD_EXPORT_SET cuml-exports
-    INSTALL_EXPORT_SET cuml-exports
-    )
+  BUILD_EXPORT_SET triton-linear-example-exports
+  INSTALL_EXPORT_SET triton-linear-example-exports
+)
 include(cmake/modules/ConfigureCUDA.cmake)
 
 ##############################################################################
