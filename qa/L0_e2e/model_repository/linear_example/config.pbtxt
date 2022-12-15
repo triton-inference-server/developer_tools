@@ -1,0 +1,32 @@
+name: "linear_example"
+backend: "rapids_linear"
+max_batch_size: 32768
+input [
+  {
+    name: "u"
+    data_type: TYPE_FP32
+    dims: [ 4 ]
+  },
+  {
+    name: "v"
+    data_type: TYPE_FP32
+    dims: [ 4 ]
+  }
+]
+output [
+  {
+    name: "r"
+    data_type: TYPE_FP32
+    dims: [ 4 ]
+  }
+]
+instance_group [{ kind: KIND_GPU }]
+parameters [
+  {
+    key: "alpha"
+    value: { string_value: "2.0" }
+  }
+]
+dynamic_batching {
+  max_queue_delay_microseconds: 100
+}

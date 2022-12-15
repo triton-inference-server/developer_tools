@@ -1,0 +1,20 @@
+backend: "dev_tools-identity"
+max_batch_size: 32768
+input [
+ {
+    name: "input__0"
+    data_type: TYPE_FP32
+    dims: [ 1 ]
+  }
+]
+output [
+ {
+    name: "output__0"
+    data_type: TYPE_FP32
+    dims: [ 1 ]
+  }
+]
+version_policy: { all { }}
+instance_group [{ kind: KIND_GPU }]
+parameters [ ]
+dynamic_batching { }
