@@ -115,19 +115,25 @@ wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | 
         cmake=3.21.1-0kitware1ubuntu20.04.1 \
         rapidjson-dev
 
-# TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/triton_developer_tools.git"}
+cd ${BUILD_HOME}
+# TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
 # git clone --single-branch --depth=1 -b ${TOOLS_BRANCH_TAG} ${TOOLS_BRANCH} 
-cd triton_developer_tools/server
+cd developer_tools/server
 mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install ..
+cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_BUILD_TEST=OFF -DTRITON_ENABLE_EXAMPLES=OFF -DTRITON_BUILD_STATIC_LIBRARY=OFF .. 
 make install
-cd ..
+# Copy static libraries to triton home
+# cp ${BUILD_HOME}/developer_tools/sever/build/install/lib/*.a ${TRITON_HOME}/lib/.
+cp install/lib/libtritondevelopertoolsserver.so ${TRITON_HOME}/lib/.
+
+
 # Copy wrapper includes to triton home
 mkdir -p ${TRITON_HOME}/include/triton/developer_tools/src
 mkdir -p ${TRITON_HOME}/include/triton/developer_tools/include
-cp include/triton/developer_tools/common.h ${TRITON_HOME}/include/triton/developer_tools/common.h
-cp include/triton/developer_tools/generic_server_wrapper.h ${TRITON_HOME}/include/triton/developer_tools/generic_server_wrapper.h
-cp src/infer_requested_output.h ${TRITON_HOME}/include/triton/developer_tools/src/.
+cp ${BUILD_HOME}/developer_tools/server/include/triton/developer_tools/common.h ${TRITON_HOME}/include/triton/developer_tools/.
+cp ${BUILD_HOME}/developer_tools/server/include/triton/developer_tools/generic_server_wrapper.h ${TRITON_HOME}/include/triton/developer_tools/.
+cp ${BUILD_HOME}/developer_tools/server/src/infer_requested_output.h ${TRITON_HOME}/include/triton/developer_tools/src/.
+cp ${BUILD_HOME}/developer_tools/server/src/tracer.h ${TRITON_HOME}/include/triton/developer_tools/src/.
 
 # Copy necessary tritonserver.h files so the bindings can be generated
 # mkdir -p ${TRITON_HOME}/lib/
