@@ -36,6 +36,7 @@ option(TRITON_ENABLE_STATS "Include statistics collections in backend utilities"
 option(TRITON_BUILD_TEST "Include unit test for the Server Wrapper" ON)
 option(TRITON_ENABLE_EXAMPLES "Include examples in build" ON)
 
+option(TRITON_BUILD_STATIC_LIBRARY "Create multiple static libraries, otherwise create one dynamic library" ON)
 set(TRITON_COMMON_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/common repo")
 set(TRITON_CORE_REPO_TAG "main" CACHE STRING "Tag for triton-inference-server/core repo")
 
@@ -84,11 +85,21 @@ find_package(Threads REQUIRED)
 # Triton Developer Tools Server
 #
 file(GLOB SRC_FILES src/*.cc src/*.h)
-
+message(STATUS ${TRITON_BUILD_STATIC_LIBRARY})
+if(${TRITON_BUILD_STATIC_LIBRARY})
+  add_library(
+    triton-developer_tools-server
+    ${SRC_FILES}
+  )
+else()
+message(STATUS "we are building a shared")
+configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/server_wrapper.ldscript server_wrapper.ldscript COPYONLY)
 add_library(
-  triton-developer_tools-server
+  triton-developer_tools-server SHARED
   ${SRC_FILES}
 )
+endif()
+
 
 add_library(
   TritonDeveloperToolsServer::triton-developer_tools-server ALIAS triton-developer_tools-server
@@ -133,21 +144,32 @@ target_compile_definitions(
 )
 endif() # TRITON_ENABLE_STATS
 
-set_target_properties(
-  triton-developer_tools-server PROPERTIES
-  WINDOWS_EXPORT_ALL_SYMBOLS TRUE
-  POSITION_INDEPENDENT_CODE ON
-  OUTPUT_NAME tritondevelopertoolsserver
-)
-
 target_link_libraries(
   triton-developer_tools-server
-  PUBLIC
+  PRIVATE
     Threads::Threads
     triton-core-serverapi         # from repo-core
     triton-core-serverstub        # from repo-core
     triton-common-logging         # from repo-common
 )
+
+message(STATUS ${TRITON_BUILD_STATIC_LIBRARY})
+if(${TRITON_BUILD_STATIC_LIBRARY})
+  set_target_properties(
+    triton-developer_tools-server PROPERTIES
+    WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+    POSITION_INDEPENDENT_CODE ON
+    OUTPUT_NAME tritondevelopertoolsserver
+  )
+else()
+  set_target_properties(
+    triton-developer_tools-server PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    OUTPUT_NAME tritondevelopertoolsserver
+    LINK_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/cmake/server_wrapper.ldscript
+    LINK_FLAGS "-Wl,--version-script server_wrapper.ldscript"
+  )
+endif()
 
 if(${TRITON_ENABLE_GPU})
   target_link_libraries(
@@ -168,8 +190,8 @@ install(
     triton-developer_tools-server
   EXPORT
     triton-developer_tools-server-targets
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
 install(
