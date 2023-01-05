@@ -32,9 +32,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "../src/infer_requested_output.h"
-#include "../src/tracer.h"
-#include "common.h"
 #include "generic_server_wrapper.h"
 #include "triton/core/tritonserver.h"
 #ifdef TRITON_ENABLE_GPU
@@ -250,6 +247,117 @@ class InferResult : public GenericInferResult {
   TRITONSERVER_InferenceResponse* completed_response_;
 };
 
+//==============================================================================
+/// Object that describes an inflight inference request.
+///
+class InferRequest : public GenericInferRequest {
+ public:
+  ///  Create an InferRequest instance.
+  static std::unique_ptr<InferRequest> Create(
+      const InferOptions& infer_options);
+
+  ~InferRequest();
+
+  /// Add an input tensor to be sent within an InferRequest object. The input
+  /// data buffer within the 'Tensor' object must not be modified until
+  /// inference is completed and result is returned.
+  /// \param name The name of the input tensor.
+  /// \param input A Tensor object that describes an input tensor.
+  void AddInput(const std::string& name, const Tensor& input) noexcept override;
+
+  /// Add an input tensor to be sent within an InferRequest object. This
+  /// function is for containers holding 'non-string' data elements. Data in the
+  /// container should be contiguous, and the the container must not be modified
+  /// until inference is completed and result is returned.
+  /// \param name The name of the input tensor.
+  /// \param begin The begin iterator of the container.
+  /// \param end  The end iterator of the container.
+  /// \param data_type The data type of the input.
+  /// \param shape The shape of the input.
+  /// \param memory_type The memory type of the input.
+  /// \param memory_type_id The ID of the memory for the tensor. (e.g. '0' is
+  /// the memory type id of 'GPU-0')
+  template <
+      typename Iterator,
+      typename std::enable_if<std::is_same<
+          typename std::iterator_traits<Iterator>::value_type,
+          std::string>::value>::type* = nullptr>
+  void AddInput(
+      const std::string& name, const Iterator begin, const Iterator end,
+      const DataType& data_type, const std::vector<int64_t>& shape,
+      const MemoryType& memory_type, const int64_t memory_type_id) noexcept;
+
+  /// Add an input tensor to be sent within an InferRequest object. This
+  /// function is for containers holding 'string' elements. Data in the
+  /// container should be contiguous, and the the container must not be modified
+  /// until inference is completed and the result is returned.
+  /// \param name The name of the input tensor.
+  /// \param begin The begin iterator of the container.
+  /// \param end  The end iterator of the container.
+  /// \param data_type The data type of the input. For 'string' input, data type
+  /// should be 'BYTES'.
+  /// \param shape The shape of the input.
+  /// \param memory_type The memory type of the input.
+  /// \param memory_type_id The ID of the memory for the tensor. (e.g. '0' is
+  /// the memory type id of 'GPU-0')
+  template <
+      typename Iterator,
+      typename std::enable_if<!std::is_same<
+          typename std::iterator_traits<Iterator>::value_type,
+          std::string>::value>::type* = nullptr>
+  void AddInput(
+      const std::string& name, const Iterator begin, const Iterator end,
+      const DataType& data_type, const std::vector<int64_t>& shape,
+      const MemoryType& memory_type, const int64_t memory_type_id) noexcept;
+
+  /// Add a requested output to be sent within an InferRequest object.
+  /// Calling this function is optional. If no output(s) are specifically
+  /// requested then all outputs defined by the model will be calculated and
+  /// returned. Pre-allocated buffer for each output should be specified within
+  /// the 'Tensor' object.
+  /// \param name The name of the output tensor.
+  /// \param output A Tensor object that describes an output tensor containing
+  /// its pre-allocated buffer.
+  void AddRequestedOutput(const std::string& name, Tensor& output) override;
+
+  /// Add a requested output to be sent within an InferRequest object.
+  /// Calling this function is optional. If no output(s) are specifically
+  /// requested then all outputs defined by the model will be calculated and
+  /// returned.
+  /// \param name The name of the output tensor.
+  void AddRequestedOutput(const std::string& name) override;
+
+  /// Clear inputs and outputs of the request. This allows users to reuse the
+  /// InferRequest object if needed.
+  void Reset() override;
+ friend class TritonServer;
+ friend class InternalServer;
+
+ protected:
+  InferRequest();
+
+  std::unique_ptr<InferOptions> infer_options_;
+  std::list<std::string> str_bufs_;
+  std::unordered_map<std::string, std::unique_ptr<Tensor>> inputs_;
+  std::vector<std::unique_ptr<InferRequestedOutput>> outputs_;
+
+  // The map for each output tensor and a tuple of it's pre-allocated buffer,
+  // byte size, memory type and memory type id.
+  TensorAllocMap tensor_alloc_map_;
+  // The updated trace setting for the specified model set within
+  // 'InferOptions'. If set, the lifetime of this 'TraceManager::Trace' object
+  // should be long enough until the trace associated with this request is
+  // written to file.
+  std::shared_ptr<TraceManager::Trace> trace_;
+
+  // If the requested model is a decoupled model. If true, the lifetime of this
+  // 'InferRequest' should be long enough until all the responses are returned
+  // and retrieved.
+  bool is_decoupled_;
+  private:   
+  // The promise object used for setting value to the result future.
+  std::unique_ptr<std::promise<std::unique_ptr<InferResult>>> prev_promise_;
+};
 //==============================================================================
 /// Helper functions to convert Wrapper enum to string.
 ///
