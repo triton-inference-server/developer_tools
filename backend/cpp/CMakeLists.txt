@@ -37,9 +37,9 @@ option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies"
 option(DISABLE_DEPRECATION_WARNINGS "Disable depreaction warnings " ON)
 option(NVTX "Enable nvtx markers" OFF)
 option(TRITON_ENABLE_STATS "Enable statistics collection in Triton" ON)
-set(TRITON_COMMON_REPO_TAG "r21.12" CACHE STRING "Tag for triton-inference-server/common repo")
-set(TRITON_CORE_REPO_TAG "r21.12" CACHE STRING "Tag for triton-inference-server/core repo")
-set(TRITON_BACKEND_REPO_TAG "r21.12" CACHE STRING "Tag for triton-inference-server/backend repo")
+set(TRITON_COMMON_REPO_TAG "r22.12" CACHE STRING "Tag for triton-inference-server/common repo")
+set(TRITON_CORE_REPO_TAG "r22.12" CACHE STRING "Tag for triton-inference-server/core repo")
+set(TRITON_BACKEND_REPO_TAG "r22.12" CACHE STRING "Tag for triton-inference-server/backend repo")
 
 message(VERBOSE "DEV_TOOLS: Build DEV_TOOLS unit-tests: ${BUILD_TESTS}")
 message(VERBOSE "DEV_TOOLS: Enable detection of conda environment for dependencies: ${DETECT_CONDA_ENV}")

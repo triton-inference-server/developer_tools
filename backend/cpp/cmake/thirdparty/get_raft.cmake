@@ -37,8 +37,8 @@ function(find_and_configure_raft)
 
 endfunction()
 
-set(DEV_TOOLS_MIN_VERSION_raft "${DEV_TOOLS_VERSION_MAJOR}.${DEV_TOOLS_VERSION_MINOR}.00")
-set(DEV_TOOLS_BRANCH_VERSION_raft "${DEV_TOOLS_VERSION_MAJOR}.${DEV_TOOLS_VERSION_MINOR}")
+set(DEV_TOOLS_MIN_VERSION_raft "22.12.00")
+set(DEV_TOOLS_BRANCH_VERSION_raft "22.12")
 
 # Change pinned tag here to test a commit in CI
 # To use a different RAFT locally, set the CMake variable
