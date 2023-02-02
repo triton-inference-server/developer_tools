@@ -38,7 +38,8 @@
 #define TRITONJSON_STATUSSUCCESS nullptr
 #include "triton/common/triton_json.h"
 
-namespace triton { namespace developer_tools { namespace server {
+namespace triton { namespace developer_tools {
+namespace server {
 
 #define THROW_IF_TRITON_ERR(X)                                     \
   do {                                                             \
@@ -399,6 +400,15 @@ class InternalServer : public TritonServer {
   static void InferRequestComplete(
       TRITONSERVER_InferenceRequest* request, const uint32_t flags,
       void* userp);
+  void PrepareTraceManager(InferRequest& infer_request);
+
+  bool IsModelDecoupled(const InferRequest& infer_request);
+
+  std::future<std::unique_ptr<InferResult>> GetInferResult(
+      InferRequest& infer_request, TRITONSERVER_InferenceRequest* irequest,
+    TRITONSERVER_InferenceTrace* triton_trace);
+
+  std::unique_ptr<InferResult> Infer(InferRequest& infer_request) override;
 
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
       InferRequest& infer_request) override;
@@ -1343,6 +1353,35 @@ TritonServer::PrepareInferenceInput(
 }
 
 void
+InternalServer::PrepareTraceManager(InferRequest& infer_request)
+{
+  if (trace_manager_) {
+    // Update trace setting for specified model if needed.
+    if (infer_request.infer_options_->trace_) {
+      TraceManager::TraceSetting new_setting(
+          ToTritonTraceLevel(infer_request.infer_options_->trace_->level_),
+          infer_request.infer_options_->trace_->rate_,
+          infer_request.infer_options_->trace_->count_,
+          infer_request.infer_options_->trace_->log_frequency_,
+          std::make_shared<TraceManager::TraceFile>(
+              infer_request.infer_options_->trace_->file_));
+      trace_manager_->UpdateTraceSetting(
+          infer_request.infer_options_->model_name_, new_setting);
+    }
+    infer_request.trace_ = std::move(
+      trace_manager_->SampleTrace(infer_request.infer_options_->model_name_));
+  } else if (infer_request.infer_options_->trace_) {
+    LOG_MESSAGE(
+        TRITONSERVER_LOG_ERROR,
+        (std::string("error when updating trace setting for model '") +
+         infer_request.infer_options_->model_name_ +
+         "': tracing is not enabled.")
+            .c_str());
+  }
+}
+
+
+void
 TritonServer::PrepareInferenceOutput(
     TRITONSERVER_InferenceRequest* irequest, InferRequest& request)
 {
@@ -1365,8 +1404,44 @@ TritonServer::PrepareInferenceOutput(
   }
 }
 
+bool
+InternalServer::IsModelDecoupled(const InferRequest& infer_request)
+{
+  uint32_t txn_flags;
+  THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelTransactionProperties(
+      server_.get(), infer_request.infer_options_->model_name_.c_str(),
+      infer_request.infer_options_->model_version_, &txn_flags,
+      nullptr /* voidp */));
+  return (txn_flags & TRITONSERVER_TXN_DECOUPLED) != 0;
+}
+
+std::future<std::unique_ptr<InferResult>>
+InternalServer::GetInferResult(
+    InferRequest& infer_request, TRITONSERVER_InferenceRequest* irequest,
+    TRITONSERVER_InferenceTrace* triton_trace)
+{
+  auto p = new std::promise<std::unique_ptr<InferResult>>();
+  std::future<std::unique_ptr<InferResult>> result_future = p->get_future();
+  infer_request.prev_promise_.reset(std::move(p));
+  if (infer_request.infer_options_->custom_allocator_ == nullptr) {
+    THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
+        irequest, allocator_, reinterpret_cast<void*>(&infer_request),
+        InternalServer::InferResponseComplete,
+        reinterpret_cast<void*>(&infer_request)));
+  } else {
+    THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
+        irequest, InternalRequest::custom_triton_allocator_,
+        nullptr /* response_allocator_userp */,
+        InternalServer::InferResponseComplete,
+        reinterpret_cast<void*>(&infer_request)));
+  }
+  THROW_IF_TRITON_ERR(
+      TRITONSERVER_ServerInferAsync(server_.get(), irequest, triton_trace));
+  return result_future;
+}
+
 void
-TritonServer::AsyncInferHelper(
+TritonServer::PreprocessIrequest(
     TRITONSERVER_InferenceRequest** irequest, const InferRequest& infer_request)
 {
   bool is_ready = false;
@@ -1377,7 +1452,7 @@ TritonServer::AsyncInferHelper(
 
   if (!is_ready) {
     throw TritonException(
-        (std::string("Failed for execute the inference request. Model '") +
+        (std::string("Failed to execute the inference request. Model '") +
          model_name + "' is not ready.")
             .c_str());
   }
@@ -1602,6 +1677,14 @@ InternalServer::StopRepoPollThread()
   repo_poll_thread_.detach();
 }
 
+std::unique_ptr<InferResult>
+InternalServer::Infer(InferRequest& infer_request)
+{
+  std::future<std::unique_ptr<InferResult>> result_future =
+      AsyncInfer(infer_request);
+  return result_future.get();
+}
+
 std::future<std::unique_ptr<InferResult>>
 InternalServer::AsyncInfer(InferRequest& infer_request)
 {
@@ -1609,64 +1692,17 @@ InternalServer::AsyncInfer(InferRequest& infer_request)
   // The inference request object for sending internal requests.
   TRITONSERVER_InferenceRequest* irequest = nullptr;
   try {
-    uint32_t txn_flags;
-    THROW_IF_TRITON_ERR(TRITONSERVER_ServerModelTransactionProperties(
-        server_.get(), infer_request.infer_options_->model_name_.c_str(),
-        infer_request.infer_options_->model_version_, &txn_flags,
-        nullptr /* voidp */));
-    infer_request.is_decoupled_ =
-        ((txn_flags & TRITONSERVER_TXN_DECOUPLED) != 0);
-
-    AsyncInferHelper(&irequest, infer_request);
+    infer_request.is_decoupled_ = IsModelDecoupled(infer_request);
+    PreprocessIrequest(&irequest, infer_request);
 
     TRITONSERVER_InferenceTrace* triton_trace = nullptr;
+    PrepareTraceManager(infer_request);
     if (trace_manager_) {
-      // Update trace setting for specified model if needed.
-      if (infer_request.infer_options_->trace_) {
-        TraceManager::TraceSetting new_setting(
-            ToTritonTraceLevel(infer_request.infer_options_->trace_->level_),
-            infer_request.infer_options_->trace_->rate_,
-            infer_request.infer_options_->trace_->count_,
-            infer_request.infer_options_->trace_->log_frequency_,
-            std::make_shared<TraceManager::TraceFile>(
-                infer_request.infer_options_->trace_->file_));
-        trace_manager_->UpdateTraceSetting(
-            infer_request.infer_options_->model_name_, new_setting);
-      }
-      infer_request.trace_ = std::move(trace_manager_->SampleTrace(
-          infer_request.infer_options_->model_name_));
       if (infer_request.trace_ != nullptr) {
         triton_trace = infer_request.trace_->trace_;
       }
-    } else if (infer_request.infer_options_->trace_) {
-      LOG_MESSAGE(
-          TRITONSERVER_LOG_ERROR,
-          (std::string("error when updating trace setting for model '") +
-           infer_request.infer_options_->model_name_ +
-           "': tracing is not enabled.")
-              .c_str());
     }
-
-    {
-      auto p = new std::promise<std::unique_ptr<InferResult>>();
-      result_future = p->get_future();
-      infer_request.prev_promise_.reset(std::move(p));
-
-      if (infer_request.infer_options_->custom_allocator_ == nullptr) {
-        THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
-            irequest, allocator_, reinterpret_cast<void*>(&infer_request),
-            InternalServer::InferResponseComplete,
-            reinterpret_cast<void*>(&infer_request)));
-      } else {
-        THROW_IF_TRITON_ERR(TRITONSERVER_InferenceRequestSetResponseCallback(
-            irequest, InternalRequest::custom_triton_allocator_,
-            nullptr /* response_allocator_userp */,
-            InternalServer::InferResponseComplete,
-            reinterpret_cast<void*>(&infer_request)));
-      }
-      THROW_IF_TRITON_ERR(
-          TRITONSERVER_ServerInferAsync(server_.get(), irequest, triton_trace));
-    }
+    result_future = GetInferResult(infer_request, irequest, triton_trace);
   }
   catch (const TritonException& ex) {
     LOG_IF_ERROR(
@@ -2049,4 +2085,5 @@ InferResult::GetNextResult()
   return std::move(next_result_future_);
 }
 
-}}}  // namespace triton::developer_tools::server
+}}  // namespace triton::developer_tools
+}  // namespace triton::developer_tools::server

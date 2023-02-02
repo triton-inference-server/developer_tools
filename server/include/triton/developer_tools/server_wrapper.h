@@ -490,6 +490,13 @@ class TritonServer {
   std::string ModelStatistics(
       const std::string& model_name, const int64_t model_version);
 
+  /// Run synchronous inference on server.
+  /// \param infer_request The InferRequest object contains
+  /// the inputs, outputs and infer options for an inference request.
+  /// \return Returns the result of inference as a future of
+  /// a unique pointer of InferResult object.
+  virtual std::unique_ptr<InferResult> Infer(InferRequest& infer_request) = 0;
+
   /// Run asynchronous inference on server.
   /// \param infer_request The InferRequest object contains
   /// the inputs, outputs and infer options for an inference request.
@@ -563,7 +570,7 @@ class TritonServer {
   void PrepareInferenceOutput(
       TRITONSERVER_InferenceRequest* irequest, InferRequest& request);
 
-  void AsyncInferHelper(
+  void PreprocessIrequest(
       TRITONSERVER_InferenceRequest** irequest,
       const InferRequest& infer_request);
 
