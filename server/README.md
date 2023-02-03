@@ -44,7 +44,7 @@ questions or report problems in the main Triton
 ## Build the Server C-API Wrapper library and custom application 
 
 To build and install the Server Wrapper library from
-`triton_developer_tools/server`, use the following commands.
+`developer_tools/server`, use the following commands.
 
 ```
 $ mkdir build
@@ -300,7 +300,7 @@ same path, and `LD_LIBRARY_PATH` is set properly for `libtritonserver.so`.
 ```
 # Prepare the models required by the examples.
 
-$ cd /path/to/triton_developer_tools/server
+$ cd /path/to/developer_tools/server
 
 $ mkdir -p ./examples/models
 
