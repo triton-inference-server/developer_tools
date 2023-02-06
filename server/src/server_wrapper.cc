@@ -38,8 +38,7 @@
 #define TRITONJSON_STATUSSUCCESS nullptr
 #include "triton/common/triton_json.h"
 
-namespace triton { namespace developer_tools {
-namespace server {
+namespace triton { namespace developer_tools { namespace server {
 
 #define THROW_IF_TRITON_ERR(X)                                     \
   do {                                                             \
@@ -406,7 +405,7 @@ class InternalServer : public TritonServer {
 
   std::future<std::unique_ptr<InferResult>> GetInferResult(
       InferRequest& infer_request, TRITONSERVER_InferenceRequest* irequest,
-    TRITONSERVER_InferenceTrace* triton_trace);
+      TRITONSERVER_InferenceTrace* triton_trace);
 
   std::unique_ptr<InferResult> Infer(InferRequest& infer_request) override;
 
@@ -1369,7 +1368,7 @@ InternalServer::PrepareTraceManager(InferRequest& infer_request)
           infer_request.infer_options_->model_name_, new_setting);
     }
     infer_request.trace_ = std::move(
-      trace_manager_->SampleTrace(infer_request.infer_options_->model_name_));
+        trace_manager_->SampleTrace(infer_request.infer_options_->model_name_));
   } else if (infer_request.infer_options_->trace_) {
     LOG_MESSAGE(
         TRITONSERVER_LOG_ERROR,
@@ -1379,7 +1378,6 @@ InternalServer::PrepareTraceManager(InferRequest& infer_request)
             .c_str());
   }
 }
-
 
 void
 TritonServer::PrepareInferenceOutput(
@@ -2085,5 +2083,4 @@ InferResult::GetNextResult()
   return std::move(next_result_future_);
 }
 
-}}  // namespace triton::developer_tools
-}  // namespace triton::developer_tools::server
+}}}  // namespace triton::developer_tools::server
