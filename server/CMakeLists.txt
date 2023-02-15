@@ -93,7 +93,7 @@ if(${TRITON_BUILD_STATIC_LIBRARY})
   )
 else()
 message(STATUS "we are building a shared")
-configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/server_wrapper.ldscript server_wrapper.ldscript COPYONLY)
+# configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/server_wrapper.ldscript server_wrapper.ldscript COPYONLY)
 add_library(
   triton-developer_tools-server SHARED
   ${SRC_FILES}
