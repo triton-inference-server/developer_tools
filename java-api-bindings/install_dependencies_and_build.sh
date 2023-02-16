@@ -47,8 +47,9 @@ MAVEN_VERSION="3.8.4"
 CORE_BRANCH_TAG="main"
 JAR_INSTALL_PATH="/workspace/install/java-api-bindings"
 # JAVACPP_BRANCH="https://github.com/bytedeco/javacpp-presets.git"
+#JAVACPP_BRANCH_TAG="master"
 JAVACPP_BRANCH="https://github.com/jbkyang-nvi/javacpp-presets.git"
-JAVACPP_BRANCH_TAG="master"
+JAVACPP_BRANCH_TAG="kyang-add-wrapper-to-build"
 MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
 
 for OPTS; do
