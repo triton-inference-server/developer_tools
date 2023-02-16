@@ -46,9 +46,10 @@ BUILD_HOME="/tmp/build"
 MAVEN_VERSION="3.8.4"
 CORE_BRANCH_TAG="main"
 JAR_INSTALL_PATH="/workspace/install/java-api-bindings"
-JAVACPP_BRANCH="https://github.com/bytedeco/javacpp-presets.git"
+# JAVACPP_BRANCH="https://github.com/bytedeco/javacpp-presets.git"
+JAVACPP_BRANCH="https://github.com/jbkyang-nvi/javacpp-presets.git"
 JAVACPP_BRANCH_TAG="master"
-
+MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
 
 for OPTS; do
     case "$OPTS" in
@@ -116,15 +117,15 @@ wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | 
         rapidjson-dev
 
 cd ${BUILD_HOME}
-# TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
-# git clone --single-branch --depth=1 -b ${TOOLS_BRANCH_TAG} ${TOOLS_BRANCH} 
+TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
+TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="kyang-java-script"}
+git clone --single-branch --depth=1 -b ${TOOLS_BRANCH_TAG} ${TOOLS_BRANCH} 
 cd developer_tools/server
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_BUILD_TEST=OFF -DTRITON_ENABLE_EXAMPLES=OFF -DTRITON_BUILD_STATIC_LIBRARY=OFF .. 
-make install
-# Copy static libraries to triton home
-# cp ${BUILD_HOME}/developer_tools/sever/build/install/lib/*.a ${TRITON_HOME}/lib/.
-cp install/lib/libtritondevelopertoolsserver.so ${TRITON_HOME}/lib/.
+make -j"$(grep -c ^processor /proc/cpuinfo)" install
+# Copy dynamic library to triton home
+cp ${BUILD_HOME}/developer_tools/sever/build/install/lib/libtritondevelopertoolsserver.so ${TRITON_HOME}/lib/.
 
 
 # Copy wrapper includes to triton home
