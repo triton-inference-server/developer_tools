@@ -51,6 +51,8 @@ JAR_INSTALL_PATH="/workspace/install/java-api-bindings"
 JAVACPP_BRANCH="https://github.com/jbkyang-nvi/javacpp-presets.git"
 JAVACPP_BRANCH_TAG="kyang-add-wrapper-to-build"
 MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
+TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
+TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="kyang-java-script"}
 
 for OPTS; do
     case "$OPTS" in
@@ -118,15 +120,13 @@ wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | 
         rapidjson-dev
 
 cd ${BUILD_HOME}
-TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
-TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="kyang-java-script"}
 git clone --single-branch --depth=1 -b ${TOOLS_BRANCH_TAG} ${TOOLS_BRANCH} 
 cd developer_tools/server
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_BUILD_TEST=OFF -DTRITON_ENABLE_EXAMPLES=OFF -DTRITON_BUILD_STATIC_LIBRARY=OFF .. 
 make -j"$(grep -c ^processor /proc/cpuinfo)" install
 # Copy dynamic library to triton home
-cp ${BUILD_HOME}/developer_tools/sever/build/install/lib/libtritondevelopertoolsserver.so ${TRITON_HOME}/lib/.
+cp ${BUILD_HOME}/developer_tools/server/build/install/lib/libtritondevelopertoolsserver.so ${TRITON_HOME}/lib/.
 
 
 # Copy wrapper includes to triton home
@@ -145,6 +145,7 @@ cp ${BUILD_HOME}/developer_tools/server/src/tracer.h ${TRITON_HOME}/include/trit
 # cp -r core/include ${TRITON_HOME}/include
 
 # Clone JavaCPP-presets, build java bindings and copy jar to /opt/tritonserver 
+cd ${BUILD_HOME}
 git clone --single-branch --depth=1 -b ${JAVACPP_BRANCH_TAG} ${JAVACPP_BRANCH}
 cd javacpp-presets
 ${MAVEN_PATH} clean install --projects .,tritonserverwrapper
