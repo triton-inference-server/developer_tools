@@ -141,9 +141,16 @@ target_compile_definitions(
 )
 endif() # TRITON_ENABLE_STATS
 
+set_target_properties(
+  triton-developer_tools-server PROPERTIES
+  WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+  POSITION_INDEPENDENT_CODE ON
+  OUTPUT_NAME tritondevelopertoolsserver
+)
+
 target_link_libraries(
   triton-developer_tools-server
-  PRIVATE
+  PUBLIC
     Threads::Threads
     triton-core-serverapi         # from repo-core
     triton-core-serverstub        # from repo-core
