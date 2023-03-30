@@ -123,7 +123,7 @@ cd ${BUILD_HOME}
 git clone --single-branch --depth=1 -b ${TOOLS_BRANCH_TAG} ${TOOLS_BRANCH} 
 cd developer_tools/server
 mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_BUILD_TEST=OFF -DTRITON_ENABLE_EXAMPLES=OFF -DTRITON_BUILD_STATIC_LIBRARY=OFF .. 
+cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_BUILD_TEST=ON -DTRITON_ENABLE_EXAMPLES=ON -DTRITON_BUILD_STATIC_LIBRARY=OFF .. 
 make -j"$(grep -c ^processor /proc/cpuinfo)" install
 # Copy dynamic library to triton home
 cp ${BUILD_HOME}/developer_tools/server/build/install/lib/libtritondevelopertoolsserver.so ${TRITON_HOME}/lib/.

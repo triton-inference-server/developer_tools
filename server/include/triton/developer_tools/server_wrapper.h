@@ -32,8 +32,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "generic_server_wrapper.h"
 #include "triton/core/tritonserver.h"
+#include "generic_server_wrapper.h"
+
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
 #endif  // TRITON_ENABLE_GPU

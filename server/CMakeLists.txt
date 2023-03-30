@@ -85,14 +85,12 @@ find_package(Threads REQUIRED)
 # Triton Developer Tools Server
 #
 file(GLOB SRC_FILES src/*.cc src/*.h)
-message(STATUS ${TRITON_BUILD_STATIC_LIBRARY})
 if(${TRITON_BUILD_STATIC_LIBRARY})
   add_library(
     triton-developer_tools-server
     ${SRC_FILES}
   )
 else()
-message(STATUS "we are building a shared")
 add_library(
   triton-developer_tools-server SHARED
   ${SRC_FILES}
@@ -151,22 +149,6 @@ target_link_libraries(
     triton-core-serverstub        # from repo-core
     triton-common-logging         # from repo-common
 )
-
-message(STATUS ${TRITON_BUILD_STATIC_LIBRARY})
-if(${TRITON_BUILD_STATIC_LIBRARY})
-  set_target_properties(
-    triton-developer_tools-server PROPERTIES
-    WINDOWS_EXPORT_ALL_SYMBOLS TRUE
-    POSITION_INDEPENDENT_CODE ON
-    OUTPUT_NAME tritondevelopertoolsserver
-  )
-else()
-  set_target_properties(
-    triton-developer_tools-server PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    OUTPUT_NAME tritondevelopertoolsserver
-  )
-endif()
 
 if(${TRITON_ENABLE_GPU})
   target_link_libraries(
