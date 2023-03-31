@@ -151,6 +151,10 @@ cd javacpp-presets
 ${MAVEN_PATH} clean install --projects .,tritonserverwrapper
 ${MAVEN_PATH} clean install -f platform --projects ../tritonserverwrapper/platform -Djavacpp.platform=linux-x86_64
 
+# test
+$MAVEN_PATH clean compile -f tritonserverwrapper/samples/simpletest exec:java -Djavacpp.platform=linux-x86_64 -Dexec.args="-r /workspace/triton/tmp/models"
+# java -cp tritonservercppapi.jar SimpleTest.java 
+
 # Copy over the jar to a specific location
 mkdir -p ${JAR_INSTALL_PATH}
 # cp ${BUILD_HOME}/javacpp-presets/tritonserver/platform/target/tritonserver-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
