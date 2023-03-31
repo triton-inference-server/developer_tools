@@ -1,4 +1,4 @@
-// Copyright 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -32,7 +32,6 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include "triton/developer_tools/server_wrapper.h"
 #define TRITONJSON_STATUSTYPE TRITONSERVER_Error*
 #define TRITONJSON_STATUSRETURN(M) \
   return TRITONSERVER_ErrorNew(TRITONSERVER_ERROR_INTERNAL, (M).c_str())
@@ -1728,6 +1727,7 @@ std::unique_ptr<GenericInferRequest>
 GenericInferRequest::Create(const InferOptions& options) {
   return InferRequest::Create(options);
 }
+
 GenericInferRequest::~GenericInferRequest() {}
 
 std::unique_ptr<InferRequest>
