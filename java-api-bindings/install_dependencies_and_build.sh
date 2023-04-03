@@ -52,8 +52,10 @@ JAR_INSTALL_PATH="/workspace/install/java-api-bindings"
 JAVACPP_BRANCH="https://github.com/baojunliu/javacpp-presets.git"
 JAVACPP_BRANCH_TAG="baojun-javacpp"
 
-TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/baojunliu/developer_tools.git"}
-TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="baojun-java-api"}
+TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
+TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="kyang-java-script"}
+# TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/baojunliu/developer_tools.git"}
+# TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="baojun-java-api"}
 
 for OPTS; do
     case "$OPTS" in
@@ -160,7 +162,14 @@ $MAVEN_PATH clean compile -f tritonserverwrapper/samples/simpletest exec:java -D
 
 # Copy over the jar to a specific location
 mkdir -p ${JAR_INSTALL_PATH}
-# cp ${BUILD_HOME}/javacpp-presets/tritonserver/platform/target/tritonserver-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
+cp ${BUILD_HOME}/javacpp-presets/tritonserverwrapper/platform/target/tritonserverwrapper-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
+
+cp ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar $BUILD_HOME/javacpp-presets/tritonserverwrapper/samples/simpletest/
+cd $BUILD_HOME/javacpp-presets/tritonserverwrapper/samples/simpletest/
+
+cp /opt/tritonserver/lib/libtritonserver.so /usr/lib/
+java -cp tritonserver-java-bindings.jar SimpleTest.java
+
 # rm -r ${BUILD_HOME}
 # rm -r /root/.m2/repository
 
