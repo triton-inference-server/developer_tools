@@ -412,6 +412,8 @@ class InternalServer : public TritonServer {
   // START_JAVA_CUSTOM_FUNCTIONS
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
       InferRequest& infer_request) override;
+
+  std::unique_ptr<GenericInferResult> Infer(GenericInferRequest& infer_request) override;
   // END_JAVA_CUSTOM_FUNCTIONS
 
  private:
@@ -1721,6 +1723,13 @@ InternalServer::AsyncInfer(InferRequest& infer_request)
   }
 
   return result_future;
+}
+
+std::unique_ptr<GenericInferResult> InternalServer::Infer(GenericInferRequest& infer_request) {
+  InferRequest* derived_ptr_request = dynamic_cast<InferRequest*>(&infer_request);
+  std::future<std::unique_ptr<InferResult>> result_future =
+      AsyncInfer(*derived_ptr_request);
+  return result_future.get();
 }
 
 std::unique_ptr<GenericInferRequest> 

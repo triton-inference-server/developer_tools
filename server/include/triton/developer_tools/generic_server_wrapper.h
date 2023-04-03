@@ -39,6 +39,8 @@ class ServerOptions;
 class InferOptions;
 class RepositoryIndex;
 class NewModelRepo;
+class GenericInferRequest;
+class GenericInferResult;
 class Tensor;
 using TensorAllocMap = std::unordered_map<std::string, std::tuple<const void*, size_t, TRITONSERVER_MemoryType, int64_t>>;
 
@@ -137,6 +139,8 @@ class GenericTritonServer {
   /// mode.
   /// \param repo_path The full path to the model repository.
   virtual void UnregisterModelRepo(const std::string& repo_path) = 0;
+ 
+  virtual std::unique_ptr<GenericInferResult> Infer(GenericInferRequest& infer_request) = 0;
 };
 
 //==============================================================================
@@ -773,3 +777,4 @@ struct InferOptions {
 };
 
 }}}  // namespace triton::developer_tools::server
+
