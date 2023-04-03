@@ -44,13 +44,14 @@ OPTS=$(getopt -l ht:b:v:c:j:,help,triton-home,build-home:,maven-version:,core-ta
 TRITON_HOME="/opt/tritonserver"
 BUILD_HOME="/tmp/build"
 MAVEN_VERSION="3.8.4"
+MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
 CORE_BRANCH_TAG="main"
 JAR_INSTALL_PATH="/workspace/install/java-api-bindings"
 #JAVACPP_BRANCH="https://github.com/bytedeco/javacpp-presets.git"
 #JAVACPP_BRANCH_TAG="master"
 JAVACPP_BRANCH="https://github.com/jbkyang-nvi/javacpp-presets.git"
 JAVACPP_BRANCH_TAG="kyang-add-wrapper-to-build"
-MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
+
 TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
 TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="kyang-java-script"}
 
@@ -152,6 +153,8 @@ ${MAVEN_PATH} clean install --projects .,tritonserverwrapper
 ${MAVEN_PATH} clean install -f platform --projects ../tritonserverwrapper/platform -Djavacpp.platform=linux-x86_64
 
 # test
+cd $BUILD_HOME/javacpp-presets
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${BUILD_HOME}:/opt/tritonserver/lib
 $MAVEN_PATH clean compile -f tritonserverwrapper/samples/simpletest exec:java -Djavacpp.platform=linux-x86_64 -Dexec.args="-r /workspace/triton/tmp/models"
 # java -cp tritonservercppapi.jar SimpleTest.java 
 
