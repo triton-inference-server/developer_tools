@@ -52,10 +52,10 @@ JAR_INSTALL_PATH="/workspace/install/java-api-bindings"
 JAVACPP_BRANCH="https://github.com/baojunliu/javacpp-presets.git"
 JAVACPP_BRANCH_TAG="baojun-javacpp"
 
-TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
-TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="kyang-java-script"}
-# TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/baojunliu/developer_tools.git"}
-# TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="baojun-java-api"}
+# TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
+# TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="kyang-java-script"}
+TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/baojunliu/developer_tools.git"}
+TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="baojun-java-api"}
 
 for OPTS; do
     case "$OPTS" in

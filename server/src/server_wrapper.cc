@@ -1476,6 +1476,7 @@ TritonServer::PreprocessIrequest(
 InternalServer::InternalServer(const ServerOptions& options)
     : is_exiting_(false)
 {
+  /*
   uint32_t api_version_major, api_version_minor;
   THROW_IF_TRITON_ERR(
       TRITONSERVER_ApiVersion(&api_version_major, &api_version_minor));
@@ -1483,7 +1484,7 @@ InternalServer::InternalServer(const ServerOptions& options)
       (TRITONSERVER_API_VERSION_MINOR > api_version_minor)) {
     throw TritonException("triton server API version mismatch");
   }
-
+  */
   TRITONSERVER_ServerOptions* server_options = nullptr;
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsNew(&server_options));
 
