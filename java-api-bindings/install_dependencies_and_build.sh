@@ -168,7 +168,7 @@ cp ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar $BUILD_HOME/javacpp-preset
 cd $BUILD_HOME/javacpp-presets/tritonserverwrapper/samples/simpletest/
 
 cp /opt/tritonserver/lib/libtritonserver.so /usr/lib/
-java -cp tritonserver-java-bindings.jar SimpleTest.java
+java -cp tritonserver-java-bindings.jar SimpleTest.java -r /workspace/triton/tmp/models
 
 # rm -r ${BUILD_HOME}
 # rm -r /root/.m2/repository
