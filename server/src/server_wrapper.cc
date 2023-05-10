@@ -1723,8 +1723,9 @@ InternalServer::AsyncInfer(InferRequest& infer_request)
   return result_future;
 }
 
-std::unique_ptr<GenericInferRequest> 
-GenericInferRequest::Create(const InferOptions& options) {
+std::unique_ptr<GenericInferRequest>
+GenericInferRequest::Create(const InferOptions& options)
+{
   return InferRequest::Create(options);
 }
 

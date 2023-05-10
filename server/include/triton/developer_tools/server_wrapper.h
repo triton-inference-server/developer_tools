@@ -32,8 +32,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "triton/core/tritonserver.h"
 #include "generic_server_wrapper.h"
+#include "triton/core/tritonserver.h"
 
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
@@ -338,8 +338,8 @@ class InferRequest : public GenericInferRequest {
   /// Clear inputs and outputs of the request. This allows users to reuse the
   /// InferRequest object if needed.
   void Reset() override;
- friend class TritonServer;
- friend class InternalServer;
+  friend class TritonServer;
+  friend class InternalServer;
 
  protected:
   InferRequest();
@@ -362,7 +362,8 @@ class InferRequest : public GenericInferRequest {
   // 'InferRequest' should be long enough until all the responses are returned
   // and retrieved.
   bool is_decoupled_;
-  private:   
+
+ private:
   // The promise object used for setting value to the result future.
   std::unique_ptr<std::promise<std::unique_ptr<InferResult>>> prev_promise_;
 };
