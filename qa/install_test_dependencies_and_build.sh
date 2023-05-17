@@ -1,4 +1,4 @@
-# Copyright 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,50 +24,21 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-REPO_VERSION=${NVIDIA_TRITON_SERVER_VERSION}
-if [ "$#" -ge 1 ]; then
-    REPO_VERSION=$1
-fi
-if [ -z "$REPO_VERSION" ]; then
-    echo -e "Repository version must be specified"
-    echo -e "\n***\n*** Test Failed\n***"
-    exit 1
-fi
-if [ ! -z "$TEST_REPO_ARCH" ]; then
-    REPO_VERSION=${REPO_VERSION}_${TEST_REPO_ARCH}
-fi
-bash -x ../install_test_dependencies_and_build.sh
+# Install dependencies
+apt update && apt install -y rapidjson-dev \
+                            software-properties-common && \
+wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
+    gpg --dearmor - |  \
+    tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
+. /etc/os-release && \
+echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | \
+tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
+apt-get update && \
+apt-get install -y --no-install-recommends cmake cmake-data && \
+cmake --version 
 
-export CUDA_VISIBLE_DEVICES=0
-
-TEST_LOG=test.log
-
-# Copy over the decoupled model placed in the python_backend repository.
-git clone https://github.com/triton-inference-server/python_backend.git
-mkdir -p ./models/square_int32/1
-cp python_backend/examples/decoupled/square_model.py ./models/square_int32/1/model.py
-cp python_backend/examples/decoupled/square_config.pbtxt ./models/square_int32/config.pbtxt
-# Copy the model repository for 'ModelRepoRegister' test case.
-cp -fr ./models ./models1
-
-RET=0
-
-cp /opt/tritonserver/developer_tools/server/build/install/bin/wrapper_test ./
-
-set +e
-# Must explicitly set LD_LIBRARY_PATH so that the test can find
-# libtritonserver.so.
-LD_LIBRARY_PATH=/opt/tritonserver/lib:${LD_LIBRARY_PATH} ./wrapper_test >> ${TEST_LOG} 2>&1
-if [ $? -ne 0 ]; then
-    cat ${TEST_LOG}
-    RET=1
-fi
-set -e
-
-if [ $RET -eq 0 ]; then
-    echo -e "\n***\n*** Test Passed\n***"
-else
-    echo -e "\n***\n*** Test FAILED\n***"
-fi
-
-exit $RET
+# Install developer tools
+mkdir -p /opt/tritonserver/developer_tools/server/build && cd /opt/tritonserver/developer_tools/server/build 
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/opt/tritonserver/developer_tools/server/build/install .. 
+make install 
+cp /opt/tritonserver/developer_tools/server/build/install/lib/libtritondevelopertoolsserver.a /opt/tritonserver/lib/
