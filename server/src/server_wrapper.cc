@@ -1,4 +1,4 @@
-// Copyright 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -409,8 +409,10 @@ class InternalServer : public TritonServer {
 
   std::unique_ptr<InferResult> Infer(InferRequest& infer_request) override;
 
+  // START_JAVA_CUSTOM_FUNCTIONS
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
       InferRequest& infer_request) override;
+  // END_JAVA_CUSTOM_FUNCTIONS
 
  private:
   void StartRepoPollThread();
@@ -986,6 +988,15 @@ InferOptions::InferOptions(
       trace_(trace)
 {
 }
+
+std::unique_ptr<GenericTritonServer>
+GenericTritonServer::Create(const ServerOptions& server_options)
+{
+  return TritonServer::Create(server_options);
+}
+
+GenericTritonServer::~GenericTritonServer() {}
+
 
 std::unique_ptr<TritonServer>
 TritonServer::Create(const ServerOptions& options)
@@ -1712,6 +1723,14 @@ InternalServer::AsyncInfer(InferRequest& infer_request)
   return result_future;
 }
 
+std::unique_ptr<GenericInferRequest>
+GenericInferRequest::Create(const InferOptions& options)
+{
+  return InferRequest::Create(options);
+}
+
+GenericInferRequest::~GenericInferRequest() {}
+
 std::unique_ptr<InferRequest>
 InferRequest::Create(const InferOptions& options)
 {
@@ -1808,6 +1827,8 @@ InferRequest::Reset()
   outputs_.clear();
   tensor_alloc_map_.clear();
 }
+
+GenericInferResult::~GenericInferResult() {}
 
 InferResult::InferResult()
     : has_error_(false), error_msg_(""), completed_response_(nullptr)
