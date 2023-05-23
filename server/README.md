@@ -36,9 +36,8 @@ Triton Server C-API Wrapper wraps up the functionality of
 developing their application without having in-depth knowledge of Triton
 implementation details or writing complicated code. This wrapper is also called
 the "Higher Level In Process C++ API" or just "Server Wrapper" for short. The
-header files that defines and documents the Server C-API Wrapper is
-[generic_server_wrapper.h](include/triton/developer_tools/generic_server_wrapper.h)
-and [server_wrapper.h](include/triton/developer_tools/server_wrapper.h). Ask
+header files that defines and documents the Server C-API Wrapper is 
+[server_wrapper.h](include/triton/developer_tools/server_wrapper.h). Ask
 questions or report problems in the main Triton
 [issues page](https://github.com/triton-inference-server/server/issues).
 
