@@ -32,8 +32,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "triton/core/tritonserver.h"
 #include "generic_server_wrapper.h"
+#include "triton/core/tritonserver.h"
 
 #ifdef TRITON_ENABLE_GPU
 #include <cuda_runtime_api.h>
@@ -156,6 +156,9 @@ class TritonServer : public GenericTritonServer {
   /// mode.
   /// \param repo_path The full path to the model repository.
   void UnregisterModelRepo(const std::string& repo_path) override;
+
+  virtual std::unique_ptr<GenericInferResult> Infer(
+      GenericInferRequest& infer_request) = 0;
 
  protected:
   void PrepareInferenceRequest(

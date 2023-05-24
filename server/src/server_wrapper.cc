@@ -412,6 +412,9 @@ class InternalServer : public TritonServer {
   // START_JAVA_CUSTOM_FUNCTIONS
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
       InferRequest& infer_request) override;
+
+  std::unique_ptr<GenericInferResult> Infer(
+      GenericInferRequest& infer_request) override;
   // END_JAVA_CUSTOM_FUNCTIONS
 
  private:
@@ -1474,6 +1477,7 @@ TritonServer::PreprocessIrequest(
 InternalServer::InternalServer(const ServerOptions& options)
     : is_exiting_(false)
 {
+  /*
   uint32_t api_version_major, api_version_minor;
   THROW_IF_TRITON_ERR(
       TRITONSERVER_ApiVersion(&api_version_major, &api_version_minor));
@@ -1481,7 +1485,7 @@ InternalServer::InternalServer(const ServerOptions& options)
       (TRITONSERVER_API_VERSION_MINOR > api_version_minor)) {
     throw TritonException("triton server API version mismatch");
   }
-
+  */
   TRITONSERVER_ServerOptions* server_options = nullptr;
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsNew(&server_options));
 
@@ -1721,6 +1725,16 @@ InternalServer::AsyncInfer(InferRequest& infer_request)
   }
 
   return result_future;
+}
+
+std::unique_ptr<GenericInferResult>
+InternalServer::Infer(GenericInferRequest& infer_request)
+{
+  InferRequest* derived_ptr_request =
+      dynamic_cast<InferRequest*>(&infer_request);
+  std::future<std::unique_ptr<InferResult>> result_future =
+      AsyncInfer(*derived_ptr_request);
+  return result_future.get();
 }
 
 std::unique_ptr<GenericInferRequest>

@@ -26,7 +26,6 @@
 #pragma once
 #include <list>
 #include <memory>
-#include <set>
 #include <unordered_map>
 #include <vector>
 #include "../src/infer_requested_output.h"
@@ -39,6 +38,8 @@ class ServerOptions;
 class InferOptions;
 class RepositoryIndex;
 class NewModelRepo;
+class GenericInferRequest;
+class GenericInferResult;
 class Tensor;
 using TensorAllocMap = std::unordered_map<
     std::string,
@@ -139,6 +140,9 @@ class GenericTritonServer {
   /// mode.
   /// \param repo_path The full path to the model repository.
   virtual void UnregisterModelRepo(const std::string& repo_path) = 0;
+
+  virtual std::unique_ptr<GenericInferResult> Infer(
+      GenericInferRequest& infer_request) = 0;
 };
 
 //==============================================================================
@@ -164,7 +168,7 @@ class GenericInferResult {
   /// Get the output names from the infer result
   /// \return Vector of output names
   virtual std::vector<std::string> OutputNames() = 0;
-  
+
   /// Get the result output as a shared pointer of 'Tensor' object. The 'buffer'
   /// field of the output is owned by the returned 'Tensor' object itself. Note
   /// that for string data, need to use 'StringData' function for string data

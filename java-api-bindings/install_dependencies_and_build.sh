@@ -101,6 +101,7 @@ done
 set -x
 
 # Install jdk and maven
+rm -r ${BUILD_HOME}
 mkdir -p ${BUILD_HOME}
 cd ${BUILD_HOME}
 apt update && apt install -y openjdk-11-jdk
@@ -123,6 +124,7 @@ wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | 
 cd ${BUILD_HOME}
 git clone --single-branch --depth=1 -b ${TOOLS_BRANCH_TAG} ${TOOLS_BRANCH} 
 cd developer_tools/server
+rm -r build 
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX:PATH=`pwd`/install -DTRITON_BUILD_TEST=ON -DTRITON_ENABLE_EXAMPLES=ON -DTRITON_BUILD_STATIC_LIBRARY=OFF .. 
 make -j"$(grep -c ^processor /proc/cpuinfo)" install
@@ -131,6 +133,7 @@ cp ${BUILD_HOME}/developer_tools/server/build/install/lib/libtritondevelopertool
 
 
 # Copy wrapper includes to triton home
+rm -r ${TRITON_HOME}/include/triton/developer_tools
 mkdir -p ${TRITON_HOME}/include/triton/developer_tools/src
 mkdir -p ${TRITON_HOME}/include/triton/developer_tools/include
 cp ${BUILD_HOME}/developer_tools/server/include/triton/developer_tools/common.h ${TRITON_HOME}/include/triton/developer_tools/.
@@ -159,8 +162,16 @@ $MAVEN_PATH clean compile -f tritonserverwrapper/samples/simpletest exec:java -D
 # java -cp tritonservercppapi.jar SimpleTest.java 
 
 # Copy over the jar to a specific location
+rm -r ${JAR_INSTALL_PATH}
 mkdir -p ${JAR_INSTALL_PATH}
-# cp ${BUILD_HOME}/javacpp-presets/tritonserver/platform/target/tritonserver-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
+cp ${BUILD_HOME}/javacpp-presets/tritonserverwrapper/platform/target/tritonserverwrapper-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
+
+cp ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar $BUILD_HOME/javacpp-presets/tritonserverwrapper/samples/simpletest/
+cd $BUILD_HOME/javacpp-presets/tritonserverwrapper/samples/simpletest/
+
+cp /opt/tritonserver/lib/libtritonserver.so /usr/lib/
+java -cp tritonserver-java-bindings.jar SimpleTest.java -r /workspace/triton/tmp/models
+
 # rm -r ${BUILD_HOME}
 # rm -r /root/.m2/repository
 
