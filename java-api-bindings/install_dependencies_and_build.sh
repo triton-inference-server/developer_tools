@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -141,38 +141,19 @@ cp ${BUILD_HOME}/developer_tools/server/include/triton/developer_tools/generic_s
 cp ${BUILD_HOME}/developer_tools/server/src/infer_requested_output.h ${TRITON_HOME}/include/triton/developer_tools/src/.
 cp ${BUILD_HOME}/developer_tools/server/src/tracer.h ${TRITON_HOME}/include/triton/developer_tools/src/.
 
-# Copy necessary tritonserver.h files so the bindings can be generated
-# mkdir -p ${TRITON_HOME}/lib/
-# cd ${BUILD_HOME}
-# CORE_BRANCH=${CORE_BRANCH:="https://github.com/triton-inference-server/core.git"}
-# git clone --single-branch --depth=1 -b ${CORE_BRANCH_TAG} ${CORE_BRANCH}
-# cp -r core/include ${TRITON_HOME}/include
-
 # Clone JavaCPP-presets, build java bindings and copy jar to /opt/tritonserver 
 cd ${BUILD_HOME}
 git clone --single-branch --depth=1 -b ${JAVACPP_BRANCH_TAG} ${JAVACPP_BRANCH}
 cd javacpp-presets
-${MAVEN_PATH} clean install --projects .,tritonserverwrapper
-${MAVEN_PATH} clean install -f platform --projects ../tritonserverwrapper/platform -Djavacpp.platform=linux-x86_64
-
-# test
-cd $BUILD_HOME/javacpp-presets
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${BUILD_HOME}:/opt/tritonserver/lib
-$MAVEN_PATH clean compile -f tritonserverwrapper/samples/simpletest exec:java -Djavacpp.platform=linux-x86_64 -Dexec.args="-r /workspace/triton/tmp/models"
-# java -cp tritonservercppapi.jar SimpleTest.java 
+${MAVEN_PATH} clean install --projects .,tritondevelopertoolsserver
+${MAVEN_PATH} clean install -f platform --projects ../tritondevelopertoolsserver/platform -Djavacpp.platform=linux-x86_64
 
 # Copy over the jar to a specific location
 rm -r ${JAR_INSTALL_PATH}
 mkdir -p ${JAR_INSTALL_PATH}
-cp ${BUILD_HOME}/javacpp-presets/tritonserverwrapper/platform/target/tritonserverwrapper-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
+cp ${BUILD_HOME}/javacpp-presets/tritondevelopertoolsserver/platform/target/tritondevelopertoolsserver-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritondevelopertoolsserver-java-bindings.jar
 
-cp ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar $BUILD_HOME/javacpp-presets/tritonserverwrapper/samples/simpletest/
-cd $BUILD_HOME/javacpp-presets/tritonserverwrapper/samples/simpletest/
-
-cp /opt/tritonserver/lib/libtritonserver.so /usr/lib/
-java -cp tritonserver-java-bindings.jar SimpleTest.java -r /workspace/triton/tmp/models
-
-# rm -r ${BUILD_HOME}
-# rm -r /root/.m2/repository
+rm -r ${BUILD_HOME}
+rm -r /root/.m2/repository
 
 set +x
