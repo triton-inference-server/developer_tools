@@ -1484,7 +1484,7 @@ InternalServer::InternalServer(const ServerOptions& options)
       (TRITONSERVER_API_VERSION_MINOR > api_version_minor)) {
     throw TritonException("triton server API version mismatch");
   }
-  
+
   TRITONSERVER_ServerOptions* server_options = nullptr;
   THROW_IF_TRITON_ERR(TRITONSERVER_ServerOptionsNew(&server_options));
 

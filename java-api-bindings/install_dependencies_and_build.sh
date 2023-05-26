@@ -32,9 +32,9 @@ Installs Maven, Java JDK and builds Tritonserver Java bindings
 -t|--triton-home           Expected Trition library location, default is: /opt/tritonserver
 -b|--build-home            Expected build location, default is: /tmp/build
 -v|--maven-version         Maven version, default is: "3.8.4"
--c|--core-tag              Tag for core repo, defaut is: "main"
+-c|--core-tag              Tag for core repo, default is: "main"
 -j|--jar-install-path      Path to install the bindings .jar
---javacpp-branch           Javacpp-presets git path, default https://github.com/bytedeco/javacpp-presets.git
+--javacpp-branch           Javacpp-presets git path, default is https://github.com/bytedeco/javacpp-presets.git
 --javacpp-tag              Javacpp-presets branch tag, default "master"
 "
 
@@ -46,8 +46,8 @@ BUILD_HOME="/tmp/build"
 MAVEN_VERSION="3.8.4"
 MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
 CORE_BRANCH_TAG="main"
-JAVACPP_BRANCH="https://github.com/jbkyang-nvi/javacpp-presets.git"
-JAVACPP_BRANCH_TAG="kyang-add-wrapper-to-build"
+JAVACPP_BRANCH=${JAVACPP_BRANCH:="https://github.com/bytedeco/javacpp-presets.git"}
+JAVACPP_BRANCH_TAG=${JAVACPP_BRANCH_TAG:="master"}
 TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
 TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="main"}
 CMAKE_VERSION=${CMAKE_VERSION:="3.21.1"}

@@ -1,4 +1,4 @@
-# Copyright 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -34,32 +34,33 @@ if [ -z "$REPO_VERSION" ]; then
     exit 1
 fi
 
+# set variables
+CLIENT_LOG="client.log"
+MODEL_REPO=`pwd`/models
+SAMPLES_REPO=`pwd`/javacpp-presets/tritondevelopertoolsserver/samples/simple
+BASE_COMMAND="${MAVEN_PATH} clean compile -f $SAMPLES_REPO exec:java -Djavacpp.platform=linux-x86_64"
+source ../common/util.sh
+
+# generate models
+rm -rf ${MODEL_REPO}
+git clone --single-branch --depth=1 -b https://github.com/triton-inference-server/server.git
+./server/docs/examples/fetch_models.sh
+mkdir -p ${MODEL_REPO}
+cp -r model_repository/*  ${MODEL_REPO}
+
+# build javacpp-presets/tritondevelopertoolsserver
 set +e
 bash -x ../java-api-bindings/install_test_dependencies_and_build.sh
 rm -r javacpp-presets
-git clone https://github.com/bytedeco/javacpp-presets.git
+git clone --single-branch --depth=1 -b ${JAVACPP_BRANCH_TAG} ${JAVACPP_BRANCH}
 cd javacpp-presets
 ${MAVEN_PATH} clean install --projects .,tritondevelopertoolsserver
 ${MAVEN_PATH} clean install -f platform --projects ../tritondevelopertoolsserver/platform -Djavacpp.platform.host
 cd ..
 set -e
 
-CLIENT_LOG="client_cpu.log"
-DATADIR=/data/inferenceserver/${REPO_VERSION}/qa_model_repository
-MODEL_REPO=`pwd`/models
-SAMPLES_REPO=`pwd`/javacpp-presets/tritondevelopertoolsserver/samples/simple
-BASE_COMMAND="${MAVEN_PATH} clean compile -f $SAMPLES_REPO exec:java -Djavacpp.platform=linux-x86_64"
-source ../common/util.sh
-
 rm -f *.log
 RET=0
-
-# generate models
-rm -rf ${MODEL_REPO}
-git clone https://github.com/triton-inference-server/server.git
-./server/docs/examples/fetch_models.sh
-mkdir -p ${MODEL_REPO}
-cp -r model_repository/*  ${MODEL_REPO}
 
 # Run tests on simple example
 $BASE_COMMAND -Dexec.args="-r $MODEL_REPO" >>$CLIENT_LOG 2>&1
