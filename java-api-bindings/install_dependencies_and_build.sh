@@ -46,14 +46,12 @@ BUILD_HOME="/tmp/build"
 MAVEN_VERSION="3.8.4"
 MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
 CORE_BRANCH_TAG="main"
-JAR_INSTALL_PATH="/workspace/install/java-api-bindings"
-#JAVACPP_BRANCH="https://github.com/bytedeco/javacpp-presets.git"
-#JAVACPP_BRANCH_TAG="master"
 JAVACPP_BRANCH="https://github.com/jbkyang-nvi/javacpp-presets.git"
 JAVACPP_BRANCH_TAG="kyang-add-wrapper-to-build"
-
 TOOLS_BRANCH=${TOOLS_BRANCH:="https://github.com/triton-inference-server/developer_tools.git"}
-TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="kyang-java-script"}
+TOOLS_BRANCH_TAG=${TOOLS_BRANCH_TAG:="main"}
+CMAKE_VERSION=${CMAKE_VERSION:="3.21.1"}
+export JAR_INSTALL_PATH="/workspace/install/java-api-bindings"
 
 for OPTS; do
     case "$OPTS" in
@@ -107,7 +105,7 @@ cd ${BUILD_HOME}
 apt update && apt install -y openjdk-11-jdk
 wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz
 tar zxvf apache-maven-${MAVEN_VERSION}-bin.tar.gz
-MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
+export MAVEN_PATH=${BUILD_HOME}/apache-maven-${MAVEN_VERSION}/bin/mvn
 
 # Build static libraries
 ## install cmake and rapidjson
@@ -117,8 +115,8 @@ wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | 
       apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' && \
       apt-get update && \
       apt-get install -y --no-install-recommends \
-        cmake-data=3.21.1-0kitware1ubuntu20.04.1 \
-        cmake=3.21.1-0kitware1ubuntu20.04.1 \
+        cmake-data=${CMAKE_VERSION}-0kitware1ubuntu20.04.1 \
+        cmake=${CMAKE_VERSION}-0kitware1ubuntu20.04.1 \
         rapidjson-dev
 
 cd ${BUILD_HOME}
