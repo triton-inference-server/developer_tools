@@ -143,13 +143,13 @@ cp ${BUILD_HOME}/developer_tools/server/src/tracer.h ${TRITON_HOME}/include/trit
 cd ${BUILD_HOME}
 git clone --single-branch --depth=1 -b ${JAVACPP_BRANCH_TAG} ${JAVACPP_BRANCH}
 cd javacpp-presets
-${MAVEN_PATH} clean install --projects .,tritondevelopertoolsserver
-${MAVEN_PATH} clean install -f platform --projects ../tritondevelopertoolsserver/platform -Djavacpp.platform=linux-x86_64
+${MAVEN_PATH} clean install --projects .,tritonserver
+${MAVEN_PATH} clean install -f platform --projects ../tritonserver/platform -Djavacpp.platform=linux-x86_64
 
 # Copy over the jar to a specific location
 rm -r ${JAR_INSTALL_PATH}
 mkdir -p ${JAR_INSTALL_PATH}
-cp ${BUILD_HOME}/javacpp-presets/tritondevelopertoolsserver/platform/target/tritondevelopertoolsserver-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritondevelopertoolsserver-java-bindings.jar
+cp ${BUILD_HOME}/javacpp-presets/tritonserver/platform/target/tritonserver-platform-*shaded.jar ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar
 
 rm -r ${BUILD_HOME}
 rm -r /root/.m2/repository
