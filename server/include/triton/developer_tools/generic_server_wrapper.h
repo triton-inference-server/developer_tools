@@ -41,6 +41,8 @@ class NewModelRepo;
 class GenericInferRequest;
 class GenericInferResult;
 class Tensor;
+class GenericInferRequest;
+class GenericInferResult;
 using TensorAllocMap = std::unordered_map<
     std::string,
     std::tuple<const void*, size_t, TRITONSERVER_MemoryType, int64_t>>;

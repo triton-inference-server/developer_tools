@@ -409,13 +409,11 @@ class InternalServer : public TritonServer {
 
   std::unique_ptr<InferResult> Infer(InferRequest& infer_request) override;
 
-  // START_JAVA_CUSTOM_FUNCTIONS
   std::future<std::unique_ptr<InferResult>> AsyncInfer(
       InferRequest& infer_request) override;
 
   std::unique_ptr<GenericInferResult> Infer(
       GenericInferRequest& infer_request) override;
-  // END_JAVA_CUSTOM_FUNCTIONS
 
  private:
   void StartRepoPollThread();
