@@ -24,6 +24,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
+#include <climits>
+#include <set>
+#include <vector>
 
 namespace triton { namespace developer_tools { namespace server {
 
@@ -87,6 +90,11 @@ struct LoggingOptions {
   LoggingOptions(
       const VerboseLevel verbose, const bool info, const bool warn,
       const bool error, const LogFormat& format, const std::string& log_file);
+
+  void SetVerboseLevel(const int verbose_level)
+  {
+    verbose_ = VerboseLevel(verbose_level);
+  }
 
   // Verbose logging level. Default is OFF.
   VerboseLevel verbose_;
@@ -355,6 +363,8 @@ struct ServerOptions {
       const uint32_t model_load_thread_count,
       const std::vector<ModelLoadGPULimit>& model_load_gpu_limit,
       const std::vector<HostPolicy>& host_policy, std::shared_ptr<Trace> trace);
+
+  void SetLoggingOptions(const LoggingOptions& logging) { logging_ = logging; }
 
   // Paths to model repository directory. Note that if a model is not unique
   // across all model repositories at any time, the model will not be available.
