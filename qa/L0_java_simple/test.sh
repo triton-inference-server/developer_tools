@@ -37,40 +37,44 @@ fi
 # set variables
 CLIENT_LOG="client.log"
 MODEL_REPO=`pwd`/models
-SAMPLES_REPO=`pwd`/javacpp-presets/tritondevelopertoolsserver/samples/simple
+SAMPLES_REPO=`pwd`/javacpp-presets/tritonserver/samples/simplecpp
 BASE_COMMAND="${MAVEN_PATH} clean compile -f $SAMPLES_REPO exec:java -Djavacpp.platform=linux-x86_64"
 source ../common/util.sh
 
 # generate models
 rm -rf ${MODEL_REPO}
 git clone --single-branch --depth=1 -b https://github.com/triton-inference-server/server.git
-./server/docs/examples/fetch_models.sh
+bash -x server/docs/examples/fetch_models.sh
 mkdir -p ${MODEL_REPO}
 cp -r model_repository/*  ${MODEL_REPO}
 
-# build javacpp-presets/tritondevelopertoolsserver
+# use build script to generate .jar
+git clone --single-branch --depth=1 -b https://github.com/triton-inference-server/client.git
+bash -x client/src/java-api-bindings/scripts/install_dependencies_and_build.sh --include-developer_tools_server
+
+# build javacpp-presets/tritonserver
 set +e
-bash -x ../java-api-bindings/install_test_dependencies_and_build.sh
 rm -r javacpp-presets
 git clone --single-branch --depth=1 -b ${JAVACPP_BRANCH_TAG} ${JAVACPP_BRANCH}
 cd javacpp-presets
-${MAVEN_PATH} clean install --projects .,tritondevelopertoolsserver
-${MAVEN_PATH} clean install -f platform --projects ../tritondevelopertoolsserver/platform -Djavacpp.platform.host
+${MAVEN_PATH} clean install --projects .,tritonserver
+${MAVEN_PATH} clean install -f platform --projects ../tritonserver/platform -Djavacpp.platform.host
 cd ..
 set -e
 
 rm -f *.log
 RET=0
 
-# Run tests on simple example
+# Build SimpleCPP example
 $BASE_COMMAND -Dexec.args="-r $MODEL_REPO" >>$CLIENT_LOG 2>&1
 if [ $? -ne 0 ]; then
     echo -e "Failed to run: ${BASE_COMMAND} -Dexec.args=\"-r ${MODEL_REPO}\""
     RET=1
 fi
 
-java -cp ${JAR_INSTALL_PATH}/tritondevelopertoolsserver-java-bindings.jar ${SAMPLES_REPO}/Simple.java -r ${MODEL_REPO}
+# Run SimpleCPP with generated jar
+java -cp ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar ${SAMPLES_REPO}/SimpleCPP.java
 if [ $? -ne 0 ]; then
-    echo -e "Failed to run: java -cp ${JAR_INSTALL_PATH}/tritondevelopertoolsserver-java-bindings.jar ${SAMPLES_REPO}/Simple.java -r ${MODEL_REPO"
+    echo -e "Failed to run: java -cp ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar ${SAMPLES_REPO}/SimpleCPP.java -r ${MODEL_REPO}"
     RET=1
 fi
