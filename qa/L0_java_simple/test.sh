@@ -1,3 +1,4 @@
+
 # Copyright 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,23 +37,24 @@ fi
 
 # set variables
 CLIENT_LOG="client.log"
-MODEL_REPO=`pwd`/models
-SAMPLES_REPO=`pwd`/javacpp-presets/tritonserver/samples/simplecpp
-BASE_COMMAND="${MAVEN_PATH} clean compile -f $SAMPLES_REPO exec:java -Djavacpp.platform=linux-x86_64"
+MODEL_REPO=`$PWD`/models
+SAMPLES_REPO=`$PWD`/javacpp-presets/tritonserver/samples/simplecpp
 TRITON_SERVER_REPO_TAG=${TRITON_SERVER_REPO_TAG:="main"}
 TRITON_CLIENT_REPO_TAG=${TRITON_CLIENT_REPO_TAG:="main"}
+TEST_HOME=$PWD
 
 # generate models
 rm -rf ${MODEL_REPO}
 git clone --single-branch --depth=1 -b "${TRITON_SERVER_REPO_TAG}" https://github.com/triton-inference-server/server.git
-bash -x server/docs/examples/fetch_models.sh
+source server/docs/examples/fetch_models.sh
 mkdir -p ${MODEL_REPO}
-cp -r model_repository/*  ${MODEL_REPO}
+cp -r model_repository/* ${MODEL_REPO}
 
 # use build script to generate .jar
 git clone --single-branch --depth=1 -b "${TRITON_CLIENT_REPO_TAG}" https://github.com/triton-inference-server/client.git
-bash -x client/src/java-api-bindings/scripts/install_dependencies_and_build.sh --include-developer_tools_server
+source client/src/java-api-bindings/scripts/install_dependencies_and_build.sh --include-developer-tools-server
 
+cd $TEST_HOME
 # build javacpp-presets/tritonserver
 set +e
 rm -r javacpp-presets
@@ -67,6 +69,7 @@ rm -f *.log
 RET=0
 
 # Build SimpleCPP example
+BASE_COMMAND="${MAVEN_PATH} clean compile -f $SAMPLES_REPO exec:java -Djavacpp.platform=linux-x86_64"
 $BASE_COMMAND -Dexec.args="-r $MODEL_REPO" >>$CLIENT_LOG 2>&1
 if [ $? -ne 0 ]; then
     echo -e "Failed to run: ${BASE_COMMAND} -Dexec.args=\"-r ${MODEL_REPO}\""
