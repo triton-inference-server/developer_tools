@@ -38,8 +38,6 @@ class ServerOptions;
 class InferOptions;
 class RepositoryIndex;
 class NewModelRepo;
-class GenericInferRequest;
-class GenericInferResult;
 class Tensor;
 class GenericInferRequest;
 class GenericInferResult;

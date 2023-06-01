@@ -157,9 +157,6 @@ class TritonServer : public GenericTritonServer {
   /// \param repo_path The full path to the model repository.
   void UnregisterModelRepo(const std::string& repo_path) override;
 
-  virtual std::unique_ptr<GenericInferResult> Infer(
-      GenericInferRequest& infer_request) = 0;
-
  protected:
   void PrepareInferenceRequest(
       TRITONSERVER_InferenceRequest** irequest, const InferRequest& request);
