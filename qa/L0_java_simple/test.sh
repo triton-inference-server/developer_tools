@@ -52,7 +52,7 @@ cp -r model_repository/* ${MODEL_REPO}
 
 # use build script to generate .jar
 git clone --single-branch --depth=1 -b "${TRITON_CLIENT_REPO_TAG}" https://github.com/triton-inference-server/client.git
-source client/src/java-api-bindings/scripts/install_dependencies_and_build.sh --include-developer-tools-server
+source client/src/java-api-bindings/scripts/install_dependencies_and_build.sh --enable-developer-tools-server
 
 cd $TEST_HOME
 # build javacpp-presets/tritonserver
