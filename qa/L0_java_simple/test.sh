@@ -1,4 +1,4 @@
-
+#!/bin/bash
 # Copyright 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,21 +37,21 @@ fi
 
 # set variables
 CLIENT_LOG="client.log"
-MODEL_REPO=`$PWD`/models
-SAMPLES_REPO=`$PWD`/javacpp-presets/tritonserver/samples/simplecpp
+MODEL_REPO=$PWD/models
+SAMPLES_REPO=$PWD/javacpp-presets/tritonserver/samples/simplecpp
 TRITON_SERVER_REPO_TAG=${TRITON_SERVER_REPO_TAG:="main"}
 TRITON_CLIENT_REPO_TAG=${TRITON_CLIENT_REPO_TAG:="main"}
 TEST_HOME=$PWD
 
 # generate models
 rm -rf ${MODEL_REPO}
-git clone --single-branch --depth=1 -b "${TRITON_SERVER_REPO_TAG}" https://github.com/triton-inference-server/server.git
+git clone --single-branch --depth=1 -b ${TRITON_SERVER_REPO_TAG} https://github.com/triton-inference-server/server.git
 source server/docs/examples/fetch_models.sh
 mkdir -p ${MODEL_REPO}
 cp -r model_repository/* ${MODEL_REPO}
 
 # use build script to generate .jar
-git clone --single-branch --depth=1 -b "${TRITON_CLIENT_REPO_TAG}" https://github.com/triton-inference-server/client.git
+git clone --single-branch --depth=1 -b ${TRITON_CLIENT_REPO_TAG} https://github.com/triton-inference-server/client.git
 source client/src/java-api-bindings/scripts/install_dependencies_and_build.sh --enable-developer-tools-server
 
 cd $TEST_HOME
