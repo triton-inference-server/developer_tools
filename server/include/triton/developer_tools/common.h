@@ -27,6 +27,7 @@
 #include <climits>
 #include <set>
 #include <vector>
+#include <string>
 
 namespace triton { namespace developer_tools { namespace server {
 
