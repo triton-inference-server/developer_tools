@@ -43,7 +43,7 @@ export CUDA_VISIBLE_DEVICES=0
 TEST_LOG=test.log
 
 # Copy over the decoupled model placed in the python_backend repository.
-git clone https://github.com/triton-inference-server/python_backend.git
+git clone --single-branch --depth=1 -b ${PYTHON_BACKEND_REPO_TAG} https://github.com/triton-inference-server/python_backend.git
 mkdir -p ./models/square_int32/1
 cp python_backend/examples/decoupled/square_model.py ./models/square_int32/1/model.py
 cp python_backend/examples/decoupled/square_config.pbtxt ./models/square_int32/config.pbtxt
