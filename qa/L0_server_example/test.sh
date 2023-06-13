@@ -50,10 +50,10 @@ RET=0
 # Prepare required models for the examples
 mkdir models
 cp -r ../L0_server_unit_test/models/add_sub* ./models/.
-git clone https://github.com/triton-inference-server/server.git
+git clone --single-branch --depth=1 -b ${TRITON_SERVER_BRANCH_NAME} https://github.com/triton-inference-server/server.git
 cp -r server/docs/examples/model_repository/simple ./models/.
 # Copy over the decoupled model placed in the python_backend repository.
-git clone https://github.com/triton-inference-server/python_backend.git
+git clone --single-branch --depth=1 -b ${PYTHON_BACKEND_REPO_TAG} https://github.com/triton-inference-server/python_backend.git
 mkdir -p ./models/square_int32/1
 cp python_backend/examples/decoupled/square_model.py ./models/square_int32/1/model.py
 cp python_backend/examples/decoupled/square_config.pbtxt ./models/square_int32/config.pbtxt
