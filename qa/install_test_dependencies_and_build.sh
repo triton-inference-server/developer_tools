@@ -39,6 +39,7 @@ cmake --version
 
 # Install developer tools
 mkdir -p /opt/tritonserver/developer_tools/server/build && cd /opt/tritonserver/developer_tools/server/build 
-cmake -DCMAKE_INSTALL_PREFIX:PATH=/opt/tritonserver/developer_tools/server/build/install .. 
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/opt/tritonserver/developer_tools/server/build/install \
+    -DTRITON_CORE_REPO_TAG=${TRITON_CORE_REPO_TAG} -DTRITON_COMMON_REPO_TAG=${TRITON_COMMON_REPO_TAG} .. 
 make install 
 cp /opt/tritonserver/developer_tools/server/build/install/lib/libtritondevelopertoolsserver.a /opt/tritonserver/lib/
