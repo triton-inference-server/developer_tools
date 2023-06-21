@@ -46,15 +46,14 @@ TEST_HOME=$PWD
 # generate models
 rm -rf ${MODEL_REPO}
 git clone --single-branch --depth=1 -b ${TRITON_SERVER_REPO_TAG} https://github.com/triton-inference-server/server.git
-source server/docs/examples/fetch_models.sh
 mkdir -p ${MODEL_REPO}
-cp -r model_repository/* ${MODEL_REPO}
+cp -r server/docs/examples/model_repository/simple ${MODEL_REPO}/simple
 
 # use build script to generate .jar
 git clone --single-branch --depth=1 -b ${TRITON_CLIENT_REPO_TAG} https://github.com/triton-inference-server/client.git
 source client/src/java-api-bindings/scripts/install_dependencies_and_build.sh --enable-developer-tools-server
 
-cd $TEST_HOME
+cd ${TEST_HOME}
 # build javacpp-presets/tritonserver
 set +e
 rm -r javacpp-presets
@@ -69,8 +68,8 @@ rm -f *.log
 RET=0
 
 # Build SimpleCPP example
-BASE_COMMAND="${MAVEN_PATH} clean compile -f $SAMPLES_REPO exec:java -Djavacpp.platform=linux-x86_64"
-$BASE_COMMAND -Dexec.args="-r $MODEL_REPO" >>$CLIENT_LOG 2>&1
+BASE_COMMAND="${MAVEN_PATH} clean compile -f ${SAMPLES_REPO} exec:java -Djavacpp.platform=linux-x86_64"
+${BASE_COMMAND} -Dexec.args="-r ${MODEL_REPO}" >>${CLIENT_LOG} 2>&1
 if [ $? -ne 0 ]; then
     echo -e "Failed to run: ${BASE_COMMAND} -Dexec.args=\"-r ${MODEL_REPO}\""
     RET=1
