@@ -25,11 +25,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <unistd.h>
+
 #include <cstring>
 #include <iostream>
 #include <set>
 #include <sstream>
 #include <string>
+
 #include "triton/developer_tools/server_wrapper.h"
 
 
@@ -277,8 +279,9 @@ Check(
     const bool is_custom_alloc)
 {
   std::unordered_map<std::string, std::vector<char>> output_data;
-  for (auto& output : {std::make_pair(output0_name, output0),
-                       std::make_pair(output1_name, output1)}) {
+  for (auto& output :
+       {std::make_pair(output0_name, output0),
+        std::make_pair(output1_name, output1)}) {
     if (model_name == "add_sub") {
       if ((output.second->shape_.size() != 1) ||
           (output.second->shape_[0] != 16)) {
