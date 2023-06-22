@@ -67,6 +67,7 @@ set -e
 rm -f *.log
 RET=0
 
+set +e
 # Build SimpleCPP example
 BASE_COMMAND="${MAVEN_PATH} clean compile -f ${SAMPLES_REPO} exec:java -Djavacpp.platform=linux-x86_64"
 ${BASE_COMMAND} -Dexec.args="-r ${MODEL_REPO}" >>${CLIENT_LOG} 2>&1
@@ -81,3 +82,13 @@ if [ $? -ne 0 ]; then
     echo -e "Failed to run: java -cp ${JAR_INSTALL_PATH}/tritonserver-java-bindings.jar ${SAMPLES_REPO}/SimpleCPP.java -r ${MODEL_REPO}"
     RET=1
 fi
+
+set -e
+
+if [ $RET -eq 0 ]; then
+    echo -e "\n***\n*** Test Passed\n***"
+else
+    echo -e "\n***\n*** Test FAILED\n***"
+fi
+
+exit $RET
