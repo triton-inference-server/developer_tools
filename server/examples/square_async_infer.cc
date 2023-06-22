@@ -25,7 +25,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <unistd.h>
+
 #include <string>
+
 #include "triton/developer_tools/server_wrapper.h"
 
 namespace tds = triton::developer_tools::server;

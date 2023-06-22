@@ -25,8 +25,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <unistd.h>
+
 #include <iostream>
 #include <string>
+
 #include "triton/developer_tools/server_wrapper.h"
 
 namespace tds = triton::developer_tools::server;
@@ -90,8 +92,9 @@ Check(
     const std::vector<int32_t>& expected_sum,
     const std::vector<int32_t>& expected_diff)
 {
-  for (auto& output : {std::make_pair(output0_name, output0),
-                       std::make_pair(output1_name, output1)}) {
+  for (auto& output :
+       {std::make_pair(output0_name, output0),
+        std::make_pair(output1_name, output1)}) {
     if ((output.second->shape_.size() != 1) ||
         (output.second->shape_[0] != 16)) {
       std::cerr << "error: received incorrect shapes for " << output.first

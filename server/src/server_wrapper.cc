@@ -25,7 +25,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "triton/developer_tools/server_wrapper.h"
+
 #include <stdlib.h>
+
 #include <iostream>
 #include <mutex>
 #include <sstream>

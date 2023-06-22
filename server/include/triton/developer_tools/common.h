@@ -26,8 +26,8 @@
 #pragma once
 #include <climits>
 #include <set>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace triton { namespace developer_tools { namespace server {
 
