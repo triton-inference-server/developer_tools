@@ -332,3 +332,26 @@ $ ./simple_addsub_async_infer
 $ ./addsub_string_async_infer
 $ ./square_async_infer
 ```
+
+## Triton Server C-API Wrapper Java Bindings
+Similar to the [Java bindings for In-Process Triton Server API](https://github.com/triton-inference-server/server/blob/main/docs/customization_guide/inference_protocols.md#java-bindings-for-in-process-triton-server-api) C-API Wrapper Java Bindings
+is created using [Java CPP](https://github.com/bytedeco/javacpp).
+
+
+The API is documented in [tritonserver.java](https://github.com/bytedeco/javacpp-presets/blob/master/tritonserver/src/gen/java/org/bytedeco/tritonserver/global/tritonserver.java).
+**Note:** Currently, `tritonserver.java` contains bindings for both
+ `In-Process API` and `C-API Wrapper`. 
+ More information about the `In-Process API` can be found in [Inference Protocol README](https://github.com/triton-inference-server/server/blob/main/docs/customization_guide/inference_protocols.md#in-process-triton-server-api).
+
+
+A simple example using the Java API can be found in
+[Samples folder](https://github.com/bytedeco/javacpp-presets/tree/master/tritonserver/samples)
+which includes `SimpleCPP.java` which is similar to 
+[`simple.cc`](https://github.com/triton-inference-server/server/blob/main/src/simple.cc), which uses the `In-Process API`. 
+
+
+In the [QA folder](https://github.com/triton-inference-server/developer_tools/tree/main/qa), folders starting with L0_java include Java API tests.
+
+### Java API setup instructions
+
+Please refer to [Java API setup instructions](https://github.com/triton-inference-server/server/blob/main/docs/customization_guide/inference_protocols.md#java-api-setup-instructions) for instructions on how to use C-API Wrapper Java Bindings.
