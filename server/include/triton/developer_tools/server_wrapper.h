@@ -229,7 +229,7 @@ class InferResult : public GenericInferResult {
   bool HasError() override;
 
   /// Return the error message of the error.
-  /// \return The messsage for the error. Empty if no error.
+  /// \return The message for the error. Empty if no error.
   std::string ErrorMsg() override;
 
   // Get the pointer to the future of the next result. This function is used for

@@ -656,7 +656,7 @@ InternalServer::InferResponseComplete(
 {
   auto p = reinterpret_cast<InferRequest*>(userp);
   // The allocation info of output tensor, which will be used to finalize
-  // the reponse and stored in the ouput 'Tensor' object so that When calling
+  // the response and stored in the output 'Tensor' object so that When calling
   // the destructor of an output tensor, it will know how to clean the buffer
   // correctly.
   AllocInfo alloc_info(
@@ -674,7 +674,7 @@ InternalServer::InferResponseComplete(
       p->prev_promise_.reset();
     } else {
       if ((flags & TRITONSERVER_RESPONSE_COMPLETE_FINAL) == 0) {
-        // Not the last reponse. Need to store the promise associated with the
+        // Not the last response. Need to store the promise associated with the
         // next future.
         auto promise = new std::promise<std::unique_ptr<InferResult>>();
         infer_result->next_result_future_ =
@@ -691,7 +691,7 @@ InternalServer::InferResponseComplete(
     }
   } else if (
       is_decoupled && (flags & TRITONSERVER_RESPONSE_COMPLETE_FINAL) != 0) {
-    // An empty response may be the last reponse for decoupled models.
+    // An empty response may be the last response for decoupled models.
     p->prev_promise_->set_value(nullptr);
     p->prev_promise_.reset();
   } else {

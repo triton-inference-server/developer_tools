@@ -158,7 +158,7 @@ main(int argc, char** argv)
     auto request1 = tds::InferRequest::Create(tds::InferOptions(model_name));
 
     // Create the data for an input tensor. For square model, value '3' here
-    // means there will be three reponses for this request, and each reponse
+    // means there will be three responses for this request, and each response
     // contains only one output with value '3'.
     std::vector<int32_t> input_data1 = {3};
 
@@ -176,7 +176,7 @@ main(int argc, char** argv)
     auto request2 = tds::InferRequest::Create(tds::InferOptions(model_name));
 
     // Create the data for an input tensor. For square model, value '0' here
-    // means there won't be any reponses for this request.
+    // means there won't be any responses for this request.
     std::vector<int32_t> input_data2 = {0};
     request2->AddInput(
         "IN", input_data2.begin(), input_data2.end(), tds::DataType::INT32,
