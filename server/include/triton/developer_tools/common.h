@@ -529,7 +529,7 @@ struct Tensor {
 
 //==============================================================================
 /// Structure to hold the full path to the model repository to be registered and
-/// the mapping from the original model name to the overriden one. This object
+/// the mapping from the original model name to the overridden one. This object
 /// is used for calling 'TritonServer::RegisterModelRepo' for registering
 /// model repository.
 ///
@@ -605,7 +605,7 @@ struct InferOptions {
   // provided, the server will handle the request using default setting
   // for the model.
   uint64_t request_timeout_;
-  // User-provided custom reponse allocator object. Default is nullptr.
+  // User-provided custom response allocator object. Default is nullptr.
   // If using custom allocator, the lifetime of this 'Allocator' object should
   // be long enough until `InferResult` object goes out of scope as we need
   // this `Allocator` object to call 'ResponseAllocatorReleaseFn_t' for

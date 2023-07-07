@@ -1,4 +1,4 @@
-# Copyright 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,14 +24,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-include(CMakeFindDependencyMacro)
+name: pre-commit
 
-get_filename_component(
-  TRITONDEVELOPERTOOLSSERVER_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH
-)
+on:
+  pull_request:
 
-list(APPEND CMAKE_MODULE_PATH ${TRITONDEVELOPERTOOLSSERVER_CMAKE_DIR})
-
-if(NOT TARGET TritonDeveloperToolsServer::triton-developer_tools-server)
-  include("${TRITONDEVELOPERTOOLSSERVER_CMAKE_DIR}/TritonDeveloperToolsServerTargets.cmake")
-endif()
+jobs:
+  pre-commit:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+    - uses: pre-commit/action@v3.0.0

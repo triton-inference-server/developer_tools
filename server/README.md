@@ -36,12 +36,12 @@ Triton Server C-API Wrapper wraps up the functionality of
 developing their application without having in-depth knowledge of Triton
 implementation details or writing complicated code. This wrapper is also called
 the "Higher Level In Process C++ API" or just "Server Wrapper" for short. The
-header files that defines and documents the Server C-API Wrapper is 
+header files that defines and documents the Server C-API Wrapper is
 [server_wrapper.h](include/triton/developer_tools/server_wrapper.h). Ask
 questions or report problems in the main Triton
 [issues page](https://github.com/triton-inference-server/server/issues).
 
-## Build the Server C-API Wrapper library and custom application 
+## Build the Server C-API Wrapper library and custom application
 
 To build and install the Server Wrapper library from
 `developer_tools/server`, use the following commands.
@@ -340,14 +340,14 @@ is created using [Java CPP](https://github.com/bytedeco/javacpp).
 
 The API is documented in [tritonserver.java](https://github.com/bytedeco/javacpp-presets/blob/master/tritonserver/src/gen/java/org/bytedeco/tritonserver/global/tritonserver.java).
 **Note:** Currently, `tritonserver.java` contains bindings for both
- `In-Process API` and `C-API Wrapper`. 
+ `In-Process API` and `C-API Wrapper`.
  More information about the `In-Process API` can be found in [Inference Protocol README](https://github.com/triton-inference-server/server/blob/main/docs/customization_guide/inference_protocols.md#in-process-triton-server-api).
 
 
 A simple example using the Java API can be found in
 [Samples folder](https://github.com/bytedeco/javacpp-presets/tree/master/tritonserver/samples)
-which includes `SimpleCPP.java` which is similar to 
-[`simple.cc`](https://github.com/triton-inference-server/server/blob/main/src/simple.cc), which uses the `In-Process API`. 
+which includes `SimpleCPP.java` which is similar to
+[`simple.cc`](https://github.com/triton-inference-server/server/blob/main/src/simple.cc), which uses the `In-Process API`.
 
 
 In the [QA folder](https://github.com/triton-inference-server/developer_tools/tree/main/qa), folders starting with L0_java include Java API tests.

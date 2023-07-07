@@ -197,7 +197,7 @@ class GenericInferResult {
   virtual bool HasError() = 0;
 
   /// Return the error message of the error.
-  /// \return The messsage for the error. Empty if no error.
+  /// \return The message for the error. Empty if no error.
   virtual std::string ErrorMsg() = 0;
 };
 
