@@ -26,7 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Install dependencies
-apt update && apt install -y rapidjson-dev \
+apt update && apt install -y gpg \
+                            wget \
+                            rapidjson-dev \
                             software-properties-common && \
 wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
     gpg --dearmor - |  \
