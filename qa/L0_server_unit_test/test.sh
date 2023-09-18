@@ -37,7 +37,7 @@ fi
 if [ ! -z "$TEST_REPO_ARCH" ]; then
     REPO_VERSION=${REPO_VERSION}_${TEST_REPO_ARCH}
 fi
-bash -x ../install_test_dependencies_and_build.sh
+bash -x ../../server/install_dependencies_and_build.sh
 
 export CUDA_VISIBLE_DEVICES=0
 
