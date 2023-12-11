@@ -26,19 +26,18 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Install dependencies
-apt update && apt install -y gpg \
-                            wget \
-                            rapidjson-dev \
-                            software-properties-common && \
-wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
-    gpg --dearmor - |  \
-    tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
-. /etc/os-release && \
-echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | \
-tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
-apt-get update && \
-apt-get install -y --no-install-recommends cmake cmake-data && \
-cmake --version
+apt update -q=2 \
+    && apt install -y \
+        gpg \
+        wget \
+        rapidjson-dev \
+        software-properties-common \
+    && wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - |  tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null \
+    && . /etc/os-release \
+    && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null \
+    && apt-get update -q=2 \
+    && apt-get install -y --no-install-recommends cmake=3.27.7* cmake-data=3.27.7* \
+    && cmake --version
 
 # Install developer tools
 mkdir -p /opt/tritonserver/developer_tools/server/build && cd /opt/tritonserver/developer_tools/server/build
