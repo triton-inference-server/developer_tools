@@ -1,4 +1,4 @@
-// Copyright 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright 2022-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -368,8 +368,8 @@ struct ResponseParameters {
   // The name of the parameter.
   const char* name_;
   // The type of the parameter. Valid types are TRITONSERVER_PARAMETER_STRING,
-  // TRITONSERVER_PARAMETER_INT, TRITONSERVER_PARAMETER_BOOL, and
-  // TRITONSERVER_PARAMETER_BYTES.
+  // TRITONSERVER_PARAMETER_INT, TRITONSERVER_PARAMETER_BOOL,
+  // TRITONSERVER_PARAMETER_BYTES and TRITONSERVER_PARAMETER_DOUBLE.
   TRITONSERVER_ParameterType type_;
   // The pointer to the parameter value.
   const void* vvalue_;
@@ -2056,6 +2056,11 @@ InferResult::DebugString()
             THROW_IF_TRITON_ERR(params_json.AddStringRef(
                 params_[i]->name_,
                 reinterpret_cast<const char*>(params_[i]->vvalue_)));
+            break;
+          case TRITONSERVER_PARAMETER_DOUBLE:
+            THROW_IF_TRITON_ERR(params_json.AddDouble(
+                params_[i]->name_,
+                *(reinterpret_cast<const double*>(params_[i]->vvalue_))));
             break;
           case TRITONSERVER_PARAMETER_BYTES:
             throw TritonException(
