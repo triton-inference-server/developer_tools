@@ -671,7 +671,6 @@ InternalServer::InferResponseComplete(
     if (!is_decoupled) {
       infer_result->next_result_future_.reset();
       p->prev_promise_->set_value(std::move(infer_result));
-      p->prev_promise_.reset();
     } else {
       if ((flags & TRITONSERVER_RESPONSE_COMPLETE_FINAL) == 0) {
         // Not the last response. Need to store the promise associated with the
@@ -686,17 +685,14 @@ InternalServer::InferResponseComplete(
         // The last response.
         infer_result->next_result_future_.reset();
         p->prev_promise_->set_value(std::move(infer_result));
-        p->prev_promise_.reset();
       }
     }
   } else if (
       is_decoupled && (flags & TRITONSERVER_RESPONSE_COMPLETE_FINAL) != 0) {
     // An empty response may be the last response for decoupled models.
     p->prev_promise_->set_value(nullptr);
-    p->prev_promise_.reset();
   } else {
     p->prev_promise_->set_value(nullptr);
-    p->prev_promise_.reset();
     throw TritonException("Unexpected empty response.");
   }
 }
