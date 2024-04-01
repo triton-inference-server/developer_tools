@@ -1377,8 +1377,8 @@ InternalServer::PrepareTraceManager(InferRequest& infer_request)
       trace_manager_->UpdateTraceSetting(
           infer_request.infer_options_->model_name_, new_setting);
     }
-    infer_request.trace_ = std::move(
-        trace_manager_->SampleTrace(infer_request.infer_options_->model_name_));
+    infer_request.trace_ =
+        trace_manager_->SampleTrace(infer_request.infer_options_->model_name_);
   } else if (infer_request.infer_options_->trace_) {
     LOG_MESSAGE(
         TRITONSERVER_LOG_ERROR,
@@ -1884,8 +1884,8 @@ InternalResult::FinalizeResponse(
       const void* vvalue;
       THROW_IF_TRITON_ERR(TRITONSERVER_InferenceResponseParameter(
           response, pidx, &name, &type, &vvalue));
-      params_.push_back(std::move(std::unique_ptr<ResponseParameters>(
-          new ResponseParameters(name, type, vvalue))));
+      params_.push_back(std::unique_ptr<ResponseParameters>(
+          new ResponseParameters(name, type, vvalue)));
     }
 
     uint32_t output_count;
@@ -2077,8 +2077,9 @@ InferResult::DebugString()
           response_json, triton::common::TritonJson::ValueType::OBJECT);
       THROW_IF_TRITON_ERR(
           output_json.AddStringRef("name", infer_output.first.c_str()));
-      const char* datatype_str = DataTypeString(output->data_type_).c_str();
-      THROW_IF_TRITON_ERR(output_json.AddStringRef("datatype", datatype_str));
+      std::string datatype_str = DataTypeString(output->data_type_);
+      THROW_IF_TRITON_ERR(
+          output_json.AddStringRef("datatype", datatype_str.c_str()));
       triton::common::TritonJson::Value shape_json(
           response_json, triton::common::TritonJson::ValueType::ARRAY);
       for (size_t j = 0; j < output->shape_.size(); j++) {

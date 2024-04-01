@@ -121,7 +121,7 @@ target_compile_options(
   triton-developer_tools-server
   PRIVATE
   $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
-    -Wall -Wextra -Wno-unused-parameter -Werror>
+    -Wall -Wextra -Wno-unused-parameter -Werror -Wno-overloaded-virtual>
   $<$<CXX_COMPILER_ID:MSVC>:/Wall /D_WIN32_WINNT=0x0A00 /EHsc>
 )
 

@@ -35,11 +35,11 @@
 
 namespace triton { namespace developer_tools { namespace server {
 
-class ServerOptions;
-class InferOptions;
-class RepositoryIndex;
-class NewModelRepo;
-class Tensor;
+struct ServerOptions;
+struct InferOptions;
+struct RepositoryIndex;
+struct NewModelRepo;
+struct Tensor;
 class GenericInferRequest;
 class GenericInferResult;
 using TensorAllocMap = std::unordered_map<
