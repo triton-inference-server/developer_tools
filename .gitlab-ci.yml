@@ -5,5 +5,9 @@ build-job:
 
 test-job1:
   stage: test
+  tags:
+    - 1GPU
+    - V100
+    - TESLA
   script:
     - echo "This job tests something"
