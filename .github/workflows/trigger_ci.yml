@@ -1,8 +1,8 @@
 on:
   pull_request:
 jobs:
-  environment: GITLAB
   trigger_ci:
+    environment: GITLAB
     runs-on: ubuntu-latest
     steps:
       - name: step1
