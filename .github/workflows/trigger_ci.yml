@@ -3,7 +3,7 @@ on:
 jobs:
   trigger_ci:
     environment: GITLAB
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: step1
         run: |
