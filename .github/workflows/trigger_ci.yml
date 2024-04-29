@@ -1,0 +1,9 @@
+on:
+  pull_request:
+jobs:
+  trigger_ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: step1
+        run:  curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.URL }}"
+      
