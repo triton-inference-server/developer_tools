@@ -8,6 +8,6 @@ jobs:
       - name: step1
         run: |
           #!/bin/bash
-          curl --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.URL }}"
+          curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.URL }}"
         
       
