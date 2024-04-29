@@ -6,6 +6,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: step1
-        run:  curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.URL }}"
+        run:  curl -H Content-Type:application/json -X POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.URL }}"
         
       
