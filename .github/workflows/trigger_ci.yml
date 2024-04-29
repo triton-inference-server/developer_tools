@@ -1,6 +1,7 @@
 on:
   pull_request:
 jobs:
+  environment: GITLAB
   trigger_ci:
     runs-on: ubuntu-latest
     steps:
