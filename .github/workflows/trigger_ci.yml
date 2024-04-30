@@ -1,0 +1,20 @@
+on:
+  pull_request:
+jobs:
+  mirror_repo:
+    environment: GITLAB
+    runs-on: self-hosted
+    steps:
+      - name: step1
+        run: |
+          #!/bin/bash
+          curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.MIRROR_URL }}"
+  
+  trigger_pipeline:
+    environment: GITLAB
+    runs-on: self-hosted
+    steps:
+      - name: step1
+        run: |
+          #!/bin/bash
+          curl --request POST --fail -F token=${{ secrets.PIPELINE_TOKEN }} -F ref=${GITHUB_HEAD_REF} "${{ secrets.PIPELINE_URL }}"
