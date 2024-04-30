@@ -10,7 +10,7 @@ jobs:
           #!/bin/bash
           curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.MIRROR_URL }}"
   
-  run_pipeline:
+  trigger_pipeline:
     environment: GITLAB
     runs-on: self-hosted
     steps:
