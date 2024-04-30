@@ -8,7 +8,7 @@ jobs:
       - name: step1
         run: |
           #!/bin/bash
-          curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "https://gitlab-master.nvidia.com/api/v4/projects/124577/mirror/pull"
+          curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.MIRROR_URL }}"
   run_pipeline:
     environment: GITLAB
     runs-on: self-hosted
@@ -16,5 +16,5 @@ jobs:
       - name: step1
         run: |
           #!/bin/bash
-          curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "https://gitlab-master.nvidia.com/api/v4/projects/124577/trigger/pipeline"
+          curl --request POST --header "PRIVATE-TOKEN:${{ secrets.PIPELINE_TOKEN }}" "${{ secrets.PIPELINE_URL }}"
   
