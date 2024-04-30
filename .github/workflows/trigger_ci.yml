@@ -11,6 +11,7 @@ jobs:
           curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.MIRROR_URL }}"
   
   trigger_pipeline:
+    needs: mirror_repo
     environment: GITLAB
     runs-on: self-hosted
     steps:
