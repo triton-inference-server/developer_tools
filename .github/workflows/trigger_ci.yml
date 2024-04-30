@@ -9,6 +9,7 @@ jobs:
         run: |
           #!/bin/bash
           curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.MIRROR_URL }}"
+  
   run_pipeline:
     environment: GITLAB
     runs-on: self-hosted
