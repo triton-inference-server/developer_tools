@@ -19,3 +19,4 @@ jobs:
         run: |
           #!/bin/bash
           curl --request POST --fail -F token=${{ secrets.PIPELINE_TOKEN }} -F ref=${GITHUB_HEAD_REF} "${{ secrets.PIPELINE_URL }}"
+
