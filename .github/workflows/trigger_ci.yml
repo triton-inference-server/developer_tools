@@ -10,4 +10,3 @@ jobs:
           #!/bin/bash
           curl --request POST --header "PRIVATE-TOKEN:${{ secrets.TOKEN }}" "${{ secrets.MIRROR_URL }}"
   
-  
