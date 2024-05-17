@@ -8,4 +8,4 @@
 # review when someone opens a pull request.
 # *       @global-owner1 @global-owner2
 
-.github/* @triton-devops
+.github/workflows/* @triton-devops
