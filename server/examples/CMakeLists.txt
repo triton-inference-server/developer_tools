@@ -66,6 +66,41 @@ install(
 )
 
 #
+# preallocated_resnet50_onnx_infer
+#
+add_executable(
+  preallocated_resnet50_onnx_infer
+  preallocated_resnet50_onnx_infer.cc
+)
+
+set_target_properties(
+  preallocated_resnet50_onnx_infer
+  PROPERTIES
+    SKIP_BUILD_RPATH TRUE
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+    INSTALL_RPATH ""
+)
+
+target_include_directories(
+  preallocated_resnet50_onnx_infer
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+target_link_libraries(
+  preallocated_resnet50_onnx_infer
+  PRIVATE
+    triton-developer_tools-server
+    triton-core-serverstub
+)
+
+install(
+  TARGETS preallocated_resnet50_onnx_infer
+  RUNTIME DESTINATION bin
+)
+
+#
 # addsub_string_async_infer
 #
 add_executable(
