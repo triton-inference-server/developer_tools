@@ -30,6 +30,15 @@ cmake_minimum_required(VERSION 3.18)
 # examples
 #
 
+set(TRITON_ONNXRUNTIME_LIB_PATHS "/workspace/build_2/Release")
+include(/work/server/CPM.cmake/cmake/CPM.cmake)
+
+CPMAddPackage(
+    NAME NVTX
+    GITHUB_REPOSITORY NVIDIA/NVTX
+    GIT_TAG v3.1.0-c-cpp
+    GIT_SHALLOW TRUE)
+
 #
 # simple_addsub_async_infer
 #
@@ -93,10 +102,56 @@ target_link_libraries(
   PRIVATE
     triton-developer_tools-server
     triton-core-serverstub
+    nvtx3-cpp
 )
 
 install(
   TARGETS preallocated_resnet50_onnx_infer
+  RUNTIME DESTINATION bin
+)
+
+#
+# raw_onnx_model_infer
+#
+add_executable(
+  raw_onnx_model_infer
+  raw_onnx_model_infer.cc
+)
+
+set_target_properties(
+  raw_onnx_model_infer
+  PROPERTIES
+    SKIP_BUILD_RPATH TRUE
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+    INSTALL_RPATH ""
+)
+
+target_include_directories(
+  raw_onnx_model_infer
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+
+find_library(ONNXRUNTIME_LIBRARY NAMES onnxruntime PATHS ${TRITON_ONNXRUNTIME_LIB_PATHS})
+
+target_link_libraries(
+  raw_onnx_model_infer
+  PRIVATE
+    triton-developer_tools-server
+    triton-core-serverstub
+    ${ONNXRUNTIME_LIBRARY}
+    nvtx3-cpp
+)
+
+target_link_directories(
+  raw_onnx_model_infer
+    PRIVATE ${TRITON_ONNXRUNTIME_LIB_PATHS}
+)
+
+
+install(
+  TARGETS raw_onnx_model_infer
   RUNTIME DESTINATION bin
 )
 

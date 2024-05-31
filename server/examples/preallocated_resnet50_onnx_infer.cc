@@ -26,12 +26,13 @@
 
 #include <unistd.h>
 
+#include <chrono>
 #include <cstring>
 #include <iostream>
+#include <nvtx3/nvtx3.hpp>
 #include <set>
 #include <sstream>
 #include <string>
-#include <chrono>
 
 #include "triton/developer_tools/server_wrapper.h"
 
@@ -105,8 +106,7 @@ Usage(char** argv, const std::string& msg = std::string())
 
 template <typename T>
 void
-GenerateInputData(
-    std::vector<char>* input0_data)
+GenerateInputData(std::vector<char>* input0_data)
 {
   input0_data->resize(150528 * sizeof(T));
   for (size_t i = 0; i < 150528; ++i) {
@@ -448,7 +448,7 @@ main(int argc, char** argv)
     auto request1 = tds::InferRequest::Create(tds::InferOptions("resnet50"));
     auto request2 = tds::InferRequest::Create(tds::InferOptions("resnet50"));
     auto request3 = tds::InferRequest::Create(tds::InferOptions("resnet50"));
-  
+
     // Add two input tensors to the inference request.
     std::vector<char> input0_data;
     GenerateInputData<float>(&input0_data);
@@ -463,19 +463,18 @@ main(int argc, char** argv)
     size_t input2_size = input2_data.size();
 
 
-
     // Use the iterator of input vector to add input data to a request.
     request1->AddInput(
-        "gpu_0/data_0", input0_data.begin(), input0_data.end(), tds::DataType::FP32,
-        {3,224,224}, tds::MemoryType::CPU, 0);
+        "gpu_0/data_0", input0_data.begin(), input0_data.end(),
+        tds::DataType::FP32, {3, 224, 224}, tds::MemoryType::CPU, 0);
 
     request2->AddInput(
-        "gpu_0/data_0", input1_data.begin(), input1_data.end(), tds::DataType::FP32,
-        {3,224,224}, tds::MemoryType::CPU, 0);
-    
+        "gpu_0/data_0", input1_data.begin(), input1_data.end(),
+        tds::DataType::FP32, {3, 224, 224}, tds::MemoryType::CPU, 0);
+
     request3->AddInput(
-        "gpu_0/data_0", input2_data.begin(), input2_data.end(), tds::DataType::FP32,
-        {3,224,224}, tds::MemoryType::CPU, 0);
+        "gpu_0/data_0", input2_data.begin(), input2_data.end(),
+        tds::DataType::FP32, {3, 224, 224}, tds::MemoryType::CPU, 0);
 
     // For this inference, we provide pre-allocated buffer for output. The infer
     // result will be stored in-place to the buffer.
@@ -497,66 +496,93 @@ main(int argc, char** argv)
     request2->AddRequestedOutput("gpu_0/softmax_1", alloc_output1);
     request3->AddRequestedOutput("gpu_0/softmax_1", alloc_output2);
 
-    auto start = std::chrono::high_resolution_clock::now();
+    // Warm-Up
+    for (int i = 0; i < 10000; i++) {
+      auto result_future1 = server->AsyncInfer(*request1);
 
-    // Call 'AsyncInfer' function to run inference.
-    auto result_future1 = server->AsyncInfer(*request1);
+      // Get the infer result and check the result.
+      auto result1 = result_future1.get();
+      if (result1->HasError()) {
+        FAIL(result1->ErrorMsg());
+      }
 
-    // Get the infer result and check the result.
-    auto result1 = result_future1.get();
-    if (result1->HasError()) {
-      FAIL(result1->ErrorMsg());
+      auto result_future2 = server->AsyncInfer(*request2);
+
+      // Get the infer result and check the result.
+      auto result2 = result_future2.get();
+      if (result2->HasError()) {
+        FAIL(result2->ErrorMsg());
+      }
+
+      auto result_future3 = server->AsyncInfer(*request3);
+
+      // Get the infer result and check the result.
+      auto result3 = result_future3.get();
+      if (result3->HasError()) {
+        FAIL(result3->ErrorMsg());
+      }
     }
 
-    auto result_future2 = server->AsyncInfer(*request2);
 
-    // Get the infer result and check the result.
-    auto result2 = result_future2.get();
-    if (result2->HasError()) {
-      FAIL(result2->ErrorMsg());
+    std::chrono::duration<double, std::milli> total_elapsed;
+
+    for (int i = 0; i < 100; i++) {
+      auto start = std::chrono::high_resolution_clock::now();
+      {
+        nvtx3::scoped_range loop{"three inferences"};  // Range for iteration
+
+        {
+          nvtx3::scoped_range loop{"first inference"};  // Range for iteration
+          // Call 'AsyncInfer' function to run inference.
+          auto result_future1 = server->AsyncInfer(*request1);
+
+          // Get the infer result and check the result.
+          auto result1 = result_future1.get();
+          if (result1->HasError()) {
+            FAIL(result1->ErrorMsg());
+          }
+        }
+
+        {
+          nvtx3::scoped_range loop{"second inference"};  // Range for iteration
+          auto result_future2 = server->AsyncInfer(*request2);
+
+          // Get the infer result and check the result.
+          auto result2 = result_future2.get();
+          if (result2->HasError()) {
+            FAIL(result2->ErrorMsg());
+          }
+        }
+
+        {
+          nvtx3::scoped_range loop{"third inference"};  // Range for iteration
+          auto result_future3 = server->AsyncInfer(*request3);
+
+          // Get the infer result and check the result.
+          auto result3 = result_future3.get();
+          if (result3->HasError()) {
+            FAIL(result3->ErrorMsg());
+          }
+        }
+      }
+
+      auto end = std::chrono::high_resolution_clock::now();
+
+      // Calculate the elapsed time in milliseconds
+      total_elapsed += end - start;
+      std::cout << "Running Avg Elapsed time: " << total_elapsed.count() / i
+                << " ms" << std::endl;
     }
-
-    auto result_future3 = server->AsyncInfer(*request3);
-
-    // Get the infer result and check the result.
-    auto result3 = result_future3.get();
-    if (result3->HasError()) {
-      FAIL(result3->ErrorMsg());
-    }
-    
-    auto end = std::chrono::high_resolution_clock::now();
-
-    // Calculate the elapsed time in milliseconds
-    std::chrono::duration<double, std::milli> elapsed = end - start;
 
     // Output the elapsed time
-    std::cout << "Elapsed time: " << elapsed.count() << " ms" << std::endl;
-
-    std::cout << "Ran inference on model '" << result1->ModelName()
-              << "', version '" << result1->ModelVersion()
-              << "', with request ID '" << result1->Id() << "'\n";
-    std::cout << "Ran inference on model '" << result2->ModelName()
-              << "', version '" << result2->ModelVersion()
-              << "', with request ID '" << result2->Id() << "'\n";
-    std::cout << "Ran inference on model '" << result3->ModelName()
-              << "', version '" << result3->ModelVersion()
-              << "', with request ID '" << result3->Id() << "'\n";
-
-
-    std::shared_ptr<tds::Tensor> result1_out0 = result1->Output("gpu_0/softmax_1");
-    std::shared_ptr<tds::Tensor> result2_out0 = result2->Output("gpu_0/softmax_1");
-    std::shared_ptr<tds::Tensor> result3_out0 = result3->Output("gpu_0/softmax_1");
-
-    // Get full response.
-    std::cout << result1->DebugString() << std::endl;
-    std::cout << result2->DebugString() << std::endl;
-    std::cout << result3->DebugString() << std::endl;
+    std::cout << " Avg Elapsed time: " << total_elapsed.count() / 100 << " ms"
+              << std::endl;
 
     // Get the server metrics.
     std::string model_stat = server->ModelStatistics("resnet50", 1);
     std::cout << "\n\n\n=========Model Statistics===========\n"
               << model_stat << "\n";
-    
+
     // Unload 'add_sub' model as we don't need it anymore.
     server->UnloadModel("resnet50");
   }
