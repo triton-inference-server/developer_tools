@@ -65,27 +65,6 @@ namespace {
 bool enforce_memory_type = false;
 tds::MemoryType requested_memory_type;
 
-#ifdef TRITON_ENABLE_GPU
-static auto cuda_data_deleter = [](void* data) {
-  if (data != nullptr) {
-    cudaPointerAttributes attr;
-    auto cuerr = cudaPointerGetAttributes(&attr, data);
-    if (cuerr != cudaSuccess) {
-      std::cerr << "error: failed to get CUDA pointer attribute of " << data
-                << ": " << cudaGetErrorString(cuerr) << std::endl;
-    }
-    if (attr.type == cudaMemoryTypeDevice) {
-      cuerr = cudaFree(data);
-    } else if (attr.type == cudaMemoryTypeHost) {
-      cuerr = cudaFreeHost(data);
-    }
-    if (cuerr != cudaSuccess) {
-      std::cerr << "error: failed to release CUDA pointer " << data << ": "
-                << cudaGetErrorString(cuerr) << std::endl;
-    }
-  }
-};
-#endif  // TRITON_ENABLE_GPU
 
 void
 Usage(char** argv, const std::string& msg = std::string())
@@ -95,10 +74,6 @@ Usage(char** argv, const std::string& msg = std::string())
   }
 
   std::cerr << "Usage: " << argv[0] << " [options]" << std::endl;
-  std::cerr << "\t-m <\"system\"|\"pinned\"|gpu>"
-            << " Enforce the memory type for input and output tensors."
-            << " If not specified, inputs will be in system memory and outputs"
-            << " will be based on the model's preferred type." << std::endl;
   std::cerr << "\t-v Enable verbose logging" << std::endl;
 
   exit(1);
@@ -113,268 +88,6 @@ GenerateInputData(std::vector<char>* input0_data)
     ((T*)input0_data->data())[i] = 1.0 * i;
   }
 }
-
-template <typename T>
-void
-CompareResult(
-    const std::string& output0_name, const std::string& output1_name,
-    const void* input0, const void* input1, const char* output0,
-    const char* output1)
-{
-  for (size_t i = 0; i < 16; ++i) {
-    std::cout << ((T*)input0)[i] << " + " << ((T*)input1)[i] << " = "
-              << ((T*)output0)[i] << std::endl;
-    std::cout << ((T*)input0)[i] << " - " << ((T*)input1)[i] << " = "
-              << ((T*)output1)[i] << std::endl;
-
-    if ((((T*)input0)[i] + ((T*)input1)[i]) != ((T*)output0)[i]) {
-      FAIL("incorrect sum in " + output0_name);
-    }
-    if ((((T*)input0)[i] - ((T*)input1)[i]) != ((T*)output1)[i]) {
-      FAIL("incorrect difference in " + output1_name);
-    }
-  }
-}
-
-void
-ResponseAllocator(
-    const char* tensor_name, size_t byte_size,
-    tds::MemoryType preferred_memory_type, int64_t preferred_memory_type_id,
-    void** buffer, tds::MemoryType* actual_memory_type,
-    int64_t* actual_memory_type_id)
-{
-  std::cout << "Using custom allocation function" << std::endl;
-
-  // Initially attempt to make the actual memory type and id that we
-  // allocate be the same as preferred memory type
-  *actual_memory_type = preferred_memory_type;
-  *actual_memory_type_id = preferred_memory_type_id;
-
-  // If 'byte_size' is zero just return 'buffer' == nullptr, we don't
-  // need to do any other book-keeping.
-  if (byte_size == 0) {
-    *buffer = nullptr;
-    std::cout << "allocated " << byte_size << " bytes for result tensor "
-              << tensor_name << std::endl;
-  } else {
-    void* allocated_ptr = nullptr;
-    if (enforce_memory_type) {
-      *actual_memory_type = requested_memory_type;
-    }
-
-    switch (*actual_memory_type) {
-#ifdef TRITON_ENABLE_GPU
-      case tds::MemoryType::CPU_PINNED: {
-        auto err = cudaSetDevice(*actual_memory_type_id);
-        if ((err != cudaSuccess) && (err != cudaErrorNoDevice) &&
-            (err != cudaErrorInsufficientDriver)) {
-          throw tds::TritonException(std::string(
-              "unable to recover current CUDA device: " +
-              std::string(cudaGetErrorString(err))));
-        }
-
-        err = cudaHostAlloc(&allocated_ptr, byte_size, cudaHostAllocPortable);
-        if (err != cudaSuccess) {
-          throw tds::TritonException(std::string(
-              "cudaHostAlloc failed: " + std::string(cudaGetErrorString(err))));
-        }
-        break;
-      }
-
-      case tds::MemoryType::GPU: {
-        auto err = cudaSetDevice(*actual_memory_type_id);
-        if ((err != cudaSuccess) && (err != cudaErrorNoDevice) &&
-            (err != cudaErrorInsufficientDriver)) {
-          throw tds::TritonException(std::string(
-              "unable to recover current CUDA device: " +
-              std::string(cudaGetErrorString(err))));
-        }
-
-        err = cudaMalloc(&allocated_ptr, byte_size);
-        if (err != cudaSuccess) {
-          throw tds::TritonException(std::string(
-              "cudaMalloc failed: " + std::string(cudaGetErrorString(err))));
-        }
-        break;
-      }
-#endif  // TRITON_ENABLE_GPU
-
-      // Use CPU memory if the requested memory type is unknown
-      // (default case).
-      case tds::MemoryType::CPU:
-      default: {
-        *actual_memory_type = tds::MemoryType::CPU;
-        allocated_ptr = malloc(byte_size);
-        break;
-      }
-    }
-
-    if (allocated_ptr != nullptr) {
-      *buffer = allocated_ptr;
-      std::cout << "allocated " << byte_size << " bytes in "
-                << MemoryTypeString(*actual_memory_type)
-                << " for result tensor " << tensor_name << std::endl;
-    }
-  }
-}
-
-void
-ResponseRelease(
-    void* buffer, size_t byte_size, tds::MemoryType memory_type,
-    int64_t memory_type_id)
-{
-  std::cout << "Using custom response release function" << std::endl;
-
-  std::stringstream ss;
-  ss << buffer;
-  std::string buffer_str = ss.str();
-
-  std::cout << "Releasing buffer " << buffer_str << " of size "
-            << std::to_string(byte_size) << " in "
-            << tds::MemoryTypeString(memory_type);
-
-  switch (memory_type) {
-    case tds::MemoryType::CPU:
-      free(buffer);
-      break;
-#ifdef TRITON_ENABLE_GPU
-    case tds::MemoryType::CPU_PINNED: {
-      auto err = cudaSetDevice(memory_type_id);
-      if (err == cudaSuccess) {
-        err = cudaFreeHost(buffer);
-      }
-      if (err != cudaSuccess) {
-        std::cerr << "error: failed to cudaFree " << buffer << ": "
-                  << cudaGetErrorString(err) << std::endl;
-      }
-      break;
-    }
-    case tds::MemoryType::GPU: {
-      auto err = cudaSetDevice(memory_type_id);
-      if (err == cudaSuccess) {
-        err = cudaFree(buffer);
-      }
-      if (err != cudaSuccess) {
-        std::cerr << "error: failed to cudaFree " << buffer << ": "
-                  << cudaGetErrorString(err) << std::endl;
-      }
-      break;
-    }
-#endif  // TRITON_ENABLE_GPU
-    default:
-      std::cerr << "error: unexpected buffer allocated in CUDA managed memory"
-                << std::endl;
-      break;
-  }
-}
-
-void
-Check(
-    std::shared_ptr<tds::Tensor>& output0,
-    std::shared_ptr<tds::Tensor>& output1, const std::vector<char>& input0_data,
-    const std::vector<char>& input1_data, const std::string& output0_name,
-    const std::string& output1_name, const size_t expected_byte_size,
-    const tds::DataType expected_datatype, const std::string& model_name,
-    const bool is_custom_alloc)
-{
-  std::unordered_map<std::string, std::vector<char>> output_data;
-  for (auto& output :
-       {std::make_pair(output0_name, output0),
-        std::make_pair(output1_name, output1)}) {
-    if (model_name == "add_sub") {
-      if ((output.second->shape_.size() != 1) ||
-          (output.second->shape_[0] != 16)) {
-        FAIL("unexpected shape for '" + output.first + "'");
-      }
-    } else if (model_name == "simple") {
-      if ((output.second->shape_.size() != 2) ||
-          (output.second->shape_[0] != 1) || (output.second->shape_[1] != 16)) {
-        FAIL("unexpected shape for '" + output.first + "'");
-      }
-    } else {
-      FAIL("unexpected model name '" + model_name + "'");
-    }
-
-    if (output.second->data_type_ != expected_datatype) {
-      FAIL(
-          "unexpected datatype '" +
-          std::string(DataTypeString(output.second->data_type_)) + "' for '" +
-          output.first + "'");
-    }
-
-    if (output.second->byte_size_ != expected_byte_size) {
-      FAIL(
-          "unexpected byte-size, expected " +
-          std::to_string(expected_byte_size) + ", got " +
-          std::to_string(output.second->byte_size_) + " for " + output.first);
-    }
-
-    // For this example, we use default allocator and pre-allocated buffer in
-    // the first and second infer requests, so the memory type for both cases
-    // should be 'CPU'.
-    if (is_custom_alloc) {
-      if (enforce_memory_type &&
-          (output.second->memory_type_ != requested_memory_type)) {
-        FAIL(
-            "unexpected memory type, expected to be allocated in " +
-            std::string(MemoryTypeString(requested_memory_type)) + ", got " +
-            std::string(MemoryTypeString(output.second->memory_type_)) +
-            ", id " + std::to_string(output.second->memory_type_id_) + " for " +
-            output.first);
-      }
-    } else {
-      if (output.second->memory_type_ != tds::MemoryType::CPU) {
-        FAIL(
-            "unexpected memory type, expected to be allocated in CPU, got " +
-            std::string(MemoryTypeString(output.second->memory_type_)) +
-            ", id " + std::to_string(output.second->memory_type_id_) + " for " +
-            output.first);
-      }
-    }
-
-    // We make a copy of the data here... which we could avoid for
-    // performance reasons but ok for this simple example.
-    std::vector<char>& odata = output_data[output.first];
-    switch (output.second->memory_type_) {
-      case tds::MemoryType::CPU: {
-        std::cout << output.first << " is stored in system memory" << std::endl;
-        odata.assign(
-            output.second->buffer_,
-            output.second->buffer_ + output.second->byte_size_);
-        break;
-      }
-
-      case tds::MemoryType::CPU_PINNED: {
-        std::cout << output.first << " is stored in pinned memory" << std::endl;
-        odata.assign(
-            output.second->buffer_,
-            output.second->buffer_ + output.second->byte_size_);
-        break;
-      }
-
-#ifdef TRITON_ENABLE_GPU
-      case tds::MemoryType::GPU: {
-        std::cout << output.first << " is stored in GPU memory" << std::endl;
-        odata.reserve(output.second->byte_size_);
-        FAIL_IF_CUDA_ERR(
-            cudaMemcpy(
-                &odata[0], output.second->buffer_, output.second->byte_size_,
-                cudaMemcpyDeviceToHost),
-            "getting " + output.first + " data from GPU memory");
-        break;
-      }
-#endif
-
-      default:
-        FAIL("unexpected memory type");
-    }
-  }
-
-  CompareResult<int32_t>(
-      output0_name, output1_name, &input0_data[0], &input1_data[0],
-      output_data[output0_name].data(), output_data[output1_name].data());
-}
-
 }  // namespace
 
 int
@@ -384,24 +97,8 @@ main(int argc, char** argv)
 
   // Parse commandline...
   int opt;
-  while ((opt = getopt(argc, argv, "vm:r:")) != -1) {
+  while ((opt = getopt(argc, argv, "v:r:")) != -1) {
     switch (opt) {
-      case 'm': {
-        enforce_memory_type = true;
-        if (!strcmp(optarg, "system")) {
-          requested_memory_type = tds::MemoryType::CPU;
-        } else if (!strcmp(optarg, "pinned")) {
-          requested_memory_type = tds::MemoryType::CPU_PINNED;
-        } else if (!strcmp(optarg, "gpu")) {
-          requested_memory_type = tds::MemoryType::GPU;
-        } else {
-          Usage(
-              argv,
-              "-m must be used to specify one of the following types:"
-              " <\"system\"|\"pinned\"|gpu>");
-        }
-        break;
-      }
       case 'v':
         verbose_level = 1;
         break;
@@ -411,11 +108,6 @@ main(int argc, char** argv)
     }
   }
 
-#ifndef TRITON_ENABLE_GPU
-  if (enforce_memory_type && requested_memory_type != TRITONSERVER_MEMORY_CPU) {
-    Usage(argv, "-m can only be set to \"system\" without enabling GPU");
-  }
-#endif  // TRITON_ENABLE_GPU
 
   try {
     // Use 'ServerOptions' object to initialize TritonServer. Here we set model
