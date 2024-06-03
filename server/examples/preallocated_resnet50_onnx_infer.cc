@@ -123,8 +123,10 @@ main(int argc, char** argv)
         "trace_file", tds::Trace::Level::TIMESTAMPS, 1, -1, 0);
     auto server = tds::TritonServer::Create(options);
 
-    // Load resnet50 ONNX models.
+    // Load three differen ONNX models.
     server->LoadModel("resnet50");
+    server->LoadModel("densenet");
+    server->LoadModel("inception_v1");
 
     // Use 'ModelIndex' function to see model repository contents. Here we
     // should see both 'simple' and 'add_sub' models are ready.
@@ -138,10 +140,11 @@ main(int argc, char** argv)
     // Initialize 'InferRequest' with the name of the model that we want to run
     // an inference on.
     auto request1 = tds::InferRequest::Create(tds::InferOptions("resnet50"));
-    auto request2 = tds::InferRequest::Create(tds::InferOptions("resnet50"));
-    auto request3 = tds::InferRequest::Create(tds::InferOptions("resnet50"));
+    auto request2 = tds::InferRequest::Create(tds::InferOptions("densenet"));
+    auto request3 =
+        tds::InferRequest::Create(tds::InferOptions("inception_v1"));
 
-    // Add two input tensors to the inference request.
+    // Generate input data
     std::vector<char> input0_data;
     GenerateInputData<float>(&input0_data);
     size_t input0_size = input0_data.size();
@@ -161,12 +164,12 @@ main(int argc, char** argv)
         tds::DataType::FP32, {3, 224, 224}, tds::MemoryType::CPU, 0);
 
     request2->AddInput(
-        "gpu_0/data_0", input1_data.begin(), input1_data.end(),
-        tds::DataType::FP32, {3, 224, 224}, tds::MemoryType::CPU, 0);
+        "data_0", input1_data.begin(), input1_data.end(), tds::DataType::FP32,
+        {3, 224, 224}, tds::MemoryType::CPU, 0);
 
     request3->AddInput(
-        "gpu_0/data_0", input2_data.begin(), input2_data.end(),
-        tds::DataType::FP32, {3, 224, 224}, tds::MemoryType::CPU, 0);
+        "data_0", input2_data.begin(), input2_data.end(), tds::DataType::FP32,
+        {3, 224, 224}, tds::MemoryType::CPU, 0);
 
     // For this inference, we provide pre-allocated buffer for output. The infer
     // result will be stored in-place to the buffer.
@@ -185,8 +188,8 @@ main(int argc, char** argv)
         tds::MemoryType::CPU, 0);
 
     request1->AddRequestedOutput("gpu_0/softmax_1", alloc_output0);
-    request2->AddRequestedOutput("gpu_0/softmax_1", alloc_output1);
-    request3->AddRequestedOutput("gpu_0/softmax_1", alloc_output2);
+    request2->AddRequestedOutput("fc6_1", alloc_output1);
+    request3->AddRequestedOutput("prob_1", alloc_output2);
 
     // Warm-Up
     for (int i = 0; i < 10000; i++) {
@@ -224,7 +227,7 @@ main(int argc, char** argv)
         nvtx3::scoped_range loop{"three inferences"};  // Range for iteration
 
         {
-          nvtx3::scoped_range loop{"first inference"};  // Range for iteration
+          nvtx3::scoped_range loop{"resnet inference"};  // Range for iteration
           // Call 'AsyncInfer' function to run inference.
           auto result_future1 = server->AsyncInfer(*request1);
 
@@ -236,7 +239,8 @@ main(int argc, char** argv)
         }
 
         {
-          nvtx3::scoped_range loop{"second inference"};  // Range for iteration
+          nvtx3::scoped_range loop{
+              "densenet inference"};  // Range for iteration
           auto result_future2 = server->AsyncInfer(*request2);
 
           // Get the infer result and check the result.
@@ -247,7 +251,8 @@ main(int argc, char** argv)
         }
 
         {
-          nvtx3::scoped_range loop{"third inference"};  // Range for iteration
+          nvtx3::scoped_range loop{
+              "inception inference"};  // Range for iteration
           auto result_future3 = server->AsyncInfer(*request3);
 
           // Get the infer result and check the result.
@@ -274,9 +279,18 @@ main(int argc, char** argv)
     std::string model_stat = server->ModelStatistics("resnet50", 1);
     std::cout << "\n\n\n=========Model Statistics===========\n"
               << model_stat << "\n";
+    model_stat = server->ModelStatistics("densenet", 1);
+    std::cout << "\n\n\n=========Model Statistics===========\n"
+              << model_stat << "\n";
+    model_stat = server->ModelStatistics("inception_v1", 1);
+    std::cout << "\n\n\n=========Model Statistics===========\n"
+              << model_stat << "\n";
 
-    // Unload 'add_sub' model as we don't need it anymore.
+
+    // Unload model as we don't need it anymore.
     server->UnloadModel("resnet50");
+    server->UnloadModel("densenet");
+    server->UnloadModel("inception_v1");
   }
   catch (const tds::TritonException& ex) {
     std::cerr << "Error: " << ex.what();
