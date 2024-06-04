@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <nvtx3/nvtx3.hpp>
+#include <vector>
 
 #include "triton/developer_tools/onnxruntime_c_api.h"
 
@@ -20,6 +21,31 @@ check_status(OrtStatus* status)
   }
 }
 
+struct InferContext {
+  OrtSession* session_;
+  size_t num_input_nodes_;
+  OrtAllocator* allocator_;
+  char* input_name_;
+
+  OrtTypeInfo* type_info_;
+  ONNXTensorElementDataType type_;
+  const OrtTensorTypeAndShapeInfo* tensor_info_;
+
+  size_t num_dims_;
+  int64_t* input_node_dims_;
+
+  float* input_tensor_values_;
+  char* output_name_;
+
+  OrtMemoryInfo* memory_info_;
+
+  OrtValue* input_tensor_;
+  OrtValue* output_tensor_;
+
+  const char* input_names_[1];
+  const char* output_names_[1];
+};
+
 int
 main()
 {
@@ -33,9 +59,9 @@ main()
   // Create session options and enable CUDA as the execution provider
   OrtSessionOptions* session_options;
   check_status(g_ort->CreateSessionOptions(&session_options));
-  check_status(g_ort->SetIntraOpNumThreads(session_options, 1));
-  check_status(g_ort->SetInterOpNumThreads(session_options, 1));
-  check_status(g_ort->SetSessionGraphOptimizationLevel(session_options, GraphOptimizationLevel::ORT_ENABLE_EXTENDED));
+  //check_status(g_ort->SetIntraOpNumThreads(session_options, 1));
+  //check_status(g_ort->SetInterOpNumThreads(session_options, 1));
+  //check_status(g_ort->SetSessionGraphOptimizationLevel(session_options, GraphOptimizationLevel::ORT_ENABLE_EXTENDED));
 
   // Could this be the stream?
   OrtCUDAProviderOptions cuda_options;
@@ -50,83 +76,79 @@ main()
   check_status(g_ort->SessionOptionsAppendExecutionProvider_CUDA(
       session_options, &cuda_options));  // 0 for the default GPU device
 
-  // Load the ONNX model
-  const char* model_path =
-      "/work/server/build/install/bin/models/resnet50/1/resnet50-1.2.onnx";
-  OrtSession* session;
-  check_status(
-      g_ort->CreateSession(env, model_path, session_options, &session));
+  std::vector<std::string> model_names{"bmode_perspective", "aortic_stenosis", "plax_chamber"};
+  std::vector<InferContext> infer_contexts;
 
-  // Get input and output information
-  size_t num_input_nodes;
-  OrtAllocator* allocator;
-  check_status(g_ort->GetAllocatorWithDefaultOptions(&allocator));
+  for(const auto model_name: model_names) {
+    std::string model_path = std::string("/work/server/build/install/bin/holoscan_models/" + model_name + "/1/model.onnx");
+    std::cout << "Loading model from " << model_path << std::endl;
+    InferContext context;
+    check_status(
+      g_ort->CreateSession(env, model_path.c_str(), session_options, &context.session_));
 
-  check_status(g_ort->SessionGetInputCount(session, &num_input_nodes));
-  char* input_name;
-  check_status(g_ort->SessionGetInputName(session, 0, allocator, &input_name));
+  check_status(g_ort->GetAllocatorWithDefaultOptions(&context.allocator_));
+  check_status(g_ort->SessionGetInputCount(context.session_, &context.num_input_nodes_));
+  check_status(g_ort->SessionGetInputName(context.session_, 0, context.allocator_, &context.input_name_));
 
-  OrtTypeInfo* type_info;
-  check_status(g_ort->SessionGetInputTypeInfo(session, 0, &type_info));
-  const OrtTensorTypeAndShapeInfo* tensor_info;
-  check_status(g_ort->CastTypeInfoToTensorInfo(type_info, &tensor_info));
+  check_status(g_ort->SessionGetInputTypeInfo(context.session_, 0, &context.type_info_));
+  
+  check_status(g_ort->CastTypeInfoToTensorInfo(context.type_info_, &context.tensor_info_));
+  check_status(g_ort->GetTensorElementType(context.tensor_info_, &context.type_));
 
-  ONNXTensorElementDataType type;
-  check_status(g_ort->GetTensorElementType(tensor_info, &type));
-
-  size_t num_dims;
-  check_status(g_ort->GetDimensionsCount(tensor_info, &num_dims));
-  int64_t* input_node_dims = (int64_t*)malloc(num_dims * sizeof(int64_t));
-  check_status(g_ort->GetDimensions(tensor_info, input_node_dims, num_dims));
+  check_status(g_ort->GetDimensionsCount(context.tensor_info_, &context.num_dims_));
+  context.input_node_dims_ = (int64_t*)malloc(context.num_dims_ * sizeof(int64_t));
+  check_status(g_ort->GetDimensions(context.tensor_info_, context.input_node_dims_, context.num_dims_));
 
   // Prepare input data (example for a single float input)
   size_t elem_cnt = 1;
-  for (size_t i = 0; i < num_dims; i++) {
-    elem_cnt *= input_node_dims[i];
+  for (size_t i = 0; i < context.num_dims_; i++) {
+    if (context.input_node_dims_[i] < 0) {
+      context.input_node_dims_[i] = 1;
+    }
+    elem_cnt *=  context.input_node_dims_[i];
   }
-  float* input_tensor_values = (float*)malloc(elem_cnt * sizeof(float));
+  context.input_tensor_values_ = (float*)malloc(elem_cnt * sizeof(float));
   for (size_t i = 0; i < elem_cnt; i++) {
-    input_tensor_values[i] = (float)i;
+    context.input_tensor_values_[i] = 1.0 * (std::rand()%256);
   }
 
-  OrtMemoryInfo* memory_info;
   check_status(g_ort->CreateCpuMemoryInfo(
-      OrtArenaAllocator, OrtMemTypeDefault, &memory_info));
+      OrtArenaAllocator, OrtMemTypeDefault, &context.memory_info_));
 
-  OrtValue* input_tensor = NULL;
+  context.input_tensor_ = NULL;
   check_status(g_ort->CreateTensorWithDataAsOrtValue(
-      memory_info, input_tensor_values, elem_cnt * sizeof(float),
-      input_node_dims, num_dims, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT,
-      &input_tensor));
+      context.memory_info_, context.input_tensor_values_, elem_cnt * sizeof(float),
+      context.input_node_dims_, context.num_dims_, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT,
+      &context.input_tensor_));
 
   int is_tensor;
-  check_status(g_ort->IsTensor(input_tensor, &is_tensor));
+  check_status(g_ort->IsTensor(context.input_tensor_, &is_tensor));
 
   // Prepare output data
-  char* output_name;
   check_status(
-      g_ort->SessionGetOutputName(session, 0, allocator, &output_name));
+      g_ort->SessionGetOutputName(context.session_, 0, context.allocator_, &context.output_name_));
 
-  // Run the model
-  OrtValue* output_tensor0 = NULL;
-  OrtValue* output_tensor1 = NULL;
-  OrtValue* output_tensor2 = NULL;
+  context.output_tensor_ = NULL;
+  context.input_names_[0] = context.input_name_;
+  context.output_names_[0] = context.output_name_;
 
-  const char* input_names[] = {input_name};
-  const char* output_names[] = {output_name};
+  infer_contexts.push_back(context);
+  }
+
   std::chrono::duration<double, std::milli> total_elapsed;
 
   // Warm-up
   for (int i = 0; i < 10000; i++) {
     check_status(g_ort->Run(
-        session, NULL, input_names, (const OrtValue* const*)&input_tensor, 1,
-        output_names, 1, &output_tensor0));
+        infer_contexts[0].session_, NULL, infer_contexts[0].input_names_, (const OrtValue* const*)&infer_contexts[0].input_tensor_, 1,
+        infer_contexts[0].output_names_, 1, &infer_contexts[0].output_tensor_));
     check_status(g_ort->Run(
-        session, NULL, input_names, (const OrtValue* const*)&input_tensor, 1,
-        output_names, 1, &output_tensor1));
+        infer_contexts[1].session_, NULL, infer_contexts[1].input_names_, (const OrtValue* const*)&infer_contexts[1].input_tensor_, 1,
+        infer_contexts[1].output_names_, 1, &infer_contexts[1].output_tensor_));
     check_status(g_ort->Run(
-        session, NULL, input_names, (const OrtValue* const*)&input_tensor, 1,
-        output_names, 1, &output_tensor2));
+        infer_contexts[2].session_, NULL, infer_contexts[2].input_names_, (const OrtValue* const*)&infer_contexts[2].input_tensor_, 1,
+        infer_contexts[2].output_names_, 1, &infer_contexts[2].output_tensor_));
+
   }
 
 
@@ -139,20 +161,20 @@ main()
       {
         nvtx3::scoped_range loop{"first inferences"};  // Range for iteration
         check_status(g_ort->Run(
-            session, NULL, input_names, (const OrtValue* const*)&input_tensor,
-            1, output_names, 1, &output_tensor0));
+        infer_contexts[0].session_, NULL, infer_contexts[0].input_names_, (const OrtValue* const*)&infer_contexts[0].input_tensor_, 1,
+        infer_contexts[0].output_names_, 1, &infer_contexts[0].output_tensor_));
       }
       {
         nvtx3::scoped_range loop{"second inferences"};  // Range for iteration
         check_status(g_ort->Run(
-            session, NULL, input_names, (const OrtValue* const*)&input_tensor,
-            1, output_names, 1, &output_tensor1));
+        infer_contexts[1].session_, NULL, infer_contexts[1].input_names_, (const OrtValue* const*)&infer_contexts[1].input_tensor_, 1,
+        infer_contexts[1].output_names_, 1, &infer_contexts[1].output_tensor_));
       }
       {
         nvtx3::scoped_range loop{"third inferences"};  // Range for iteration
         check_status(g_ort->Run(
-            session, NULL, input_names, (const OrtValue* const*)&input_tensor,
-            1, output_names, 1, &output_tensor2));
+        infer_contexts[2].session_, NULL, infer_contexts[2].input_names_, (const OrtValue* const*)&infer_contexts[2].input_tensor_, 1,
+        infer_contexts[2].output_names_, 1, &infer_contexts[2].output_tensor_));
       }
     }
 
@@ -181,16 +203,19 @@ main()
   //}
 
   // Clean up
-  g_ort->ReleaseValue(output_tensor0);
-  g_ort->ReleaseValue(output_tensor1);
-  g_ort->ReleaseValue(output_tensor2);
 
-  g_ort->ReleaseValue(input_tensor);
-  g_ort->ReleaseMemoryInfo(memory_info);
-  free(input_tensor_values);
-  free(input_node_dims);
-  g_ort->ReleaseTypeInfo(type_info);
-  g_ort->ReleaseSession(session);
+  for (auto context: infer_contexts) {
+    g_ort->ReleaseValue(context.output_tensor_);
+
+  g_ort->ReleaseValue(context.input_tensor_);
+  g_ort->ReleaseMemoryInfo(context.memory_info_);
+  free(context.input_tensor_values_);
+  free(context.input_node_dims_);
+  g_ort->ReleaseTypeInfo(context.type_info_);
+  g_ort->ReleaseSession(context.session_);
+
+  }
+  
   g_ort->ReleaseSessionOptions(session_options);
   g_ort->ReleaseEnv(env);
 

@@ -81,11 +81,11 @@ Usage(char** argv, const std::string& msg = std::string())
 
 template <typename T>
 void
-GenerateInputData(std::vector<char>* input0_data)
+GenerateInputData(std::vector<char>* input0_data, const int element_count)
 {
-  input0_data->resize(150528 * sizeof(T));
-  for (size_t i = 0; i < 150528; ++i) {
-    ((T*)input0_data->data())[i] = 1.0 * i;
+  input0_data->resize(element_count * sizeof(T));
+  for (size_t i = 0; i < element_count; ++i) {
+    ((T*)input0_data->data())[i] = 1.0 * (std::rand()%256);
   }
 }
 }  // namespace
@@ -113,7 +113,7 @@ main(int argc, char** argv)
     // Use 'ServerOptions' object to initialize TritonServer. Here we set model
     // control mode to 'EXPLICIT' so that we are able to load and unload models
     // after startup.
-    tds::ServerOptions options({"./models"});
+    tds::ServerOptions options({"./holoscan_models"});
     options.logging_.verbose_ =
         tds::LoggingOptions::VerboseLevel(verbose_level);
     options.model_control_mode_ = tds::ModelControlMode::EXPLICIT;
@@ -124,9 +124,9 @@ main(int argc, char** argv)
     auto server = tds::TritonServer::Create(options);
 
     // Load three differen ONNX models.
-    server->LoadModel("resnet50");
-    server->LoadModel("densenet");
-    server->LoadModel("inception_v1");
+    server->LoadModel("bmode_perspective");
+    server->LoadModel("aortic_stenosis");
+    server->LoadModel("plax_chamber");
 
     // Use 'ModelIndex' function to see model repository contents. Here we
     // should see both 'simple' and 'add_sub' models are ready.
@@ -139,57 +139,57 @@ main(int argc, char** argv)
 
     // Initialize 'InferRequest' with the name of the model that we want to run
     // an inference on.
-    auto request1 = tds::InferRequest::Create(tds::InferOptions("resnet50"));
-    auto request2 = tds::InferRequest::Create(tds::InferOptions("densenet"));
+    auto request1 = tds::InferRequest::Create(tds::InferOptions("bmode_perspective"));
+    auto request2 = tds::InferRequest::Create(tds::InferOptions("aortic_stenosis"));
     auto request3 =
-        tds::InferRequest::Create(tds::InferOptions("inception_v1"));
+        tds::InferRequest::Create(tds::InferOptions("plax_chamber"));
 
     // Generate input data
     std::vector<char> input0_data;
-    GenerateInputData<float>(&input0_data);
+    GenerateInputData<float>(&input0_data, 230400);
     size_t input0_size = input0_data.size();
 
     std::vector<char> input1_data;
-    GenerateInputData<float>(&input1_data);
+    GenerateInputData<float>(&input1_data, 270000);
     size_t input1_size = input1_data.size();
 
     std::vector<char> input2_data;
-    GenerateInputData<float>(&input2_data);
+    GenerateInputData<float>(&input2_data, 307200);
     size_t input2_size = input2_data.size();
 
 
     // Use the iterator of input vector to add input data to a request.
     request1->AddInput(
-        "gpu_0/data_0", input0_data.begin(), input0_data.end(),
-        tds::DataType::FP32, {3, 224, 224}, tds::MemoryType::CPU, 0);
+        "input_1", input0_data.begin(), input0_data.end(),
+        tds::DataType::FP32, {1, 240, 320, 3}, tds::MemoryType::CPU, 0);
 
     request2->AddInput(
-        "data_0", input1_data.begin(), input1_data.end(), tds::DataType::FP32,
-        {3, 224, 224}, tds::MemoryType::CPU, 0);
+        "input_1", input1_data.begin(), input1_data.end(), tds::DataType::FP32,
+        {1, 300, 300, 3}, tds::MemoryType::CPU, 0);
 
     request3->AddInput(
-        "data_0", input2_data.begin(), input2_data.end(), tds::DataType::FP32,
-        {3, 224, 224}, tds::MemoryType::CPU, 0);
+        "input_1", input2_data.begin(), input2_data.end(), tds::DataType::FP32,
+        {1, 320, 320, 3}, tds::MemoryType::CPU, 0);
 
     // For this inference, we provide pre-allocated buffer for output. The infer
     // result will be stored in-place to the buffer.
-    std::shared_ptr<void> allocated_output0(malloc(4000), free);
-    std::shared_ptr<void> allocated_output1(malloc(4000), free);
-    std::shared_ptr<void> allocated_output2(malloc(4000), free);
+    std::shared_ptr<void> allocated_output0(malloc(112), free);
+    std::shared_ptr<void> allocated_output1(malloc(8), free);
+    std::shared_ptr<void> allocated_output2(malloc(2457600), free);
 
     tds::Tensor alloc_output0(
-        reinterpret_cast<char*>(allocated_output0.get()), 4000,
+        reinterpret_cast<char*>(allocated_output0.get()), 112,
         tds::MemoryType::CPU, 0);
     tds::Tensor alloc_output1(
-        reinterpret_cast<char*>(allocated_output1.get()), 4000,
+        reinterpret_cast<char*>(allocated_output1.get()), 8,
         tds::MemoryType::CPU, 0);
     tds::Tensor alloc_output2(
-        reinterpret_cast<char*>(allocated_output2.get()), 4000,
+        reinterpret_cast<char*>(allocated_output2.get()), 2457600,
         tds::MemoryType::CPU, 0);
 
-    request1->AddRequestedOutput("gpu_0/softmax_1", alloc_output0);
-    request2->AddRequestedOutput("fc6_1", alloc_output1);
-    request3->AddRequestedOutput("prob_1", alloc_output2);
+    request1->AddRequestedOutput("output_1", alloc_output0);
+    request2->AddRequestedOutput("output_1", alloc_output1);
+    request3->AddRequestedOutput("lambda_4", alloc_output2);
 
     // Warm-Up
     for (int i = 0; i < 10000; i++) {
@@ -227,7 +227,7 @@ main(int argc, char** argv)
         nvtx3::scoped_range loop{"three inferences"};  // Range for iteration
 
         {
-          nvtx3::scoped_range loop{"resnet inference"};  // Range for iteration
+          nvtx3::scoped_range loop{"bmode_perspective inference"};  // Range for iteration
           // Call 'AsyncInfer' function to run inference.
           auto result_future1 = server->AsyncInfer(*request1);
 
@@ -240,7 +240,7 @@ main(int argc, char** argv)
 
         {
           nvtx3::scoped_range loop{
-              "densenet inference"};  // Range for iteration
+              "aortic_stenosis inference"};  // Range for iteration
           auto result_future2 = server->AsyncInfer(*request2);
 
           // Get the infer result and check the result.
@@ -252,7 +252,7 @@ main(int argc, char** argv)
 
         {
           nvtx3::scoped_range loop{
-              "inception inference"};  // Range for iteration
+              "plax_chamber inference"};  // Range for iteration
           auto result_future3 = server->AsyncInfer(*request3);
 
           // Get the infer result and check the result.
@@ -276,21 +276,21 @@ main(int argc, char** argv)
               << std::endl;
 
     // Get the server metrics.
-    std::string model_stat = server->ModelStatistics("resnet50", 1);
+    std::string model_stat = server->ModelStatistics("bmode_perspective", 1);
     std::cout << "\n\n\n=========Model Statistics===========\n"
               << model_stat << "\n";
-    model_stat = server->ModelStatistics("densenet", 1);
+    model_stat = server->ModelStatistics("aortic_stenosis", 1);
     std::cout << "\n\n\n=========Model Statistics===========\n"
               << model_stat << "\n";
-    model_stat = server->ModelStatistics("inception_v1", 1);
+    model_stat = server->ModelStatistics("plax_chamber", 1);
     std::cout << "\n\n\n=========Model Statistics===========\n"
               << model_stat << "\n";
 
 
     // Unload model as we don't need it anymore.
-    server->UnloadModel("resnet50");
-    server->UnloadModel("densenet");
-    server->UnloadModel("inception_v1");
+    server->UnloadModel("bmode_perspective");
+    server->UnloadModel("aortic_stenosis");
+    server->UnloadModel("plax_chamber");
   }
   catch (const tds::TritonException& ex) {
     std::cerr << "Error: " << ex.what();
