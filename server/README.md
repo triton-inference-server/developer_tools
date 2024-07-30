@@ -58,7 +58,7 @@ the build. By default the "main" branch/tag will be used for each repo
 but the listed CMake argument can be used to override.
 
 * triton-inference-server/common: -DTRITON_COMMON_REPO_TAG=[tag]
-* triton-inference-server/backend: -DTRITON_BACKEND_REPO_TAG=[tag]
+* triton-inference-server/core: -DTRITON_CORE_REPO_TAG=[tag]
 
 See the [CMakeLists.txt](CMakeLists.txt) file for other build options.
 
