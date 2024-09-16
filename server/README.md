@@ -171,6 +171,14 @@ A future of a unique pointer of `InferResult` object will be returned from
 `AsyncInfer` function, and the result can be retrieved whenever needed by
 calling `future.get()`.
 
+> [!Note]
+> For
+> [decoupled models](https://github.com/triton-inference-server/python_backend/tree/main/examples/decoupled#decoupled-model-examples)
+> with multi-part responses we recommend using the example `GetResults`
+> function, as demonstrated in
+> [square_async_infer.cc](examples/square_async_infer.cc), to ensure the entire
+> response from the model is collected.
+
 When running inference, Server Wrapper provides three options for the
 allocation and deallocation of output tensors.
 
