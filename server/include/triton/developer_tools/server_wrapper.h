@@ -410,7 +410,7 @@ InferRequest::AddInput(
 template <
     typename Iterator, typename std::enable_if<!std::is_same<
                            typename std::iterator_traits<Iterator>::value_type,
-                           std::string>::value>::type* = nullptr>
+                           std::string>::value>::type*>
 void
 InferRequest::AddInput(
     const std::string& name, const Iterator begin, const Iterator end,
