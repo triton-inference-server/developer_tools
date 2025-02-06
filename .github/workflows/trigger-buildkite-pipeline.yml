@@ -1,5 +1,3 @@
-on: [push]
-
 steps:
    - name: Trigger a Buildkite Build on Push using v2.0.0
      uses: buildkite/trigger-pipeline-action@v2.0.0
