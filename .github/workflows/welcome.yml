@@ -1,0 +1,26 @@
+name: PR Reminder Comment Bot
+on:
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  pr_reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment to run full CI on PR
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '👋 Hi! Thank you for contributing to the Triton Distributed project.\n\n' +
+                '💬 Join our developer Slack at <> to discuss your PR in #pr-reviews and coordinate on features in #feat- channels.\n\n' +
+                'Just a reminder: PRs would not trigger full CI run by default. Instead, it would only run `fastcheck` CI which starts running only a small and essential subset of CI tests to quickly catch errors. You can run other CI tests on top of those by going to your `fastcheck` build on Buildkite UI (linked in the PR checks section) and unblock them. If you do not have permission to unblock, ping `<>` or `<>` to add you in our Buildkite org.\n\n' +
+                'Once the PR is approved and ready to go, your PR reviewer(s) can run CI to test the changes comprehensively before merging.\n\n' +
+                'To run CI, PR reviewers can either: Add `ready` label to the PR or enable auto-merge.\n\n' +
+                '🚀'
+            })
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
