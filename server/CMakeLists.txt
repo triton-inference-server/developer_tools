@@ -68,14 +68,12 @@ FetchContent_MakeAvailable(repo-common repo-core)
 #
 if(${TRITON_ENABLE_GPU})
   find_package(CUDAToolkit REQUIRED)
-  find_package(CUDA REQUIRED)
-  message(STATUS "Using CUDA ${CUDA_VERSION}")
   set(CUDA_NVCC_FLAGS -std=c++11)
 
-  if(CUDA_VERSION VERSION_GREATER "10.1" OR CUDA_VERSION VERSION_EQUAL "10.1")
+  if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL "10.1")
     add_definitions(-DTRITON_ENABLE_CUDA_GRAPH=1)
   else()
-    message(WARNING "CUDA ${CUDA_VERSION} does not support CUDA graphs.")
+    message(WARNING "CUDA ${CUDAToolkit_VERSION} does not support CUDA graphs.")
   endif()
 endif() # TRITON_ENABLE_GPU
 
