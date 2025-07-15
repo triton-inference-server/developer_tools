@@ -1,4 +1,4 @@
-# Copyright 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright 2022-2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.31.8)
 
 project(tritondevelopertoolsserver LANGUAGES C CXX)
 
@@ -68,14 +68,12 @@ FetchContent_MakeAvailable(repo-common repo-core)
 #
 if(${TRITON_ENABLE_GPU})
   find_package(CUDAToolkit REQUIRED)
-  find_package(CUDA REQUIRED)
-  message(STATUS "Using CUDA ${CUDA_VERSION}")
   set(CUDA_NVCC_FLAGS -std=c++11)
 
-  if(CUDA_VERSION VERSION_GREATER "10.1" OR CUDA_VERSION VERSION_EQUAL "10.1")
+  if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL "10.1")
     add_definitions(-DTRITON_ENABLE_CUDA_GRAPH=1)
   else()
-    message(WARNING "CUDA ${CUDA_VERSION} does not support CUDA graphs.")
+    message(WARNING "CUDA ${CUDAToolkit_VERSION} does not support CUDA graphs.")
   endif()
 endif() # TRITON_ENABLE_GPU
 
