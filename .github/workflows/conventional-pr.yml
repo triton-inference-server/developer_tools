@@ -24,13 +24,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-- id: add-license
-  name: Add License
-  entry: tools/add_copyright.py
-  language: script
-  stages: [pre-commit]
-  verbose: true
-  require_serial: true
-  # GitHub issue/PR templates must start with YAML frontmatter; keep
-  # license headers out of them.
-  exclude: ^\.github/
+# Thin caller: the logic lives in the org-wide reusable workflow, pinned by
+# tag. Workflow changes ship as a new tag in the .github repository plus a
+# one-line rev bump here (tags are write-once, never moved).
+
+name: conventional-pr
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  conventional-pr:
+    permissions:
+      pull-requests: write
+    uses: triton-inference-server/.github/.github/workflows/conventional-pr.yml@v1.0.0
