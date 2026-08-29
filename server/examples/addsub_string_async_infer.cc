@@ -217,7 +217,7 @@ main(int argc, char** argv)
     std::string name = result->ModelName();
     std::string version = result->ModelVersion();
     std::string id = result->Id();
-    std::cout << "Ran inferencece on model '" << name << "', version '"
+    std::cout << "Ran inference on model '" << name << "', version '"
               << version << "', with request ID '" << id << "'\n";
 
     // Retrieve two outputs from the 'InferResult' object.
