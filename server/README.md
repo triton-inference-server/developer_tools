@@ -305,7 +305,7 @@ decoupled models, please refer to
 When running the examples, make sure the model repository is placed under the
 same path, and `LD_LIBRARY_PATH` is set properly for `libtritonserver.so`.
 
-```
+```sh
 # Prepare the models required by the examples.
 
 $ cd /path/to/developer_tools/server
