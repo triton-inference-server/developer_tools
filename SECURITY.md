@@ -30,118 +30,51 @@
 
 ## Reporting a Vulnerability
 
-Please do **not** report security vulnerabilities through public GitHub
-issues, discussions, or pull requests.
+NVIDIA is dedicated to the security and trust of our software products and services, including all source code repositories managed through our organization.
 
-To report a potential security vulnerability in any NVIDIA product, use one of
-the following channels:
+To report a potential security vulnerability, please use one of the following channels:
 
-1. **NVIDIA Vulnerability Disclosure Program** (preferred):
-   <https://www.nvidia.com/en-us/security/>
-2. **Email:** [psirt@nvidia.com](mailto:psirt@nvidia.com). Please encrypt
-   sensitive reports with NVIDIA's public PGP key:
-   <https://www.nvidia.com/en-us/security/pgp-key>
-3. **GitHub Private Vulnerability Reporting:** use the "Report a
-   vulnerability" button on this repository's **Security** tab, where enabled.
+1. **NVIDIA Vulnerability Disclosure Program** (preferred): https://www.nvidia.com/en-us/security/
+2. **Web form:** [Security Vulnerability Submission Form](https://www.nvidia.com/object/submit-security-vulnerability.html)
+3. **Email:** [NVIDIA PSIRT](mailto:psirt@nvidia.com). Please encrypt sensitive reports with NVIDIA's [PGP key](https://www.nvidia.com/en-us/security/pgp-key).
+4. **GitHub Private Vulnerability Reporting (where enabled):** use the "Report a vulnerability" button on the Security tab of this repository.
+
+**Do not open a public issue or pull request to report a vulnerability.**
 
 Please include:
 
-1. Product name and version, branch, or commit that contains the
-   vulnerability.
-2. Type of vulnerability (for example code execution, denial of service,
-   buffer overflow, path traversal).
-3. Step-by-step instructions to reproduce the issue.
-4. Proof-of-concept or exploit code, if available.
-5. Potential impact, including how an attacker could exploit the issue.
+* Product or component name and version or branch
+* Type of vulnerability
+* Steps to reproduce
+* Proof of concept, if available
+* Potential impact and how it could be exploited
 
-NVIDIA PSIRT acknowledges reports, assesses them, and coordinates fixes and
-disclosure with the reporter. OEM partners should contact their NVIDIA
-Customer Program Manager. Past bulletins are listed at
-<https://www.nvidia.com/en-us/security/>.
+See https://www.nvidia.com/en-us/security/ for past NVIDIA Security Bulletins and Notices.
 
 ## Security Architecture and Context
 
-**Project:** Triton Developer Tools, a set of helper libraries and tooling
-for building applications on top of the Triton Inference Server.
+**Project:** developer_tools is part of the Triton Inference Server project.
 
-**Classification:** Library / SDK, plus build and development tooling. It is
-not a network service and does not open listening sockets itself.
+**Software type:** Software component (library, backend, client or tool) used as part of a Triton Inference Server deployment.
 
-**Components:**
+**Security boundaries:** The main security boundary is between this component and the data, models and configuration it is given, and between it and the server or application that hosts it.
 
-- `server/` is a C++11 wrapper library (`TritonServer`, `InferRequest`,
-  `InferResult`, and a trace manager) over the in-process Triton Server C API
-  (`libtritonserver`), with example programs and a unit test.
-- `tools/add_copyright.py` and `.pre-commit-hooks.yaml` provide the
-  `add-license` pre-commit hook used by Triton repositories. It reads and
-  rewrites source files in the repository where it runs.
-- `server/install_dependencies_and_build.sh` installs build dependencies and
-  builds the wrapper.
-- `qa/` contains test scripts and sample Python model fixtures.
+**Repository Exposure Classification:** Public.
 
-**Primary security responsibility:** correct handling of caller-supplied model
-repository paths, tensor buffers, memory types, and trace file paths when
-passing them to the Triton core library, and safe, bounded file modification
-by the license hook.
-
-**Key boundaries and interfaces:**
-
-- The public C++ API in `server/include/triton/developer_tools/`.
-- Pre-commit hook invocation with file paths supplied by pre-commit.
-- Build-time package installation and downloads.
-
-**Repository Exposure Classification:** Public. Basis: the repository is
-publicly visible on GitHub.
-
-**Service Exposure Classification:** Internal-Isolated, medium confidence.
-Basis: the code is an embedded library and developer tool with no network
-listeners and no authentication surface of its own. Exposure is inherited
-from the application that embeds it.
+**Service Exposure Classification:** Deployment-dependent. Exposure depends on how the software is deployed and configured by the operator.
 
 ## Threat Model
 
-1. **Untrusted model repository or model content:** `TritonServer::Create`
-   accepts a model repository path from the embedding application. A
-   repository containing a malicious model or backend library can execute
-   code in the host process, because models and backends are loaded
-   in-process.
-2. **Unsafe buffer and memory handling in the tensor API:** `InferRequest`
-   and `Tensor` accept caller-provided buffers, sizes, data types, and memory
-   types (CPU, pinned, GPU). Mismatched sizes or types supplied by a caller
-   can lead to out-of-bounds reads or writes in the C++ wrapper.
-3. **Trace file path abuse:** the trace manager in `server/src/tracer.cc`
-   writes trace output to caller-supplied file paths. An attacker who
-   controls that path or its location may overwrite files or cause
-   unbounded disk usage through a high trace rate.
-4. **Unintended file modification by the license hook:**
-   `tools/add_copyright.py` rewrites files in place. Running it on untrusted
-   or unexpected paths, or through symlinks, can modify files outside the
-   intended repository.
-5. **Build-time supply chain:** `server/install_dependencies_and_build.sh`
-   adds an external package repository and signing key and installs a pinned
-   CMake version. At CMake configure time, `server/CMakeLists.txt` also
-   fetches the `common` and `core` repositories from Git, and
-   `TRITON_COMMON_REPO_TAG` and `TRITON_CORE_REPO_TAG` default to `main`, a
-   moving ref; pinning them to release tags is the available control.
-   Compromise of any of these sources or of the build base image would
-   affect built artifacts.
-6. **Pre-commit consumers pinned by tag:** downstream repositories consume
-   the `add-license` hook by tag. Replacing or moving a tag would change code
-   executed on every contributor's machine and in CI.
+1. **Untrusted input:** Requests, models, configuration or data supplied to this component may be malformed or malicious, and could cause crashes, memory errors or unintended behavior if not validated.
+2. **Supply chain:** Source and build dependencies fetched at build or install time may be compromised, outdated or unpinned.
+3. **Network exposure:** When deployed behind a network-facing server, endpoints may be reachable by untrusted clients. This component does not by itself provide authentication, authorization or encryption.
+4. **Resource exhaustion:** Oversized or numerous requests may consume memory, compute or other resources and degrade availability.
+5. **Information disclosure:** Logs, metrics and error messages may reveal sensitive data such as paths, identifiers or request content.
 
 ## Critical Security Assumptions
 
-- The embedding application is trusted and is responsible for authenticating
-  and authorizing its own users. This library provides no authentication,
-  authorization, or TLS.
-- Model repositories, backends, and shared libraries loaded by Triton come
-  from trusted sources. The library does not verify their integrity.
-- Callers validate tensor shapes, sizes, data types, and memory types before
-  passing them to the wrapper.
-- Trace file paths are chosen by the application operator and are not
-  attacker-controlled. The destination has sufficient disk space and
-  appropriate permissions.
-- The license hook runs only against files inside a trusted working tree.
-- Build environments, base images, and package mirrors used for
-  `install_dependencies_and_build.sh` are trusted.
-- Release tags are write-once and are not moved after publication.
+* The component is deployed in a trusted environment or behind a gateway that provides authentication, authorization, TLS and rate limiting.
+* Models, configuration and other inputs come from trusted sources.
+* Dependencies and the build environment are kept up to date and obtained from trusted sources.
+* Operators protect secrets, certificates and credentials, and restrict access to logs and metrics.
+* Host operating system, driver and hardware security are the operator's responsibility.
