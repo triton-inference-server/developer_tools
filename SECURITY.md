@@ -69,7 +69,7 @@ not a network service and does not open listening sockets itself.
 
 **Components:**
 
-- `server/` is a C++17 wrapper library (`TritonServer`, `InferRequest`,
+- `server/` is a C++11 wrapper library (`TritonServer`, `InferRequest`,
   `InferResult`, and a trace manager) over the in-process Triton Server C API
   (`libtritonserver`), with example programs and a unit test.
 - `tools/add_copyright.py` and `.pre-commit-hooks.yaml` provide the
@@ -119,7 +119,11 @@ from the application that embeds it.
    intended repository.
 5. **Build-time supply chain:** `server/install_dependencies_and_build.sh`
    adds an external package repository and signing key and installs a pinned
-   CMake version. Compromise of that source or of the build base image would
+   CMake version. At CMake configure time, `server/CMakeLists.txt` also
+   fetches the `common` and `core` repositories from Git, and
+   `TRITON_COMMON_REPO_TAG` and `TRITON_CORE_REPO_TAG` default to `main`, a
+   moving ref; pinning them to release tags is the available control.
+   Compromise of any of these sources or of the build base image would
    affect built artifacts.
 6. **Pre-commit consumers pinned by tag:** downstream repositories consume
    the `add-license` hook by tag. Replacing or moving a tag would change code
